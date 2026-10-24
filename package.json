@@ -1,0 +1,26 @@
+{
+	"name": "finance-application",
+	"private": true,
+	"packageManager": "pnpm@10.33.4",
+	"engines": {
+		"node": ">=22"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild",
+			"workerd"
+		]
+	},
+	"scripts": {
+		"build": "turbo run build",
+		"typecheck": "turbo run typecheck",
+		"test": "turbo run test",
+		"lint": "biome lint .",
+		"format": "biome format --write .",
+		"format:check": "biome format ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.6.3",
+		"turbo": "^2.11.10"
+	}
+}

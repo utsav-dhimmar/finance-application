@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": [],
+		"paths": {
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": [
+		"src/**/*",
+		"tests/**/*",
+		"worker-configuration.d.ts",
+		"vitest.config.ts"
+	]
+}

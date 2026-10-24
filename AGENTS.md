@@ -13,6 +13,7 @@
    - Avoid any. Prefer unknown and narrow types safely.
    - Avoid @ts-ignore, @ts-nocheck, unsafe casts, and non-null assertions without a documented justification.
 2. Monorepo
+   - Turborepo as orchestration layer
    - Keep applications, shared packages, API, database code, tests, and configuration in one repository.
    - Avoid circular dependencies between workspace packages.
 3. Tech Stack

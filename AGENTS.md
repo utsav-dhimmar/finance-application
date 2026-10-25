@@ -39,6 +39,7 @@
    - Do not expose D1 bindings or database credentials to client applications.
 5. Prefer small, cohesive, testable changes.
 6. Never claim that a command, test, migration, build, or deployment succeeded unless it was actually executed and its result inspected.
+7. always install dependencies using `pnpm add` never manually write package.json or pnpm-lock.yaml
 
 ## Monorepo Structure
 

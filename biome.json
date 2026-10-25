@@ -10,8 +10,10 @@
 		"includes": [
 			"**",
 			"!.agents",
-			"!.AGENTS.md","!openspec",
-			"!**/worker-configuration.d.ts"
+			"!.AGENTS.md",
+			"!openspec",
+			"!**/worker-configuration.d.ts",
+			"!**/routeTree.gen.ts"
 		]
 	},
 	"formatter": {
@@ -22,6 +24,11 @@
 		"enabled": true,
 		"rules": {
 			"preset": "recommended"
+		}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
 		}
 	},
 	"javascript": {

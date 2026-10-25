@@ -8,7 +8,8 @@
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"esbuild",
-			"workerd"
+			"workerd",
+			"lightningcss"
 		]
 	},
 	"scripts": {

@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@import "@finance-application/ui/styles.css";
+
+@source "../../packages/ui/src";

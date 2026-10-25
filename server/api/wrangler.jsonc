@@ -8,9 +8,9 @@
 	// is replaced when a remote database is provisioned in a future change.
 	"d1_databases": [
 		{
-			"binding": "DB",
+			"binding": "finance_application",
 			"database_name": "finance-application",
-			"database_id": "00000000-0000-0000-0000-000000000000"
+			"database_id": "fce29793-aa5b-49e5-b747-af353f30e64a"
 		}
 	]
 }

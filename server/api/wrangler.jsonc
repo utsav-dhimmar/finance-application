@@ -10,7 +10,8 @@
 		{
 			"binding": "finance_application",
 			"database_name": "finance-application",
-			"database_id": "fce29793-aa5b-49e5-b747-af353f30e64a"
+			"database_id": "fce29793-aa5b-49e5-b747-af353f30e64a",
+			"migrations_dir": "migrations"
 		}
 	]
 }

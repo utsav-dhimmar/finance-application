@@ -1,0 +1,4 @@
+# Copy to .dev.vars and replace with a locally generated secret:
+#   node -e "console.log('JWT_SECRET='+require('crypto').randomBytes(48).toString('base64url'))"
+# In production, set it with: wrangler secret put JWT_SECRET
+JWT_SECRET=replace-me-with-a-long-random-secret

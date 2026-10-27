@@ -69,6 +69,35 @@ pnpm dlx shadcn@latest add card
 Components land in `packages/ui/src/components/` and are imported as
 `@finance-application/ui/components/<name>`.
 
+### Database migrations
+
+The API's schema lives in `server/api/src/db/schema.ts` (Drizzle). After
+changing it:
+
+```sh
+cd server/api
+pnpm exec drizzle-kit generate
+pnpm exec wrangler d1 migrations apply finance-application --local
+```
+
+### Authentication
+
+The API owns sessions with Argon2id password hashes (pure-TS implementation —
+the Workers runtime disallows dynamic WASM compilation) and JWT access tokens
+(15 min, HS256) plus rotating refresh tokens (30 days, SHA-256-hashed at rest).
+Both tokens are HttpOnly, Secure, SameSite=Lax cookies — no tokens in
+JavaScript-readable storage. The secret lives in `server/api/.dev.vars`
+(copy `.dev.vars.example`); in production use `wrangler secret put JWT_SECRET`.
+
+- `POST /api/auth/register` — create an account, sets session cookies
+- `POST /api/auth/login` — verify credentials, sets session cookies
+- `GET /api/auth/me` — the authenticated user's id and email
+- `POST /api/auth/refresh` — rotate the refresh token
+- `POST /api/auth/logout` — revoke and clear cookies
+
+The web app provides `/register`, `/login`, and a protected `/dashboard`
+(unauthenticated visitors are redirected to `/login`).
+
 ## API
 
 The D1 binding in `wrangler.jsonc` is local-only for now; `wrangler dev`
@@ -78,6 +107,7 @@ provisions a local SQLite database, so no Cloudflare account is needed.
 - `GET /api/greet/{name}?greeting=Hello&times=1` — personalized greeting;
   `greeting` (text, default `Hello`) and `times` (1–10, default `1`) are
   validated; invalid input returns a `400` error envelope
+- `/api/auth/*` — see Authentication above
 - `GET /api/openapi` — OpenAPI 3.1 document
 - `GET /api/docs` — interactive Scalar documentation
 

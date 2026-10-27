@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+	errorBody,
 	internalErrorBody,
 	notFoundBody,
 	validationErrorBody,
@@ -44,6 +45,19 @@ describe("internalErrorBody", () => {
 				message: "Internal server error",
 				details: [],
 			},
+		});
+	});
+});
+
+describe("errorBody", () => {
+	it.each([
+		"EMAIL_TAKEN",
+		"AUTH_INVALID_CREDENTIALS",
+		"UNAUTHENTICATED",
+		"INVALID_REFRESH_TOKEN",
+	] as const)("produces the shared envelope for code %s", (code) => {
+		expect(errorBody(code, "Test message")).toEqual({
+			error: { code, message: "Test message", details: [] },
 		});
 	});
 });

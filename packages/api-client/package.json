@@ -1,0 +1,21 @@
+{
+	"name": "@finance-application/api-client",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "biome lint ."
+	},
+	"dependencies": {
+		"@finance-application/schemas": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.5"
+	}
+}

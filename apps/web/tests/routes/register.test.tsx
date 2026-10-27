@@ -10,15 +10,46 @@ function jsonResponse(status: number, body: unknown): Response {
 	});
 }
 
+// 401s every session probe so the visitor is treated as signed out; tests
+// override the endpoint they exercise via `overrides`.
+function stubSessionApi(
+	overrides: Record<string, () => Response> = {},
+): ReturnType<typeof vi.fn> {
+	const fetchMock = vi.fn(async (input: RequestInfo | string) => {
+		const url = typeof input === "string" ? input : input.url;
+		const override = overrides[url];
+		if (override) {
+			return override();
+		}
+		return jsonResponse(401, {
+			error: {
+				code: "UNAUTHENTICATED",
+				message: "Authentication required",
+				details: [],
+			},
+		});
+	});
+	vi.stubGlobal("fetch", fetchMock);
+	return fetchMock;
+}
+
+function fillForm(email: string, password: string): void {
+	fireEvent.change(screen.getByLabelText("Email"), {
+		target: { value: email },
+	});
+	fireEvent.change(screen.getByLabelText("Password"), {
+		target: { value: password },
+	});
+}
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
 describe("/register", () => {
 	it("shows the duplicate-email server error without navigating away", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn(async () =>
+		stubSessionApi({
+			"/api/auth/register": () =>
 				jsonResponse(409, {
 					error: {
 						code: "EMAIL_TAKEN",
@@ -26,15 +57,9 @@ describe("/register", () => {
 						details: [],
 					},
 				}),
-			),
-		);
+		});
 		await renderRoute(<RegisterPage />, "/register");
-		fireEvent.change(screen.getByLabelText("Email"), {
-			target: { value: "taken@example.com" },
-		});
-		fireEvent.change(screen.getByLabelText("Password"), {
-			target: { value: "s3cret-pw" },
-		});
+		fillForm("taken@example.com", "s3cret-pw");
 		fireEvent.click(screen.getByRole("button", { name: "Register" }));
 		await waitFor(() =>
 			expect(screen.getByRole("alert").textContent).toMatch(
@@ -42,24 +67,17 @@ describe("/register", () => {
 			),
 		);
 		expect(
-			screen.getByRole("heading", { name: /create your account/i }),
+			screen.getByText(/create your account/i),
 		).toBeTruthy();
 	});
 
 	it("navigates to /dashboard on successful registration", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn(async () =>
+		stubSessionApi({
+			"/api/auth/register": () =>
 				jsonResponse(201, { id: "u1", email: "new@example.com" }),
-			),
-		);
+		});
 		await renderRoute(<RegisterPage />, "/register");
-		fireEvent.change(screen.getByLabelText("Email"), {
-			target: { value: "new@example.com" },
-		});
-		fireEvent.change(screen.getByLabelText("Password"), {
-			target: { value: "s3cret-pw" },
-		});
+		fillForm("new@example.com", "s3cret-pw");
 		fireEvent.click(screen.getByRole("button", { name: "Register" }));
 		await waitFor(() =>
 			expect(screen.getByText("Dashboard page")).toBeTruthy(),

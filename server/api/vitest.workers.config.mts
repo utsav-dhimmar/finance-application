@@ -19,7 +19,10 @@ export default defineConfig({
 		}),
 	],
 	test: {
-		include: ["tests/auth/**/*.test.ts"],
+		include: [
+			"tests/auth/**/*.test.ts",
+			"tests/repositories/**/*.test.ts",
+		],
 		globalSetup: ["./tests/auth/globalSetup.mts"],
 		setupFiles: ["./tests/auth/setup.ts"],
 	},

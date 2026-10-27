@@ -1,7 +1,4 @@
-export interface ApiErrorDetail {
-	path: string;
-	message: string;
-}
+import type { ApiErrorDetail } from "@finance-application/schemas";
 
 export class ApiError extends Error {
 	readonly status: number;
@@ -62,12 +59,14 @@ async function readJson(res: Response): Promise<unknown> {
 }
 
 // Same-origin fetch with the shared error envelope decoding. Cookies are sent
-// automatically (same-origin), carrying the auth session.
+// automatically (same-origin), carrying the auth session. `baseUrl` exists for
+// non-browser clients that target a remote origin.
 export async function apiFetch<T>(
 	path: string,
 	init?: RequestInit,
+	options?: { baseUrl?: string },
 ): Promise<T> {
-	const res = await fetch(path, {
+	const res = await fetch(`${options?.baseUrl ?? ""}${path}`, {
 		...init,
 		headers: { "content-type": "application/json", ...init?.headers },
 	});

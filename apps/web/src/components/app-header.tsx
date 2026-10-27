@@ -1,7 +1,7 @@
 import { Button } from "@finance-application/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import { Wallet } from "lucide-react";
-import { useLogout, useMe } from "@/lib/auth";
+import { useLogout, useMe } from "@/hooks/use-auth";
 
 // App shell header: brand, the signed-in user's email, and Sign out.
 // Hidden entirely while the session state is unknown or unauthenticated.

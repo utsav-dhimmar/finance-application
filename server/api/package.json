@@ -11,6 +11,7 @@
 		"types": "wrangler types"
 	},
 	"dependencies": {
+		"@finance-application/schemas": "workspace:*",
 		"@hono/zod-openapi": "^1.6.3",
 		"@noble/hashes": "^2.4.0",
 		"@scalar/hono-api-reference": "^0.12.14",

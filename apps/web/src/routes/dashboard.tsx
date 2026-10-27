@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AppHeader } from "@/components/app-header";
-import { useMe } from "@/lib/auth";
+import { useMe } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/dashboard")({
 	component: DashboardPage,

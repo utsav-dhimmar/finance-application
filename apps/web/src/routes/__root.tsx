@@ -6,6 +6,7 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "@finance-application/ui/components/sonner";
 
 import appCss from "../styles.css?url";
 
@@ -59,6 +60,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			<body>
 				<QueryClientProvider client={queryClient}>
 					{children}
+					<Toaster position="bottom-right" richColors />
 				</QueryClientProvider>
 				<TanStackDevtools
 					config={{

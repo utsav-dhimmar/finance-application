@@ -8,7 +8,10 @@ export type ErrorCode =
 	| "EMAIL_TAKEN"
 	| "AUTH_INVALID_CREDENTIALS"
 	| "UNAUTHENTICATED"
-	| "INVALID_REFRESH_TOKEN";
+	| "INVALID_REFRESH_TOKEN"
+	| "ACCOUNT_NAME_TAKEN"
+	| "ACCOUNT_TRANSITION_INVALID"
+	| "ACCOUNT_FIELD_LOCKED";
 
 export interface ApiErrorDetail {
 	readonly path: string;

@@ -23,10 +23,26 @@ export function AppHeader() {
 
 	return (
 		<header className="flex items-center justify-between border-b border-border px-6 py-3">
-			<Link to="/" className="flex items-center gap-2 font-semibold">
-				<Wallet aria-hidden="true" className="size-4" />
-				Finance Application
-			</Link>
+			<div className="flex items-center gap-4">
+				<Link to="/" className="flex items-center gap-2 font-semibold">
+					<Wallet aria-hidden="true" className="size-4" />
+					Finance Application
+				</Link>
+				<nav className="flex items-center gap-3 text-sm">
+					<Link
+						to="/dashboard"
+						className="text-muted-foreground transition-colors hover:text-foreground"
+					>
+						Dashboard
+					</Link>
+					<Link
+						to="/accounts"
+						className="text-muted-foreground transition-colors hover:text-foreground"
+					>
+						Accounts
+					</Link>
+				</nav>
+			</div>
 			<div className="flex items-center gap-3">
 				<span className="text-sm text-muted-foreground">{me.data.email}</span>
 				<Button

@@ -150,6 +150,7 @@ export function EditAccountDialog({
 								<Input
 									id="edit-account-opening-balance"
 									inputMode="decimal"
+									className="font-mono tabular-nums"
 									{...field}
 								/>
 								{fieldState.error && (

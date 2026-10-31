@@ -41,11 +41,22 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 export function NotFound() {
 	return (
-		<main className="flex min-h-screen flex-col items-center justify-center gap-2 p-8">
-			<h1 className="text-4xl font-bold">Page not found</h1>
-			<p className="text-muted-foreground">
+		<main className="flex min-h-screen flex-col items-center justify-center gap-3 p-8 text-center">
+			<span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+				404 Error
+			</span>
+			<h1 className="text-3xl font-semibold tracking-tight text-foreground">
+				Page not found
+			</h1>
+			<p className="max-w-sm text-sm text-muted-foreground">
 				The page you are looking for does not exist.
 			</p>
+			<a
+				href="/"
+				className="mt-2 inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+			>
+				Return home
+			</a>
 		</main>
 	);
 }
@@ -57,7 +68,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			<head>
 				<HeadContent />
 			</head>
-			<body>
+			<body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/10 selection:text-primary">
 				<QueryClientProvider client={queryClient}>
 					{children}
 					<Toaster position="bottom-right" richColors />

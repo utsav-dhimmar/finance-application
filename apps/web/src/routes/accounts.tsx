@@ -8,6 +8,7 @@ import {
 	TabsTrigger,
 } from "@finance-application/ui/components/tabs";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Plus, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/account-card";
@@ -148,7 +149,9 @@ export function AccountsPage() {
 	if (me.isPending || me.data === undefined) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
-				<p aria-live="polite">Loading...</p>
+				<p aria-live="polite" className="text-sm text-muted-foreground animate-pulse">
+					Loading...
+				</p>
 			</main>
 		);
 	}
@@ -158,50 +161,64 @@ export function AccountsPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen flex-col">
+		<div className="flex min-h-screen flex-col bg-background">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
-				<div className="flex items-start justify-between gap-4">
+			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-6 md:p-8">
+				{/* Page Header */}
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 					<div>
-						<h1 className="text-3xl font-bold">Accounts</h1>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+							Accounts
+						</h1>
 						{tab === "active" && (
-							<p aria-live="polite" className="text-sm text-muted-foreground">
+							<p aria-live="polite" className="mt-1 text-sm text-muted-foreground">
 								Combined balance across active accounts:{" "}
-								<span className="font-semibold text-foreground">
+								<span className="font-mono font-semibold text-foreground tabular-nums">
 									{formatPaise(accounts.data?.combinedBalanceMinor ?? 0)}
 								</span>
 							</p>
 						)}
 					</div>
-					<Button onClick={() => setCreateOpen(true)}>Add account</Button>
+					<Button onClick={() => setCreateOpen(true)} className="gap-1.5 shadow-xs">
+						<Plus aria-hidden="true" className="size-4" />
+						Add account
+					</Button>
 				</div>
 
-				<Tabs
-					value={tab}
-					onValueChange={(value) => setTab(value as AccountsTab)}
-				>
-					<TabsList>
-						{TABS.map((status) => (
-							<TabsTrigger key={status} value={status}>
-								{TAB_LABELS[status]}
-							</TabsTrigger>
-						))}
-					</TabsList>
-				</Tabs>
+				{/* Status Filter Tabs */}
+				<div className="flex items-center">
+					<Tabs
+						value={tab}
+						onValueChange={(value) => setTab(value as AccountsTab)}
+					>
+						<TabsList className="bg-muted/70 p-1">
+							{TABS.map((status) => (
+								<TabsTrigger key={status} value={status} className="px-3 text-xs">
+									{TAB_LABELS[status]}
+								</TabsTrigger>
+							))}
+						</TabsList>
+					</Tabs>
+				</div>
 
+				{/* Accounts Content / Skeletons / Grid */}
 				{accounts.isPending ? (
-					<div className="flex flex-col gap-3" aria-hidden="true">
-						<Skeleton className="h-28 w-full" />
-						<Skeleton className="h-28 w-full" />
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+						<Skeleton className="h-40 w-full rounded-xl" />
+						<Skeleton className="h-40 w-full rounded-xl" />
+						<Skeleton className="h-40 w-full rounded-xl" />
 					</div>
 				) : accounts.isError ? (
 					<div
 						role="alert"
-						className="flex flex-col items-start gap-2 rounded-md border border-destructive/40 p-4"
+						className="flex flex-col items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-6"
 					>
-						<p>Could not load accounts. Is the API running?</p>
+						<p className="text-sm font-medium text-destructive">
+							Could not load accounts. Is the API running?
+						</p>
 						<Button
 							variant="outline"
+							size="sm"
 							onClick={() => {
 								accounts.refetch();
 							}}
@@ -210,30 +227,48 @@ export function AccountsPage() {
 						</Button>
 					</div>
 				) : accounts.data.accounts.length === 0 ? (
-					<p className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-						{EMPTY_MESSAGES[tab]}
-					</p>
+					<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
+						<div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+							<Wallet aria-hidden="true" className="size-5" />
+						</div>
+						<p className="mt-3 text-sm text-muted-foreground">
+							{EMPTY_MESSAGES[tab]}
+						</p>
+						{tab === "active" && (
+							<Button
+								variant="outline"
+								size="sm"
+								className="mt-4 gap-1.5"
+								onClick={() => setCreateOpen(true)}
+							>
+								<Plus aria-hidden="true" className="size-3.5" />
+								Add your first account
+							</Button>
+						)}
+					</div>
 				) : (
-					<ul className="flex flex-col gap-3">
+					<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{accounts.data.accounts.map((account) => (
-							<li key={account.id}>
-								<AccountCard
-									account={account}
-									onEdit={setEditing}
-									onArchive={(target) => {
-										setConfirming({
-											action: "archive",
-											account: target,
-										});
-									}}
-									onDelete={(target) => {
-										setConfirming({
-											action: "delete",
-											account: target,
-										});
-									}}
-									onRestore={handleRestore}
-								/>
+							<li key={account.id} className="flex">
+								<div className="w-full">
+									<AccountCard
+										account={account}
+										onEdit={setEditing}
+										onArchive={(target) => {
+											setConfirming({
+												action: "archive",
+												account: target,
+											});
+										}}
+										onDelete={(target) => {
+											setConfirming({
+												action: "delete",
+												account: target,
+											});
+										}}
+										onRestore={handleRestore}
+									/>
+								</div>
 							</li>
 						))}
 					</ul>

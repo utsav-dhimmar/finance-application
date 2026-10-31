@@ -154,6 +154,7 @@ export function CreateAccountDialog({
 									id="account-opening-balance"
 									inputMode="decimal"
 									placeholder="0.00"
+									className="font-mono tabular-nums"
 									{...field}
 								/>
 								{fieldState.error ? (

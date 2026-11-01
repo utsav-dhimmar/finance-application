@@ -1,11 +1,13 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "finance-application-api",
+	// Matches the Cloudflare Workers Builds project name, which overrides this
+	// value on CI deploys — keeping them identical avoids the name-mismatch
+	// warning and keeps local wrangler commands pointed at the real worker.
+	"name": "finance-application",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-01",
-	// D1 wiring is local-only for now: `wrangler dev` provisions a local SQLite
-	// database for this binding without a Cloudflare account. The placeholder id
-	// is replaced when a remote database is provisioned in a future change.
+	// D1 database (provisioned, remote): migrations applied with
+	// `wrangler d1 migrations apply finance-application --remote`.
 	"d1_databases": [
 		{
 			"binding": "finance_application",

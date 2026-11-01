@@ -121,9 +121,68 @@ export const categories = sqliteTable(
 	],
 );
 
+// The transaction ledger. Lifecycle states are owned by the transaction
+// service; the database enforces the state vocabulary. Balances are derived:
+// the account service sums the signed effects of non-deleted transactions
+// (income credits, expense debits) on top of each account's opening balance —
+// no stored balance column exists to drift (AGENTS.md financial-correctness
+// rule). Amounts are strictly positive integer paise; the sign is the type.
+// Creation is idempotent: the id is a client-generated UUIDv7 primary key.
+export const transactions = sqliteTable(
+	"transactions",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		type: text("type").notNull(),
+		amountMinor: integer("amount_minor").notNull(),
+		// Calendar date (YYYY-MM-DD) the transaction belongs to, distinct from
+		// the audit timestamps; lexicographic order equals chronological order.
+		date: text("date").notNull(),
+		accountId: text("account_id")
+			.notNull()
+			.references(() => accounts.id, { onDelete: "restrict" }),
+		categoryId: text("category_id")
+			.notNull()
+			.references(() => categories.id, { onDelete: "restrict" }),
+		notes: text("notes"),
+		status: text("status").notNull().default("active"),
+		archivedAt: text("archived_at"),
+		deletedAt: text("deleted_at"),
+		createdAt: text("created_at").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		check(
+			"transactions_type_check",
+			sql`${table.type} in ('income', 'expense')`,
+		),
+		check("transactions_amount_positive_check", sql`${table.amountMinor} > 0`),
+		check(
+			"transactions_status_check",
+			sql`${table.status} in ('active', 'archived', 'deleted')`,
+		),
+		index("transactions_user_date_idx").on(table.userId, table.date),
+		index("transactions_user_account_date_idx").on(
+			table.userId,
+			table.accountId,
+			table.date,
+		),
+		index("transactions_user_category_idx").on(table.userId, table.categoryId),
+		index("transactions_user_status_date_idx").on(
+			table.userId,
+			table.status,
+			table.date,
+		),
+	],
+);
+
 export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
+export type Transaction = typeof transactions.$inferSelect;
+export type NewTransaction = typeof transactions.$inferInsert;

@@ -1,6 +1,6 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import type { Db } from "@/db";
-import { categories, type Category } from "@/db/schema";
+import { categories, transactions, type Category } from "@/db/schema";
 import { normalizeName } from "@/lib/name-normalization";
 
 // Case-insensitive, whitespace-trimmed uniqueness backed by the partial unique
@@ -147,12 +147,20 @@ export function createCategoryRepository(db: Db) {
 			return updated[0];
 		},
 
-		// SEAM: the category type lock depends on how many non-deleted
-		// transactions reference the category. No transactions table exists yet,
-		// so the count is vacuously 0 today; the transactions epic replaces this
-		// wiring (no transaction may be created while bypassing the lock check).
-		async getReferencingTransactionCount(_categoryId: string): Promise<number> {
-			return 0;
+		// The category type lock predicate: how many non-deleted transactions
+		// reference the category. Deleted-only references do not lock, so a
+		// trashed transaction can never freeze its category.
+		async getReferencingTransactionCount(categoryId: string): Promise<number> {
+			const rows = await db
+				.select({ value: count() })
+				.from(transactions)
+				.where(
+					and(
+						eq(transactions.categoryId, categoryId),
+						inArray(transactions.status, ["active", "archived"]),
+					),
+				);
+			return rows[0]?.value ?? 0;
 		},
 	};
 }

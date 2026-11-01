@@ -306,7 +306,11 @@ describe("createAccountService.update", () => {
 		const fake = createFakeAccountRepo();
 		const service = createAccountService({
 			accounts: asRepo(fake),
-			hasPostedTransactions: vi.fn().mockResolvedValue(true),
+			postedSums: {
+				forAccount: vi.fn().mockResolvedValue(100),
+				byUser: vi.fn().mockResolvedValue(new Map()),
+				countForAccount: vi.fn().mockResolvedValue(1),
+			},
 		});
 		const created = (await service.create({
 			userId: "user-1",

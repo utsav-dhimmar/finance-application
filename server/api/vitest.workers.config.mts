@@ -24,6 +24,7 @@ export default defineConfig({
 			"tests/repositories/**/*.test.ts",
 			"tests/accounts/**/*.test.ts",
 			"tests/categories/**/*.test.ts",
+			"tests/transactions/**/*.test.ts",
 		],
 		globalSetup: ["./tests/auth/globalSetup.mts"],
 		setupFiles: ["./tests/auth/setup.ts"],

@@ -23,11 +23,11 @@ export interface AccountView {
 	updatedAt: string;
 }
 
-// SEAM: the single balance computation point. `postedTransactionsSumMinor` is
-// the sum of the account's balance-affecting posted transactions; no such
-// records exist yet, so callers currently pass 0. Every balance in the app
-// must come through this function so the formula has exactly one definition,
-// and the transactions epic extends it without changing its callers.
+// The single balance computation point: current balance = opening balance +
+// the signed sum of the account's non-deleted posted transactions (income
+// credits, expense debits; transfers add their contribution via the same sum
+// family once that epic lands). Every balance in the app must come through
+// this function so the formula has exactly one definition.
 export function computeCurrentBalance(
 	openingBalanceMinor: number,
 	postedTransactionsSumMinor: number,
@@ -35,14 +35,20 @@ export function computeCurrentBalance(
 	return openingBalanceMinor + postedTransactionsSumMinor;
 }
 
-function toView(account: Account): AccountView {
+function toView(
+	account: Account,
+	postedTransactionsSumMinor: number,
+): AccountView {
 	// The DB CHECK constraints guarantee the enum values; parsing here keeps
 	// the view types honest without an unsafe cast.
 	return {
 		...account,
 		type: accountTypeSchema.parse(account.type),
 		status: accountStatusSchema.parse(account.status),
-		currentBalanceMinor: computeCurrentBalance(account.openingBalanceMinor, 0),
+		currentBalanceMinor: computeCurrentBalance(
+			account.openingBalanceMinor,
+			postedTransactionsSumMinor,
+		),
 	};
 }
 
@@ -95,14 +101,6 @@ export interface RestoreAccountInput {
 	newName?: string;
 }
 
-// SEAM: the opening-balance/type lock depends on whether any posted
-// transaction references the account. No transactions table exists yet, so
-// the condition is vacuously false today; the transactions epic replaces this
-// wiring (no transaction may be created while bypassing the lock check).
-async function hasPostedTransactions(_accountId: string): Promise<boolean> {
-	return false;
-}
-
 // Lifecycle state machine: exactly these transitions are valid; anything else
 // is a conflict. Archived and deleted accounts are not editable.
 const VALID_TRANSITIONS: Record<AccountStatus, readonly AccountStatus[]> = {
@@ -111,14 +109,30 @@ const VALID_TRANSITIONS: Record<AccountStatus, readonly AccountStatus[]> = {
 	deleted: ["active"],
 };
 
+// Posted-effect lookups injected from the transaction repository. The defaults
+// keep the service usable before any transactions exist (sum 0, no history);
+// the routes wire the real implementations.
+export interface PostedEffectLookup {
+	// Signed sum of the account's non-deleted transaction effects.
+	forAccount: (accountId: string) => Promise<number>;
+	// Signed sums for every account of one user, in one grouped query.
+	byUser: (userId: string) => Promise<Map<string, number>>;
+	// Non-deleted transaction count for the account (field-lock predicate).
+	countForAccount: (accountId: string) => Promise<number>;
+}
+
 export interface AccountServiceDeps {
 	accounts: AccountRepository;
-	hasPostedTransactions?: (accountId: string) => Promise<boolean>;
+	postedSums?: PostedEffectLookup;
 }
 
 export function createAccountService(deps: AccountServiceDeps) {
 	const { accounts } = deps;
-	const postedCheck = deps.hasPostedTransactions ?? hasPostedTransactions;
+	const posted: PostedEffectLookup = deps.postedSums ?? {
+		forAccount: async () => 0,
+		byUser: async () => new Map(),
+		countForAccount: async () => 0,
+	};
 
 	async function requireOwnedAccount(
 		userId: string,
@@ -179,7 +193,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 				if (!renamed) {
 					return { ok: false, code: "NOT_FOUND" };
 				}
-				return { ok: true, value: toView(renamed) };
+				return {
+					ok: true,
+					value: toView(renamed, await posted.forAccount(accountId)),
+				};
 			}
 		}
 		const updated = await accounts.updateStatus(
@@ -191,12 +208,13 @@ export function createAccountService(deps: AccountServiceDeps) {
 		if (!updated) {
 			return { ok: false, code: "NOT_FOUND" };
 		}
-		return { ok: true, value: toView(updated) };
+		return { ok: true, value: toView(updated, await posted.forAccount(accountId)) };
 	}
 
 	return {
 		// Creation never writes any income/expense record: the opening balance
-		// lives on the account row itself.
+		// lives on the account row itself. A brand-new account cannot have
+		// posted transactions yet, so its current balance is the opening one.
 		async create(input: CreateAccountInput): Promise<CreateAccountOutcome> {
 			const conflict = await findNameConflict(input.userId, input.name);
 			if (conflict) {
@@ -212,21 +230,28 @@ export function createAccountService(deps: AccountServiceDeps) {
 				createdAt: nowIso,
 				updatedAt: nowIso,
 			});
-			return { ok: true, value: toView(account) };
+			return { ok: true, value: toView(account, 0) };
 		},
 
 		// `combinedBalanceMinor` always sums the current balances of the user's
 		// active accounts, regardless of which status slice was requested.
 		async list(userId: string, status: AccountStatus): Promise<AccountList> {
-			const [filtered, active] = await Promise.all([
+			const [filtered, active, sums] = await Promise.all([
 				accounts.listByStatus(userId, status),
 				accounts.listByStatus(userId, "active"),
+				posted.byUser(userId),
 			]);
 			return {
-				accounts: filtered.map(toView),
+				accounts: filtered.map((account) =>
+					toView(account, sums.get(account.id) ?? 0),
+				),
 				combinedBalanceMinor: active.reduce(
 					(sum, account) =>
-						sum + computeCurrentBalance(account.openingBalanceMinor, 0),
+						sum +
+						computeCurrentBalance(
+							account.openingBalanceMinor,
+							sums.get(account.id) ?? 0,
+						),
 					0,
 				),
 			};
@@ -237,7 +262,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 			if (!account) {
 				return { ok: false, code: "NOT_FOUND" };
 			}
-			return { ok: true, value: toView(account) };
+			return {
+				ok: true,
+				value: toView(account, await posted.forAccount(accountId)),
+			};
 		},
 
 		async update(input: UpdateAccountInput): Promise<UpdateAccountOutcome> {
@@ -250,7 +278,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 			}
 			const touchesLockedField =
 				input.type !== undefined || input.openingBalanceMinor !== undefined;
-			if (touchesLockedField && (await postedCheck(input.accountId))) {
+			if (
+				touchesLockedField &&
+				(await posted.countForAccount(input.accountId)) > 0
+			) {
 				return { ok: false, code: "ACCOUNT_FIELD_LOCKED" };
 			}
 			if (input.name !== undefined) {
@@ -271,7 +302,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 			if (!updated) {
 				return { ok: false, code: "NOT_FOUND" };
 			}
-			return { ok: true, value: toView(updated) };
+			return {
+				ok: true,
+				value: toView(updated, await posted.forAccount(input.accountId)),
+			};
 		},
 
 		async archive(

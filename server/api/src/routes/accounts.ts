@@ -4,6 +4,7 @@ import type { User } from "@/db/schema";
 import { errorBody, validationHook } from "@/lib/error";
 import { requireAuth } from "@/middleware/auth";
 import { createAccountRepository } from "@/repositories/account-repository";
+import { createTransactionRepository } from "@/repositories/transaction-repository";
 import {
 	createAccountService,
 	type AccountService,
@@ -22,8 +23,20 @@ import { errorEnvelopeSchema } from "@/schemas/auth";
 type AppBindings = { JWT_SECRET: string; finance_application: D1Database };
 
 function createAccountServiceForEnv(env: AppBindings): AccountService {
+	const db = getDb(env);
+	const transactionRepository = createTransactionRepository(db);
 	return createAccountService({
-		accounts: createAccountRepository(getDb(env)),
+		accounts: createAccountRepository(db),
+		// Balances and the field lock derive from the transaction ledger; the
+		// transaction epic owns the SQL, the account service owns the formula.
+		postedSums: {
+			forAccount: (accountId) =>
+				transactionRepository.sumNonDeletedEffects(accountId),
+			byUser: (userId) =>
+				transactionRepository.sumNonDeletedEffectsByAccount(userId),
+			countForAccount: (accountId) =>
+				transactionRepository.countNonDeletedByAccount(accountId),
+		},
 	});
 }
 

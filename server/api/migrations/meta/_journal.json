@@ -8,6 +8,13 @@
 			"when": 1793036191333,
 			"tag": "0000_init-auth-tables",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1793460074936,
+			"tag": "0001_add_accounts",
+			"breakpoints": true
 		}
 	]
 }

@@ -23,6 +23,7 @@ export default defineConfig({
 			"tests/auth/**/*.test.ts",
 			"tests/repositories/**/*.test.ts",
 			"tests/accounts/**/*.test.ts",
+			"tests/categories/**/*.test.ts",
 		],
 		globalSetup: ["./tests/auth/globalSetup.mts"],
 		setupFiles: ["./tests/auth/setup.ts"],

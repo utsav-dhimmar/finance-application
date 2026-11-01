@@ -1,11 +1,12 @@
 import { and, asc, eq, ne } from "drizzle-orm";
 import type { Db } from "@/db";
 import { accounts, type Account } from "@/db/schema";
+import { normalizeName } from "@/lib/name-normalization";
 
-// The single name-normalization point: uniqueness is case-insensitive and
-// whitespace-trimmed, backed by the partial unique index on name_normalized.
+// Case-insensitive, whitespace-trimmed uniqueness backed by the partial unique
+// index on name_normalized; shared with the other named entities.
 export function normalizeAccountName(name: string): string {
-	return name.trim().toLowerCase();
+	return normalizeName(name);
 }
 
 export interface NewAccountRow {

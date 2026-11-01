@@ -79,6 +79,13 @@ export function AppHeader() {
 								>
 									Accounts
 								</SafeLink>
+								<SafeLink
+									to="/categories"
+									className="text-muted-foreground transition-colors hover:text-foreground"
+									activeProps={{ className: "text-foreground font-medium" }}
+								>
+									Categories
+								</SafeLink>
 							</>
 						) : (
 							<SafeLink
@@ -101,7 +108,7 @@ export function AppHeader() {
 							</span>
 							<Button
 								variant="outline"
-								size="sm"
+                size="sm"
 								onClick={handleSignOut}
 								disabled={logout.isPending}
 							>

@@ -11,7 +11,10 @@ export type ErrorCode =
 	| "INVALID_REFRESH_TOKEN"
 	| "ACCOUNT_NAME_TAKEN"
 	| "ACCOUNT_TRANSITION_INVALID"
-	| "ACCOUNT_FIELD_LOCKED";
+	| "ACCOUNT_FIELD_LOCKED"
+	| "CATEGORY_NAME_TAKEN"
+	| "CATEGORY_TRANSITION_INVALID"
+	| "CATEGORY_TYPE_LOCKED";
 
 export interface ApiErrorDetail {
 	readonly path: string;

@@ -14,6 +14,7 @@ export default defineConfig({
 			"tests/auth/**",
 			"tests/repositories/**",
 			"tests/accounts/**",
+			"tests/categories/**",
 			"**/node_modules/**",
 		],
 	},

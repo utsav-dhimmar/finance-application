@@ -82,7 +82,48 @@ export const accounts = sqliteTable(
 	],
 );
 
+// Lifecycle states and the valid transitions between them are owned by the
+// category service; the database enforces the state vocabulary. Presentation
+// values (color, icon) are optional display-only metadata.
+export const categories = sqliteTable(
+	"categories",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		// Trimmed lowercase mirror of `name` backing the case-insensitive
+		// uniqueness rule; written only through the category repository.
+		nameNormalized: text("name_normalized").notNull(),
+		type: text("type").notNull(),
+		color: text("color"),
+		icon: text("icon"),
+		status: text("status").notNull().default("active"),
+		archivedAt: text("archived_at"),
+		deletedAt: text("deleted_at"),
+		createdAt: text("created_at").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		check("categories_type_check", sql`${table.type} in ('income', 'expense')`),
+		check(
+			"categories_status_check",
+			sql`${table.status} in ('active', 'archived', 'deleted')`,
+		),
+		// Names are unique only among non-deleted categories, across both types:
+		// a trashed category's name can be reused. Archived names still block so
+		// a restore cannot collide with a live category.
+		uniqueIndex("categories_user_name_unique")
+			.on(table.userId, table.nameNormalized)
+			.where(sql`${table.status} != 'deleted'`),
+		index("categories_user_status_idx").on(table.userId, table.status),
+	],
+);
+
 export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
+export type Category = typeof categories.$inferSelect;
+export type NewCategory = typeof categories.$inferInsert;

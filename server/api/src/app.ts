@@ -4,6 +4,7 @@ import type { User } from "@/db/schema";
 import { internalErrorBody, notFoundBody } from "@/lib/error";
 import { accountsRoutes } from "@/routes/accounts";
 import { authRoutes } from "@/routes/auth";
+import { categoriesRoutes } from "@/routes/categories";
 import { greetRoutes } from "@/routes/greet";
 import { helloRoutes } from "@/routes/hello";
 
@@ -13,6 +14,7 @@ app.route("/", helloRoutes);
 app.route("/", greetRoutes);
 app.route("/", authRoutes);
 app.route("/", accountsRoutes);
+app.route("/", categoriesRoutes);
 
 app.doc31("/api/openapi", {
 	openapi: "3.1.0",

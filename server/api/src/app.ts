@@ -7,6 +7,7 @@ import { authRoutes } from "@/routes/auth";
 import { categoriesRoutes } from "@/routes/categories";
 import { greetRoutes } from "@/routes/greet";
 import { helloRoutes } from "@/routes/hello";
+import { transactionsRoutes } from "@/routes/transactions";
 
 export const app = new OpenAPIHono<{ Variables: { user: User } }>();
 
@@ -15,6 +16,7 @@ app.route("/", greetRoutes);
 app.route("/", authRoutes);
 app.route("/", accountsRoutes);
 app.route("/", categoriesRoutes);
+app.route("/", transactionsRoutes);
 
 app.doc31("/api/openapi", {
 	openapi: "3.1.0",

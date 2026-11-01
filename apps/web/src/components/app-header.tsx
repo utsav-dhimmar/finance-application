@@ -86,6 +86,13 @@ export function AppHeader() {
 								>
 									Categories
 								</SafeLink>
+								<SafeLink
+									to="/transactions"
+									className="text-muted-foreground transition-colors hover:text-foreground"
+									activeProps={{ className: "text-foreground font-medium" }}
+								>
+									Transactions
+								</SafeLink>
 							</>
 						) : (
 							<SafeLink

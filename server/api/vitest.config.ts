@@ -8,7 +8,8 @@ export default defineConfig({
 		},
 	},
 	test: {
-		environment: "node",
+    environment: "node",
+  isolate:false,
 		include: ["tests/**/*.test.ts"],
 		exclude: [
 			"tests/auth/**",

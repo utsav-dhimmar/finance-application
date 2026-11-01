@@ -1,17 +1,17 @@
-import type { Transaction } from "@/db/schema";
-import type { ErrorCode } from "@/lib/error";
 import type {
 	TransactionStatus,
 	TransactionType,
 } from "@finance-application/schemas";
-import type { AccountRepository } from "@/repositories/account-repository";
-import type { CategoryRepository } from "@/repositories/category-repository";
-import type { TransactionRepository } from "@/repositories/transaction-repository";
-import { isoNow } from "@/utils/datetime";
 import {
 	transactionStatusSchema,
 	transactionTypeSchema,
 } from "@finance-application/schemas";
+import type { Transaction } from "@/db/schema";
+import type { ErrorCode } from "@/lib/error";
+import type { AccountRepository } from "@/repositories/account-repository";
+import type { CategoryRepository } from "@/repositories/category-repository";
+import type { TransactionRepository } from "@/repositories/transaction-repository";
+import { isoNow } from "@/utils/datetime";
 
 export interface TransactionView {
 	id: string;
@@ -31,7 +31,10 @@ export interface TransactionView {
 }
 
 function toView(
-	row: Transaction & { accountName?: string | null; categoryName?: string | null },
+	row: Transaction & {
+		accountName?: string | null;
+		categoryName?: string | null;
+	},
 ): TransactionView {
 	// The DB CHECK constraints guarantee the enum values; parsing here keeps
 	// the view types honest without an unsafe cast.
@@ -64,8 +67,10 @@ export type TransactionOutcome<T, E extends ErrorCode> =
 export type CreateTransactionOutcome =
 	| { ok: true; value: TransactionView; replayed: boolean }
 	| { ok: false; code: "ACCOUNT_INELIGIBLE" | "CATEGORY_INELIGIBLE" };
-export type GetTransactionOutcome =
-	TransactionOutcome<TransactionView, "NOT_FOUND">;
+export type GetTransactionOutcome = TransactionOutcome<
+	TransactionView,
+	"NOT_FOUND"
+>;
 export type UpdateTransactionOutcome = TransactionOutcome<
 	TransactionView,
 	| "NOT_FOUND"
@@ -205,7 +210,11 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 			reassignment?.categoryId ?? transaction.categoryId;
 		if (target === "active") {
 			const account = await accounts.findById(resolveAccountId);
-			if (!account || account.userId !== userId || account.status === "deleted") {
+			if (
+				!account ||
+				account.userId !== userId ||
+				account.status === "deleted"
+			) {
 				return { ok: false, code: "RESTORE_CONFLICT" };
 			}
 			const category = await categories.findById(resolveCategoryId);
@@ -236,7 +245,10 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 		if (!updated) {
 			return { ok: false, code: "NOT_FOUND" };
 		}
-		if (reassignment?.accountId !== undefined || reassignment?.categoryId !== undefined) {
+		if (
+			reassignment?.accountId !== undefined ||
+			reassignment?.categoryId !== undefined
+		) {
 			const withRefs = await transactions.updateDetails(
 				transactionId,
 				{

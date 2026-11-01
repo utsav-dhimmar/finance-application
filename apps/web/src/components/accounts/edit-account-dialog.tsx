@@ -28,10 +28,10 @@ import {
 } from "@finance-application/ui/components/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
+import { ACCOUNT_TYPE_OPTIONS } from "@/components/accounts/create-account-dialog";
 import { useUpdateAccount } from "@/hooks/use-accounts";
 import { paiseToRupeeInput } from "@/lib/money";
 import { getAccountsErrorMessage } from "@/services/accounts-service";
-import { ACCOUNT_TYPE_OPTIONS } from "@/components/accounts/create-account-dialog";
 
 interface EditAccountDialogProps {
 	account: AccountResponse;

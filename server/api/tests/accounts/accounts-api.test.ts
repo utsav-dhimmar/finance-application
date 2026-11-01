@@ -13,8 +13,8 @@ function fetchApp(url: string, init?: RequestInit): Promise<Response> {
 	return worker.fetch(new Request(url, init), env);
 }
 
-import { ACCESS_COOKIE } from "@/lib/session";
 import { beforeEach, describe, expect, it } from "vitest";
+import { ACCESS_COOKIE } from "@/lib/session";
 
 const BASE = "https://test.local/api/accounts";
 const REGISTER_URL = "https://test.local/api/auth/register";

@@ -1,6 +1,6 @@
+import type { TransactionResponse } from "@finance-application/schemas";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TransactionResponse } from "@finance-application/schemas";
 import { TransactionsPage } from "@/routes/transactions";
 import { renderRoute } from "./helpers";
 
@@ -48,7 +48,10 @@ function jsonResponse(status: number, body: unknown): Response {
 	});
 }
 
-function listBody(transactions: TransactionResponse[], total = transactions.length) {
+function listBody(
+	transactions: TransactionResponse[],
+	total = transactions.length,
+) {
 	return { transactions, page: 1, pageSize: 20, total };
 }
 
@@ -142,7 +145,7 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
-	describe("/transactions rendering states", () => {
+describe("/transactions rendering states", () => {
 	it("renders the active list as a table with signed amounts", async () => {
 		stubTransactionsApi({
 			"/api/transactions?status=active&page=1&pageSize=20": () =>
@@ -183,7 +186,11 @@ afterEach(() => {
 				return jsonResponse(200, listBody([]));
 			}
 			return jsonResponse(404, {
-				error: { code: "NOT_FOUND", message: "Resource not found", details: [] },
+				error: {
+					code: "NOT_FOUND",
+					message: "Resource not found",
+					details: [],
+				},
 			});
 		});
 		fireEvent.click(screen.getByRole("button", { name: "Retry" }));
@@ -212,7 +219,9 @@ afterEach(() => {
 			).toBeGreaterThan(0),
 		);
 		// Trashed rows offer restore/permanent-delete actions, not Edit.
-		await waitFor(() => expect(screen.getByText("Delete forever")).toBeTruthy());
+		await waitFor(() =>
+			expect(screen.getByText("Delete forever")).toBeTruthy(),
+		);
 		expect(screen.queryByRole("button", { name: /edit/i })).toBeNull();
 	});
 
@@ -321,15 +330,21 @@ describe("/transactions lifecycle actions", () => {
 		await waitFor(() =>
 			expect(screen.queryByText(/archive this transaction\?/i)).toBeNull(),
 		);
-		expect(callsTo(fetchMock, "/api/transactions/txn-1/archive")).toHaveLength(0);
+		expect(callsTo(fetchMock, "/api/transactions/txn-1/archive")).toHaveLength(
+			0,
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: "Archive" }));
 		await waitFor(() =>
 			expect(screen.getByText(/archive this transaction\?/i)).toBeTruthy(),
 		);
-		fireEvent.click(screen.getByRole("button", { name: "Archive transaction" }));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Archive transaction" }),
+		);
 		await waitFor(() =>
-			expect(callsTo(fetchMock, "/api/transactions/txn-1/archive")).toHaveLength(1),
+			expect(
+				callsTo(fetchMock, "/api/transactions/txn-1/archive"),
+			).toHaveLength(1),
 		);
 	});
 
@@ -344,7 +359,9 @@ describe("/transactions lifecycle actions", () => {
 			expect(screen.getByRole("tab", { name: "Trash" })).toBeTruthy(),
 		);
 		fireEvent.click(screen.getByRole("tab", { name: "Trash" }));
-		await waitFor(() => expect(screen.getByText("Delete forever")).toBeTruthy());
+		await waitFor(() =>
+			expect(screen.getByText("Delete forever")).toBeTruthy(),
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: "Delete forever" }));
 		await waitFor(() =>
@@ -434,11 +451,17 @@ describe("/transactions create dialog", () => {
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
 		await waitFor(() =>
-			expect(screen.getByRole("button", { name: "Record transaction" })).toBeTruthy(),
+			expect(
+				screen.getByRole("button", { name: "Record transaction" }),
+			).toBeTruthy(),
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Record transaction" }));
 		await waitFor(() =>
-			expect(screen.getByText("Record transaction", { selector: "[role=dialog] h2, h2" })).toBeTruthy(),
+			expect(
+				screen.getByText("Record transaction", {
+					selector: "[role=dialog] h2, h2",
+				}),
+			).toBeTruthy(),
 		);
 		// Submit without amount or references.
 		fireEvent.click(

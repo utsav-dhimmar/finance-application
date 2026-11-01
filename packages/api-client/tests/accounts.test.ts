@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountResponse } from "@finance-application/schemas";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	archiveAccount,
 	createAccount,

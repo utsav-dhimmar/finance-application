@@ -58,8 +58,8 @@ export function RestoreCategoryNameDialog({
 				<DialogHeader>
 					<DialogTitle>Choose a new name</DialogTitle>
 					<DialogDescription>
-						Another category already uses "{category.name}". Restore with a
-						new name.
+						Another category already uses "{category.name}". Restore with a new
+						name.
 					</DialogDescription>
 				</DialogHeader>
 				<form

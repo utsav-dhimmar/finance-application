@@ -2,13 +2,13 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
-import { createUserRepository } from "@/repositories/user-repository";
+import { uuidV7 } from "@/lib/uuid";
 import {
 	createCategoryRepository,
-	normalizeCategoryName,
 	type NewCategoryRow,
+	normalizeCategoryName,
 } from "@/repositories/category-repository";
-import { uuidV7 } from "@/lib/uuid";
+import { createUserRepository } from "@/repositories/user-repository";
 
 const db = getDb(env);
 const repo = createCategoryRepository(db);
@@ -94,7 +94,9 @@ describe("CategoryRepository", () => {
 
 	it("enforces uniqueness across types: an income category blocks an expense duplicate", async () => {
 		await insertCategory({ name: "Salary", type: "income" });
-		await expect(insertCategory({ name: "salary", type: "expense" })).rejects.toThrow();
+		await expect(
+			insertCategory({ name: "salary", type: "expense" }),
+		).rejects.toThrow();
 	});
 
 	it("allows the same name for different users", async () => {

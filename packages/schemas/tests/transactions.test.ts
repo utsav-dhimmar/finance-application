@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-	NOTES_MAX_LENGTH,
 	createTransactionBodySchema,
 	listTransactionsQuerySchema,
+	NOTES_MAX_LENGTH,
 	restoreTransactionBodySchema,
 	transactionAmountSchema,
 	transactionDateSchema,

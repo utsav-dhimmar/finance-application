@@ -115,7 +115,7 @@ export function AppHeader() {
 							</span>
 							<Button
 								variant="outline"
-                size="sm"
+								size="sm"
 								onClick={handleSignOut}
 								disabled={logout.isPending}
 							>

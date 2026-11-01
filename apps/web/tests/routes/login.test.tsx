@@ -65,7 +65,9 @@ describe("/login", () => {
 		fillForm("user@example.com", "short");
 		fireEvent.click(screen.getByRole("button", { name: "Log in" }));
 		await waitFor(() =>
-			expect(screen.getByRole("alert").textContent).toMatch(/>=8|8 characters/i),
+			expect(screen.getByRole("alert").textContent).toMatch(
+				/>=8|8 characters/i,
+			),
 		);
 	});
 

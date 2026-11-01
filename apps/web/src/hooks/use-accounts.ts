@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
 	AccountStatus,
 	CreateAccountBody,
 	UpdateAccountBody,
 } from "@finance-application/schemas";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	ACCOUNTS_QUERY_KEY,
 	accountsQueryOptions,

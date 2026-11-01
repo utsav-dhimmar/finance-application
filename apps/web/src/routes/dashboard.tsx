@@ -35,7 +35,10 @@ export function DashboardPage() {
 	if (me.isPending || me.data === undefined) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
-				<p aria-live="polite" className="text-sm text-muted-foreground animate-pulse">
+				<p
+					aria-live="polite"
+					className="text-sm text-muted-foreground animate-pulse"
+				>
 					Loading...
 				</p>
 			</main>
@@ -61,7 +64,10 @@ export function DashboardPage() {
 							Dashboard
 						</h1>
 						<p aria-live="polite" className="text-sm text-muted-foreground">
-							Signed in as <strong className="font-medium text-foreground">{me.data.email}</strong>
+							Signed in as{" "}
+							<strong className="font-medium text-foreground">
+								{me.data.email}
+							</strong>
 						</p>
 					</div>
 					<div className="flex items-center gap-2 pt-2 sm:pt-0">
@@ -76,7 +82,10 @@ export function DashboardPage() {
 
 				{/* Financial Summary Metric Cards */}
 				{accounts.isPending ? (
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+					<div
+						className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+						aria-hidden="true"
+					>
 						<Skeleton className="h-32 w-full rounded-xl" />
 						<Skeleton className="h-32 w-full rounded-xl" />
 						<Skeleton className="h-32 w-full rounded-xl" />
@@ -101,7 +110,7 @@ export function DashboardPage() {
 									{hasAccounts
 										? `Combined across ${activeAccounts.length} active ${
 												activeAccounts.length === 1 ? "account" : "accounts"
-										  }`
+											}`
 										: "No active accounts configured"}
 								</CardDescription>
 							</CardContent>
@@ -122,7 +131,9 @@ export function DashboardPage() {
 									{activeAccounts.length}
 								</div>
 								<CardDescription className="mt-1 text-xs text-muted-foreground">
-									{hasAccounts ? "Ready for transactions" : "Add an account to begin"}
+									{hasAccounts
+										? "Ready for transactions"
+										: "Add an account to begin"}
 								</CardDescription>
 							</CardContent>
 						</Card>
@@ -134,12 +145,17 @@ export function DashboardPage() {
 									Account Overview
 								</div>
 								<p className="mt-2 text-xs text-muted-foreground">
-									Review balances, modify lifecycle states, or restore archived accounts.
+									Review balances, modify lifecycle states, or restore archived
+									accounts.
 								</p>
 							</div>
 							<div className="mt-4">
 								<SafeLink to="/accounts">
-									<Button variant="outline" size="sm" className="w-full justify-between">
+									<Button
+										variant="outline"
+										size="sm"
+										className="w-full justify-between"
+									>
 										<span>View all accounts</span>
 										<ArrowUpRight aria-hidden="true" className="size-3.5" />
 									</Button>
@@ -159,7 +175,8 @@ export function DashboardPage() {
 							No accounts added yet
 						</h2>
 						<p className="mt-1 max-w-sm text-xs text-muted-foreground">
-							Create your first checking, savings, credit, or cash account to begin tracking balances.
+							Create your first checking, savings, credit, or cash account to
+							begin tracking balances.
 						</p>
 						<SafeLink to="/accounts" className="mt-4">
 							<Button size="sm">Add your first account</Button>

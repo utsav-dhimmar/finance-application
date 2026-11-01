@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
-import { users, type User } from "@/db/schema";
+import { type User, users } from "@/db/schema";
 
 export interface NewUserRow {
 	id: string;

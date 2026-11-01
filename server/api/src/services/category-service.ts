@@ -1,14 +1,17 @@
-import type { Category } from "@/db/schema";
-import type { ErrorCode } from "@/lib/error";
-import { uuidV7 } from "@/lib/uuid";
-import type { CategoryStatus, CategoryType } from "@finance-application/schemas";
-import type { CategoryRepository } from "@/repositories/category-repository";
-import { normalizeCategoryName } from "@/repositories/category-repository";
-import { isoNow } from "@/utils/datetime";
+import type {
+	CategoryStatus,
+	CategoryType,
+} from "@finance-application/schemas";
 import {
 	categoryStatusSchema,
 	categoryTypeSchema,
 } from "@finance-application/schemas";
+import type { Category } from "@/db/schema";
+import type { ErrorCode } from "@/lib/error";
+import { uuidV7 } from "@/lib/uuid";
+import type { CategoryRepository } from "@/repositories/category-repository";
+import { normalizeCategoryName } from "@/repositories/category-repository";
+import { isoNow } from "@/utils/datetime";
 
 export interface CategoryView {
 	id: string;
@@ -93,9 +96,7 @@ const VALID_TRANSITIONS: Record<CategoryStatus, readonly CategoryStatus[]> = {
 
 export interface CategoryServiceDeps {
 	categories: CategoryRepository;
-	getReferencingTransactionCount?: (
-		categoryId: string,
-	) => Promise<number>;
+	getReferencingTransactionCount?: (categoryId: string) => Promise<number>;
 }
 
 export function createCategoryService(deps: CategoryServiceDeps) {
@@ -205,10 +206,7 @@ export function createCategoryService(deps: CategoryServiceDeps) {
 			return { categories: filtered.map(toView) };
 		},
 
-		async get(
-			userId: string,
-			categoryId: string,
-		): Promise<GetCategoryOutcome> {
+		async get(userId: string, categoryId: string): Promise<GetCategoryOutcome> {
 			const category = await requireOwnedCategory(userId, categoryId);
 			if (!category) {
 				return { ok: false, code: "NOT_FOUND" };
@@ -216,9 +214,7 @@ export function createCategoryService(deps: CategoryServiceDeps) {
 			return { ok: true, value: toView(category) };
 		},
 
-		async update(
-			input: UpdateCategoryInput,
-		): Promise<UpdateCategoryOutcome> {
+		async update(input: UpdateCategoryInput): Promise<UpdateCategoryOutcome> {
 			const category = await requireOwnedCategory(
 				input.userId,
 				input.categoryId,
@@ -234,8 +230,7 @@ export function createCategoryService(deps: CategoryServiceDeps) {
 			const changesType =
 				input.type !== undefined && input.type !== category.type;
 			if (changesType) {
-				const referencing =
-					await referencingCount(input.categoryId);
+				const referencing = await referencingCount(input.categoryId);
 				if (referencing > 0) {
 					return { ok: false, code: "CATEGORY_TYPE_LOCKED" };
 				}

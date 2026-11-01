@@ -66,9 +66,7 @@ describe("/register", () => {
 				/already registered/i,
 			),
 		);
-		expect(
-			screen.getByText(/create your account/i),
-		).toBeTruthy();
+		expect(screen.getByText(/create your account/i)).toBeTruthy();
 	});
 
 	it("navigates to /dashboard on successful registration", async () => {

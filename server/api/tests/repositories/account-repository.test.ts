@@ -2,12 +2,12 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
-import { createUserRepository } from "@/repositories/user-repository";
+import { uuidV7 } from "@/lib/uuid";
 import {
 	createAccountRepository,
 	normalizeAccountName,
 } from "@/repositories/account-repository";
-import { uuidV7 } from "@/lib/uuid";
+import { createUserRepository } from "@/repositories/user-repository";
 
 const db = getDb(env);
 const repo = createAccountRepository(db);

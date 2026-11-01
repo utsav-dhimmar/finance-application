@@ -2,11 +2,11 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
 import { uuidV7 } from "@/lib/uuid";
-import { createUserRepository } from "@/repositories/user-repository";
 import {
 	createRefreshTokenRepository,
 	type NewRefreshTokenRow,
 } from "@/repositories/refresh-token-repository";
+import { createUserRepository } from "@/repositories/user-repository";
 
 const db = getDb(env);
 const repo = createRefreshTokenRepository(db);
@@ -38,7 +38,9 @@ function tokenRow(userId: string, tokenHash: string): NewRefreshTokenRow {
 }
 
 beforeEach(async () => {
-	await env.finance_application.exec("DELETE FROM refresh_tokens; DELETE FROM users;");
+	await env.finance_application.exec(
+		"DELETE FROM refresh_tokens; DELETE FROM users;",
+	);
 });
 
 describe("RefreshTokenRepository", () => {

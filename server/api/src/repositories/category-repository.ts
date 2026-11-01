@@ -1,6 +1,6 @@
 import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import type { Db } from "@/db";
-import { categories, transactions, type Category } from "@/db/schema";
+import { type Category, categories, transactions } from "@/db/schema";
 import { normalizeName } from "@/lib/name-normalization";
 
 // Case-insensitive, whitespace-trimmed uniqueness backed by the partial unique
@@ -54,7 +54,9 @@ export function createCategoryRepository(db: Db) {
 			return db
 				.select()
 				.from(categories)
-				.where(and(eq(categories.userId, userId), eq(categories.status, status)))
+				.where(
+					and(eq(categories.userId, userId), eq(categories.status, status)),
+				)
 				.orderBy(asc(categories.createdAt), asc(categories.name));
 		},
 

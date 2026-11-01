@@ -28,8 +28,8 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
 import { useCreateAccount } from "@/hooks/use-accounts";
+import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
 import { getAccountsErrorMessage } from "@/services/accounts-service";
 
 export const ACCOUNT_TYPE_OPTIONS = (

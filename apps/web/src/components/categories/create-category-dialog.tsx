@@ -156,7 +156,9 @@ export function CreateCategoryDialog({
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="category-color">Color (optional)</FieldLabel>
+								<FieldLabel htmlFor="category-color">
+									Color (optional)
+								</FieldLabel>
 								<Input
 									id="category-color"
 									placeholder="#22C55E"

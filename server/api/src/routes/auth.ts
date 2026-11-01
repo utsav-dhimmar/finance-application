@@ -3,26 +3,18 @@ import { getDb } from "@/db";
 import type { User } from "@/db/schema";
 import { errorBody, validationHook } from "@/lib/error";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import {
-	clearSession,
-	getRefreshToken,
-	issueSession,
-} from "@/lib/session";
-import {
-	generateRefreshToken,
-	hashToken,
-	signAccessToken,
-} from "@/lib/tokens";
+import { clearSession, getRefreshToken, issueSession } from "@/lib/session";
+import { generateRefreshToken, hashToken, signAccessToken } from "@/lib/tokens";
 import { requireAuth } from "@/middleware/auth";
 import { createRefreshTokenRepository } from "@/repositories/refresh-token-repository";
 import { createUserRepository } from "@/repositories/user-repository";
-import { createAuthService } from "@/services/auth-service";
 import {
 	errorEnvelopeSchema,
 	loginBodySchema,
 	registerBodySchema,
 	userResponseSchema,
 } from "@/schemas/auth";
+import { createAuthService } from "@/services/auth-service";
 
 function createAuthServiceForEnv(env: {
 	JWT_SECRET: string;

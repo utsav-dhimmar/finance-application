@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
 import { env, exports } from "cloudflare:workers";
+import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE } from "@/lib/session";
 import { uuidV7 } from "@/lib/uuid";
-import { beforeEach, describe, expect, it } from "vitest";
 
 // The main worker's default export, invoked with real bindings so requests
 // carry env (D1 + JWT_SECRET) like production traffic does.
@@ -66,7 +66,10 @@ async function createAccount(
 	cookie: string,
 	body: Record<string, unknown>,
 ): Promise<string> {
-	const res = await fetchApp(ACCOUNTS_URL, jsonResponseInit("POST", body, cookie));
+	const res = await fetchApp(
+		ACCOUNTS_URL,
+		jsonResponseInit("POST", body, cookie),
+	);
 	expect(res.status).toBe(201);
 	return ((await res.json()) as { id: string }).id;
 }
@@ -183,7 +186,12 @@ describe("POST /api/transactions", () => {
 		expect(first.status).toBe(201);
 		const replay = await postTransaction(
 			cookie,
-			transactionBody({ id: sharedId, accountId, categoryId, amountMinor: 999 }),
+			transactionBody({
+				id: sharedId,
+				accountId,
+				categoryId,
+				amountMinor: 999,
+			}),
 		);
 		expect(replay.status).toBe(200);
 		await expect(replay.json()).resolves.toMatchObject({
@@ -263,8 +271,18 @@ describe("GET /api/transactions", () => {
 		});
 
 		for (const body of [
-			transactionBody({ accountId, categoryId, date: "2026-01-05", notes: "market run" }),
-			transactionBody({ accountId, categoryId, date: "2026-01-20", amountMinor: 2000 }),
+			transactionBody({
+				accountId,
+				categoryId,
+				date: "2026-01-05",
+				notes: "market run",
+			}),
+			transactionBody({
+				accountId,
+				categoryId,
+				date: "2026-01-20",
+				amountMinor: 2000,
+			}),
 			transactionBody({
 				accountId: otherAccountId,
 				categoryId,
@@ -290,7 +308,12 @@ describe("GET /api/transactions", () => {
 
 		const paged = (await (
 			await fetchApp(`${BASE}?page=2&pageSize=2`, { headers: { cookie } })
-		).json()) as { total: number; page: number; pageSize: number; transactions: unknown[] };
+		).json()) as {
+			total: number;
+			page: number;
+			pageSize: number;
+			transactions: unknown[];
+		};
 		expect(paged.total).toBe(3);
 		expect(paged.page).toBe(2);
 		expect(paged.pageSize).toBe(2);
@@ -319,12 +342,12 @@ describe("GET /api/transactions", () => {
 		const cookie = await freshCookie();
 		const { accountId, categoryId } = await seedBaseline(cookie);
 		const id = (
-			await (
+			(await (
 				await postTransaction(
 					cookie,
 					transactionBody({ accountId, categoryId }),
 				)
-			).json() as { id: string }
+			).json()) as { id: string }
 		).id;
 		await fetchApp(
 			`${BASE}/${id}/archive`,
@@ -348,9 +371,12 @@ describe("GET /api/transactions/:id", () => {
 		const cookie = await freshCookie();
 		const { accountId, categoryId } = await seedBaseline(cookie);
 		const id = (
-			await (
-				await postTransaction(cookie, transactionBody({ accountId, categoryId }))
-			).json() as { id: string }
+			(await (
+				await postTransaction(
+					cookie,
+					transactionBody({ accountId, categoryId }),
+				)
+			).json()) as { id: string }
 		).id;
 
 		const found = await fetchApp(`${BASE}/${id}`, { headers: { cookie } });
@@ -376,9 +402,12 @@ describe("PATCH /api/transactions/:id", () => {
 			type: "income",
 		});
 		const id = (
-			await (
-				await postTransaction(cookie, transactionBody({ accountId, categoryId }))
-			).json() as { id: string }
+			(await (
+				await postTransaction(
+					cookie,
+					transactionBody({ accountId, categoryId }),
+				)
+			).json()) as { id: string }
 		).id;
 
 		const ok = await fetchApp(
@@ -416,9 +445,12 @@ describe("PATCH /api/transactions/:id", () => {
 		const cookie = await freshCookie();
 		const { accountId, categoryId } = await seedBaseline(cookie);
 		const id = (
-			await (
-				await postTransaction(cookie, transactionBody({ accountId, categoryId }))
-			).json() as { id: string }
+			(await (
+				await postTransaction(
+					cookie,
+					transactionBody({ accountId, categoryId }),
+				)
+			).json()) as { id: string }
 		).id;
 		await fetchApp(
 			`${BASE}/${id}/archive`,
@@ -440,9 +472,12 @@ describe("restore validation and permanent deletion", () => {
 		const cookie = await freshCookie();
 		const { accountId, categoryId } = await seedBaseline(cookie);
 		const id = (
-			await (
-				await postTransaction(cookie, transactionBody({ accountId, categoryId }))
-			).json() as { id: string }
+			(await (
+				await postTransaction(
+					cookie,
+					transactionBody({ accountId, categoryId }),
+				)
+			).json()) as { id: string }
 		).id;
 		await fetchApp(
 			`${BASE}/${id}/delete`,
@@ -482,13 +517,20 @@ describe("restore validation and permanent deletion", () => {
 		const cookie = await freshCookie();
 		const { accountId, categoryId } = await seedBaseline(cookie);
 		const activeId = (
-			await (
-				await postTransaction(cookie, transactionBody({ accountId, categoryId }))
-			).json() as { id: string }
+			(await (
+				await postTransaction(
+					cookie,
+					transactionBody({ accountId, categoryId }),
+				)
+			).json()) as { id: string }
 		).id;
 		expect(
-			(await fetchApp(`${BASE}/${activeId}`, jsonResponseInit("DELETE", undefined, cookie)))
-				.status,
+			(
+				await fetchApp(
+					`${BASE}/${activeId}`,
+					jsonResponseInit("DELETE", undefined, cookie),
+				)
+			).status,
 		).toBe(409);
 
 		await fetchApp(

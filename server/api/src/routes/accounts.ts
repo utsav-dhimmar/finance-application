@@ -6,11 +6,6 @@ import { requireAuth } from "@/middleware/auth";
 import { createAccountRepository } from "@/repositories/account-repository";
 import { createTransactionRepository } from "@/repositories/transaction-repository";
 import {
-	createAccountService,
-	type AccountService,
-	type TransitionAccountOutcome,
-} from "@/services/account-service";
-import {
 	accountListResponseSchema,
 	accountResponseSchema,
 	createAccountBodySchema,
@@ -19,6 +14,11 @@ import {
 	updateAccountBodySchema,
 } from "@/schemas/accounts";
 import { errorEnvelopeSchema } from "@/schemas/auth";
+import {
+	type AccountService,
+	createAccountService,
+	type TransitionAccountOutcome,
+} from "@/services/account-service";
 
 type AppBindings = { JWT_SECRET: string; finance_application: D1Database };
 

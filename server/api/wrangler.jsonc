@@ -13,5 +13,14 @@
 			"database_id": "fce29793-aa5b-49e5-b747-af353f30e64a",
 			"migrations_dir": "migrations"
 		}
-	]
+	],
+	// Serve the built SPA (apps/web) as static assets from this same worker:
+	// matching files are served by the assets layer without invoking the
+	// worker; /api/* goes to Hono first; anything else falls back to the
+	// prerendered SPA shell so client-side routes survive hard refresh.
+	"assets": {
+		"directory": "../../apps/web/dist/client",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*"]
+	}
 }

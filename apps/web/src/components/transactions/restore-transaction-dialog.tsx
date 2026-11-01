@@ -8,10 +8,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@finance-application/ui/components/dialog";
-import {
-	Field,
-	FieldLabel,
-} from "@finance-application/ui/components/field";
+import { Field, FieldLabel } from "@finance-application/ui/components/field";
 import {
 	Select,
 	SelectContent,
@@ -27,10 +24,7 @@ import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 interface RestoreTransactionDialogProps {
 	transaction: TransactionResponse;
 	pending: boolean;
-	onSubmit: (reassignment: {
-		accountId?: string;
-		categoryId?: string;
-	}) => void;
+	onSubmit: (reassignment: { accountId?: string; categoryId?: string }) => void;
 	onOpenChange: (open: boolean) => void;
 }
 
@@ -100,8 +94,8 @@ export function RestoreTransactionDialog({
 					</Field>
 					<Field>
 						<FieldLabel htmlFor="restore-transaction-category">
-							Category ({TRANSACTION_TYPE_LABELS[transaction.type].toLowerCase()}
-							)
+							Category (
+							{TRANSACTION_TYPE_LABELS[transaction.type].toLowerCase()})
 						</FieldLabel>
 						<Select
 							items={categoryOptions.map((category) => ({
@@ -141,9 +135,7 @@ export function RestoreTransactionDialog({
 						}
 						onClick={() => {
 							onSubmit({
-								...(accountId !== transaction.accountId
-									? { accountId }
-									: {}),
+								...(accountId !== transaction.accountId ? { accountId } : {}),
 								...(categoryId !== transaction.categoryId
 									? { categoryId }
 									: {}),

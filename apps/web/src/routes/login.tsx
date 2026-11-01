@@ -1,7 +1,4 @@
-import {
-	loginBodySchema,
-	type LoginBody,
-} from "@finance-application/schemas";
+import { type LoginBody, loginBodySchema } from "@finance-application/schemas";
 import { Button } from "@finance-application/ui/components/button";
 import {
 	Card,
@@ -75,7 +72,11 @@ export function LoginPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+						<form
+							onSubmit={onSubmit}
+							className="flex flex-col gap-4"
+							noValidate
+						>
 							{form.formState.errors.root?.message && (
 								<p role="alert" className="text-xs text-destructive">
 									{form.formState.errors.root.message}

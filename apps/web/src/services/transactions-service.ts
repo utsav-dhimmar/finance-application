@@ -28,7 +28,9 @@ export function transactionsQueryKey(filters: Partial<ListTransactionsQuery>) {
 	return [...TRANSACTIONS_QUERY_KEY, serializeFilters(filters)] as const;
 }
 
-export function serializeFilters(filters: Partial<ListTransactionsQuery>): string {
+export function serializeFilters(
+	filters: Partial<ListTransactionsQuery>,
+): string {
 	const params = new URLSearchParams();
 	for (const [key, value] of Object.entries(filters)) {
 		if (value !== undefined && value !== "") {
@@ -91,9 +93,9 @@ export function destroyTransaction(id: string): Promise<TransactionResponse> {
 }
 
 export type {
+	ListTransactionsQuery,
 	TransactionListResponse,
 	TransactionResponse,
-	ListTransactionsQuery,
 };
 
 // Maps known transaction error codes to user-facing copy. `fallback` names

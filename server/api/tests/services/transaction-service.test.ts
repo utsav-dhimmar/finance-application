@@ -32,7 +32,9 @@ function createFakes() {
 		};
 	}
 
-	function categoryRow(overrides: Partial<Category> & { id: string }): Category {
+	function categoryRow(
+		overrides: Partial<Category> & { id: string },
+	): Category {
 		return {
 			userId: "user-1",
 			name: overrides.id,
@@ -103,11 +105,7 @@ function createFakes() {
 			},
 		),
 		updateDetails: vi.fn(
-			async (
-				id: string,
-				patch: Partial<Transaction>,
-				updatedAt: string,
-			) => {
+			async (id: string, patch: Partial<Transaction>, updatedAt: string) => {
 				const transaction = txnRows.get(id);
 				if (!transaction) {
 					return undefined;
@@ -156,7 +154,9 @@ function createFakes() {
 		return account;
 	}
 
-	function seedCategory(overrides: Partial<Category> & { id: string }): Category {
+	function seedCategory(
+		overrides: Partial<Category> & { id: string },
+	): Category {
 		const category = categoryRow(overrides);
 		categoryRows.set(category.id, category);
 		return category;
@@ -174,9 +174,7 @@ function createFakes() {
 type Fakes = ReturnType<typeof createFakes>;
 
 function asDeps(fakes: Fakes) {
-	return fakes as unknown as Parameters<
-		typeof createTransactionService
-	>[0];
+	return fakes as unknown as Parameters<typeof createTransactionService>[0];
 }
 
 function createdId(
@@ -465,41 +463,44 @@ describe("createTransactionService lifecycle transitions", () => {
 
 		// active → archived and archived → active
 		const toArchive = await seed();
-		expect(
-			(await service.transition("user-1", toArchive, "archived")).ok,
-		).toBe(true);
-		expect(
-			(await service.transition("user-1", toArchive, "active")).ok,
-		).toBe(true);
+		expect((await service.transition("user-1", toArchive, "archived")).ok).toBe(
+			true,
+		);
+		expect((await service.transition("user-1", toArchive, "active")).ok).toBe(
+			true,
+		);
 
 		// active → deleted and deleted → active
 		const toDelete = await seed();
-		expect(
-			(await service.transition("user-1", toDelete, "deleted")).ok,
-		).toBe(true);
-		expect(
-			(await service.transition("user-1", toDelete, "active")).ok,
-		).toBe(true);
+		expect((await service.transition("user-1", toDelete, "deleted")).ok).toBe(
+			true,
+		);
+		expect((await service.transition("user-1", toDelete, "active")).ok).toBe(
+			true,
+		);
 
 		// archived → deleted is invalid
 		const blocked = await seed();
 		await service.transition("user-1", blocked, "archived");
-		expect(
-			await service.transition("user-1", blocked, "deleted"),
-		).toEqual({ ok: false, code: "TRANSACTION_TRANSITION_INVALID" });
+		expect(await service.transition("user-1", blocked, "deleted")).toEqual({
+			ok: false,
+			code: "TRANSACTION_TRANSITION_INVALID",
+		});
 
 		// deleted → archived is invalid
 		const trashed = await seed();
 		await service.transition("user-1", trashed, "deleted");
-		expect(
-			await service.transition("user-1", trashed, "archived"),
-		).toEqual({ ok: false, code: "TRANSACTION_TRANSITION_INVALID" });
+		expect(await service.transition("user-1", trashed, "archived")).toEqual({
+			ok: false,
+			code: "TRANSACTION_TRANSITION_INVALID",
+		});
 
 		// same-status is invalid
 		const sameStatus = await seed();
-		expect(
-			await service.transition("user-1", sameStatus, "active"),
-		).toEqual({ ok: false, code: "TRANSACTION_TRANSITION_INVALID" });
+		expect(await service.transition("user-1", sameStatus, "active")).toEqual({
+			ok: false,
+			code: "TRANSACTION_TRANSITION_INVALID",
+		});
 
 		// unknown ids are NOT_FOUND
 		expect(await service.transition("user-1", "ghost", "archived")).toEqual({
@@ -523,9 +524,9 @@ describe("createTransactionService lifecycle transitions", () => {
 			status: "archived",
 			archivedAt: "2026-01-02T00:00:00.000Z",
 		});
-		expect((await service.restore({ userId: "user-1", transactionId: id })).ok).toBe(
-			true,
-		);
+		expect(
+			(await service.restore({ userId: "user-1", transactionId: id })).ok,
+		).toBe(true);
 
 		// Deleted account blocks the restore.
 		await service.remove("user-1", id);
@@ -535,9 +536,9 @@ describe("createTransactionService lifecycle transitions", () => {
 			status: "deleted",
 			deletedAt: "2026-01-02T00:00:00.000Z",
 		});
-		expect(await service.restore({ userId: "user-1", transactionId: id })).toEqual(
-			{ ok: false, code: "RESTORE_CONFLICT" },
-		);
+		expect(
+			await service.restore({ userId: "user-1", transactionId: id }),
+		).toEqual({ ok: false, code: "RESTORE_CONFLICT" });
 	});
 
 	it("blocks restore when the category was deleted", async () => {
@@ -553,9 +554,9 @@ describe("createTransactionService lifecycle transitions", () => {
 			status: "deleted",
 			deletedAt: "2026-01-02T00:00:00.000Z",
 		});
-		expect(await service.restore({ userId: "user-1", transactionId: id })).toEqual(
-			{ ok: false, code: "RESTORE_CONFLICT" },
-		);
+		expect(
+			await service.restore({ userId: "user-1", transactionId: id }),
+		).toEqual({ ok: false, code: "RESTORE_CONFLICT" });
 	});
 
 	it("restores with reassignment onto eligible replacements", async () => {

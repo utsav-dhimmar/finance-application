@@ -1,9 +1,8 @@
+import { ApiError } from "@finance-application/api-client";
+import type { AccountResponse } from "@finance-application/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError } from "@finance-application/api-client";
-import type { AccountResponse } from "@finance-application/schemas";
-import { formatPaise } from "@/lib/money";
 import {
 	useAccounts,
 	useArchiveAccount,
@@ -12,6 +11,7 @@ import {
 	useRestoreAccount,
 	useUpdateAccount,
 } from "@/hooks/use-accounts";
+import { formatPaise } from "@/lib/money";
 import {
 	accountsQueryKey,
 	getAccountsErrorMessage,

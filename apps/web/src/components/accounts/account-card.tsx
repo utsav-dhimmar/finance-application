@@ -7,12 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@finance-application/ui/components/card";
-import {
-	Coins,
-	Landmark,
-	RotateCcw,
-	Wallet,
-} from "lucide-react";
+import { Coins, Landmark, RotateCcw, Wallet } from "lucide-react";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
 import { formatPaise } from "@/lib/money";
 

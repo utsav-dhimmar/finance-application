@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Category } from "@/db/schema";
 import {
-	createCategoryService,
 	type CategoryList,
+	createCategoryService,
 } from "@/services/category-service";
 
 // Fake of the repository interface: service rules are tested here without a
@@ -215,7 +215,11 @@ describe("createCategoryService.create", () => {
 	it("rejects a duplicate name ignoring case", async () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
-		await service.create({ userId: "user-1", name: "Groceries", type: "expense" });
+		await service.create({
+			userId: "user-1",
+			name: "Groceries",
+			type: "expense",
+		});
 		const outcome = await service.create({
 			userId: "user-1",
 			name: "GROCERIES",
@@ -239,7 +243,11 @@ describe("createCategoryService.create", () => {
 	it("scopes uniqueness to one user", async () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
-		await service.create({ userId: "user-1", name: "Groceries", type: "expense" });
+		await service.create({
+			userId: "user-1",
+			name: "Groceries",
+			type: "expense",
+		});
 		const outcome = await service.create({
 			userId: "user-2",
 			name: "Groceries",
@@ -254,10 +262,18 @@ describe("createCategoryService.list and get", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const active = createdId(
-			await service.create({ userId: "user-1", name: "Active", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Active",
+				type: "expense",
+			}),
 		);
 		const archived = createdId(
-			await service.create({ userId: "user-1", name: "Archived", type: "income" }),
+			await service.create({
+				userId: "user-1",
+				name: "Archived",
+				type: "income",
+			}),
 		);
 		await service.transition("user-1", archived, "archived");
 
@@ -272,9 +288,16 @@ describe("createCategoryService.list and get", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Groceries", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Groceries",
+				type: "expense",
+			}),
 		);
-		expect(await service.get("user-2", id)).toEqual({ ok: false, code: "NOT_FOUND" });
+		expect(await service.get("user-2", id)).toEqual({
+			ok: false,
+			code: "NOT_FOUND",
+		});
 		expect(await service.get("user-1", "no-such-id")).toEqual({
 			ok: false,
 			code: "NOT_FOUND",
@@ -287,7 +310,11 @@ describe("createCategoryService.update", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Groceries", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Groceries",
+				type: "expense",
+			}),
 		);
 		const outcome = await service.update({
 			userId: "user-1",
@@ -304,7 +331,11 @@ describe("createCategoryService.update", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Groceries", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Groceries",
+				type: "expense",
+			}),
 		);
 		const outcome = await service.update({
 			userId: "user-1",
@@ -319,7 +350,11 @@ describe("createCategoryService.update", () => {
 		const service = createCategoryService({ categories: asRepo(repo) });
 		await service.create({ userId: "user-1", name: "Other", type: "expense" });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Groceries", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Groceries",
+				type: "expense",
+			}),
 		);
 		const outcome = await service.update({
 			userId: "user-1",
@@ -337,7 +372,11 @@ describe("createCategoryService.update", () => {
 			getReferencingTransactionCount: referencing,
 		});
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Flexible", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Flexible",
+				type: "expense",
+			}),
 		);
 		const outcome = await service.update({
 			userId: "user-1",
@@ -428,7 +467,11 @@ describe("createCategoryService.update", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Groceries", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Groceries",
+				type: "expense",
+			}),
 		);
 		await service.transition("user-1", id, "archived");
 		const outcome = await service.update({
@@ -443,7 +486,11 @@ describe("createCategoryService.update", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		expect(
-			await service.update({ userId: "user-1", categoryId: "ghost", name: "X" }),
+			await service.update({
+				userId: "user-1",
+				categoryId: "ghost",
+				name: "X",
+			}),
 		).toEqual({ ok: false, code: "NOT_FOUND" });
 	});
 });
@@ -465,56 +512,71 @@ describe("createCategoryService lifecycle transitions", () => {
 
 		// active → deleted
 		const toDelete = await seed("To Delete");
-		expect(
-			(await service.transition("user-1", toDelete, "deleted")).ok,
-		).toBe(true);
+		expect((await service.transition("user-1", toDelete, "deleted")).ok).toBe(
+			true,
+		);
 
 		// archived → active (restore)
-		expect(
-			(await service.transition("user-1", toArchive, "active")).ok,
-		).toBe(true);
+		expect((await service.transition("user-1", toArchive, "active")).ok).toBe(
+			true,
+		);
 
 		// archived → deleted is invalid
 		const blocked = await seed("Blocked");
 		await service.transition("user-1", blocked, "archived");
-		expect(
-			await service.transition("user-1", blocked, "deleted"),
-		).toEqual({ ok: false, code: "CATEGORY_TRANSITION_INVALID" });
+		expect(await service.transition("user-1", blocked, "deleted")).toEqual({
+			ok: false,
+			code: "CATEGORY_TRANSITION_INVALID",
+		});
 
 		// deleted → active (restore)
-		expect(
-			(await service.transition("user-1", toDelete, "active")).ok,
-		).toBe(true);
+		expect((await service.transition("user-1", toDelete, "active")).ok).toBe(
+			true,
+		);
 
 		// deleted → archived is invalid
 		const trashed = await seed("Trashed");
 		await service.transition("user-1", trashed, "deleted");
-		expect(
-			await service.transition("user-1", trashed, "archived"),
-		).toEqual({ ok: false, code: "CATEGORY_TRANSITION_INVALID" });
+		expect(await service.transition("user-1", trashed, "archived")).toEqual({
+			ok: false,
+			code: "CATEGORY_TRANSITION_INVALID",
+		});
 
 		// same-status transitions are invalid
 		const sameStatus = await seed("Same Status");
-		expect(
-			await service.transition("user-1", sameStatus, "active"),
-		).toEqual({ ok: false, code: "CATEGORY_TRANSITION_INVALID" });
+		expect(await service.transition("user-1", sameStatus, "active")).toEqual({
+			ok: false,
+			code: "CATEGORY_TRANSITION_INVALID",
+		});
 
 		// unknown ids are NOT_FOUND
-		expect(
-			await service.transition("user-1", "ghost", "archived"),
-		).toEqual({ ok: false, code: "NOT_FOUND" });
+		expect(await service.transition("user-1", "ghost", "archived")).toEqual({
+			ok: false,
+			code: "NOT_FOUND",
+		});
 	});
 
 	it("rejects restoring when the name was taken, then succeeds with newName", async () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Groceries", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Groceries",
+				type: "expense",
+			}),
 		);
 		await service.transition("user-1", id, "deleted");
-		await service.create({ userId: "user-1", name: "GROCERIES", type: "income" });
+		await service.create({
+			userId: "user-1",
+			name: "GROCERIES",
+			type: "income",
+		});
 
-		const conflict = await service.restore({ userId: "user-1", categoryId: id });
+		const conflict = await service.restore({
+			userId: "user-1",
+			categoryId: id,
+		});
 		expect(conflict).toEqual({ ok: false, code: "CATEGORY_NAME_TAKEN" });
 
 		const renamed = await service.restore({
@@ -536,7 +598,11 @@ describe("createCategoryService lifecycle transitions", () => {
 		const repo = createFakeCategoryRepo();
 		const service = createCategoryService({ categories: asRepo(repo) });
 		const id = createdId(
-			await service.create({ userId: "user-1", name: "Timestamps", type: "expense" }),
+			await service.create({
+				userId: "user-1",
+				name: "Timestamps",
+				type: "expense",
+			}),
 		);
 		const archived = await service.transition("user-1", id, "archived");
 		if (archived.ok) {

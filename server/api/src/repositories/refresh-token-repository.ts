@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
-import { refreshTokens, type RefreshToken } from "@/db/schema";
+import { type RefreshToken, refreshTokens } from "@/db/schema";
 
 export interface NewRefreshTokenRow {
 	id: string;
@@ -13,7 +13,9 @@ export interface NewRefreshTokenRow {
 
 export function createRefreshTokenRepository(db: Db) {
 	return {
-		async findByTokenHash(tokenHash: string): Promise<RefreshToken | undefined> {
+		async findByTokenHash(
+			tokenHash: string,
+		): Promise<RefreshToken | undefined> {
 			const found = await db
 				.select()
 				.from(refreshTokens)
@@ -33,7 +35,10 @@ export function createRefreshTokenRepository(db: Db) {
 				.where(eq(refreshTokens.id, id));
 		},
 
-		async revokeByTokenHash(tokenHash: string, revokedAt: string): Promise<void> {
+		async revokeByTokenHash(
+			tokenHash: string,
+			revokedAt: string,
+		): Promise<void> {
 			await db
 				.update(refreshTokens)
 				.set({ revokedAt })

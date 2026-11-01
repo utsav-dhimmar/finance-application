@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
-import { createUserRepository } from "@/repositories/user-repository";
 import { uuidV7 } from "@/lib/uuid";
+import { createUserRepository } from "@/repositories/user-repository";
 
 const db = getDb(env);
 const repo = createUserRepository(db);
@@ -10,7 +10,9 @@ const repo = createUserRepository(db);
 const nowIso = new Date().toISOString();
 
 beforeEach(async () => {
-	await env.finance_application.exec("DELETE FROM refresh_tokens; DELETE FROM users;");
+	await env.finance_application.exec(
+		"DELETE FROM refresh_tokens; DELETE FROM users;",
+	);
 });
 
 describe("UserRepository", () => {

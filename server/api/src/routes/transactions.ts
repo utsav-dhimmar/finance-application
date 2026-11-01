@@ -6,11 +6,7 @@ import { requireAuth } from "@/middleware/auth";
 import { createAccountRepository } from "@/repositories/account-repository";
 import { createCategoryRepository } from "@/repositories/category-repository";
 import { createTransactionRepository } from "@/repositories/transaction-repository";
-import {
-	createTransactionService,
-	type TransitionTransactionOutcome,
-	type TransactionService,
-} from "@/services/transaction-service";
+import { errorEnvelopeSchema } from "@/schemas/auth";
 import {
 	createTransactionBodySchema,
 	listTransactionsQuerySchema,
@@ -19,7 +15,11 @@ import {
 	transactionResponseSchema,
 	updateTransactionBodySchema,
 } from "@/schemas/transactions";
-import { errorEnvelopeSchema } from "@/schemas/auth";
+import {
+	createTransactionService,
+	type TransactionService,
+	type TransitionTransactionOutcome,
+} from "@/services/transaction-service";
 
 type AppBindings = { JWT_SECRET: string; finance_application: D1Database };
 
@@ -39,7 +39,8 @@ const CATEGORY_INELIGIBLE_MESSAGE =
 const TRANSACTION_NOT_FOUND = errorBody("NOT_FOUND", "Transaction not found");
 const TRANSITION_INVALID_MESSAGE =
 	"That transaction lifecycle change is not allowed";
-const NOT_EDITABLE_MESSAGE = "Archived or deleted transactions cannot be edited";
+const NOT_EDITABLE_MESSAGE =
+	"Archived or deleted transactions cannot be edited";
 const RESTORE_CONFLICT_MESSAGE =
 	"The transaction's account or category has been deleted; reassign it to restore";
 
@@ -63,7 +64,8 @@ const createTransactionRoute = createRoute({
 		},
 		200: {
 			content: { "application/json": { schema: transactionResponseSchema } },
-			description: "Transaction with this id already exists (idempotent replay)",
+			description:
+				"Transaction with this id already exists (idempotent replay)",
 		},
 		400: {
 			content: { "application/json": { schema: errorEnvelopeSchema } },
@@ -88,7 +90,9 @@ const listTransactionsRoute = createRoute({
 	},
 	responses: {
 		200: {
-			content: { "application/json": { schema: transactionListResponseSchema } },
+			content: {
+				"application/json": { schema: transactionListResponseSchema },
+			},
 			description:
 				"Paginated transactions matching the filters, oldest page last by date",
 		},
@@ -150,7 +154,8 @@ const updateTransactionRoute = createRoute({
 		},
 		409: {
 			content: { "application/json": { schema: errorEnvelopeSchema } },
-			description: "Ineligible account/category or the transaction is not active",
+			description:
+				"Ineligible account/category or the transaction is not active",
 		},
 	},
 });
@@ -176,7 +181,8 @@ const archiveTransactionRoute = createRoute({
 		},
 		409: {
 			content: { "application/json": { schema: errorEnvelopeSchema } },
-			description: "Transition not allowed from the transaction's current status",
+			description:
+				"Transition not allowed from the transaction's current status",
 		},
 	},
 });
@@ -202,7 +208,8 @@ const deleteTransactionRoute = createRoute({
 		},
 		409: {
 			content: { "application/json": { schema: errorEnvelopeSchema } },
-			description: "Transition not allowed from the transaction's current status",
+			description:
+				"Transition not allowed from the transaction's current status",
 		},
 	},
 });

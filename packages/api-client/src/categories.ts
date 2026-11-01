@@ -6,8 +6,8 @@ import type {
 	RestoreCategoryBody,
 	UpdateCategoryBody,
 } from "@finance-application/schemas";
-import { apiFetch } from "./client";
 import type { ApiClientOptions } from "./auth";
+import { apiFetch } from "./client";
 
 export function createCategory(
 	body: CreateCategoryBody,

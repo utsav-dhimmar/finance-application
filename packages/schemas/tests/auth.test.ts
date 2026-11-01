@@ -9,7 +9,12 @@ import {
 
 describe("emailSchema", () => {
 	it("normalizes emails to lowercase", () => {
-		expect(registerBodySchema.parse({ email: "User@Example.COM", password: "long-enough" })).toEqual({
+		expect(
+			registerBodySchema.parse({
+				email: "User@Example.COM",
+				password: "long-enough",
+			}),
+		).toEqual({
 			email: "user@example.com",
 			password: "long-enough",
 		});
@@ -17,8 +22,10 @@ describe("emailSchema", () => {
 
 	it("rejects non-emails", () => {
 		expect(
-			loginBodySchema.safeParse({ email: "not-an-email", password: "long-enough" })
-				.success,
+			loginBodySchema.safeParse({
+				email: "not-an-email",
+				password: "long-enough",
+			}).success,
 		).toBe(false);
 	});
 });

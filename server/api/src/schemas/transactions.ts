@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import {
 	restoreTransactionBodySchema,
 	transactionAmountSchema,
@@ -7,11 +6,12 @@ import {
 	transactionListResponseSchema,
 	transactionNotesSchema,
 	transactionResponseSchema,
-	transactionStatusSchema,
 	transactionStatuses,
+	transactionStatusSchema,
 	transactionTypeSchema,
 	updateTransactionBodySchema,
 } from "@finance-application/schemas";
+import { z } from "@hono/zod-openapi";
 
 // The shared package owns the validation rules; this module owns the OpenAPI
 // metadata the route definitions need. Response and envelope schemas need no
@@ -27,7 +27,8 @@ export {
 
 export const createTransactionBodySchema = z.object({
 	id: transactionIdSchema.openapi({
-		description: "Client-generated UUIDv7 id; repeats return the existing record",
+		description:
+			"Client-generated UUIDv7 id; repeats return the existing record",
 		example: "018f6a2c-9b7d-7ce2-8f3a-1d4e5f6a7b8c",
 	}),
 	type: transactionTypeSchema.openapi({

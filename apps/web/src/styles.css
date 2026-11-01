@@ -1,4 +1,7 @@
 @import "tailwindcss";
 @import "@finance-application/ui/styles.css";
 
-@source "../../packages/ui/src";
+/* Scan the shared ui package's components too: without this, classes used
+   only inside @finance-application/ui (dialog/select positioning, z-50, ...)
+   never reach the build. Resolved from apps/web/src to the repo root. */
+@source "../../../packages/ui/src";

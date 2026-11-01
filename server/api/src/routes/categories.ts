@@ -4,11 +4,7 @@ import type { User } from "@/db/schema";
 import { errorBody, validationHook } from "@/lib/error";
 import { requireAuth } from "@/middleware/auth";
 import { createCategoryRepository } from "@/repositories/category-repository";
-import {
-	createCategoryService,
-	type CategoryService,
-	type TransitionCategoryOutcome,
-} from "@/services/category-service";
+import { errorEnvelopeSchema } from "@/schemas/auth";
 import {
 	categoryListResponseSchema,
 	categoryResponseSchema,
@@ -17,7 +13,11 @@ import {
 	restoreCategoryBodySchema,
 	updateCategoryBodySchema,
 } from "@/schemas/categories";
-import { errorEnvelopeSchema } from "@/schemas/auth";
+import {
+	type CategoryService,
+	createCategoryService,
+	type TransitionCategoryOutcome,
+} from "@/services/category-service";
 
 type AppBindings = { JWT_SECRET: string; finance_application: D1Database };
 

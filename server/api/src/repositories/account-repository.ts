@@ -1,6 +1,6 @@
 import { and, asc, eq, ne } from "drizzle-orm";
 import type { Db } from "@/db";
-import { accounts, type Account } from "@/db/schema";
+import { type Account, accounts } from "@/db/schema";
 import { normalizeName } from "@/lib/name-normalization";
 
 // Case-insensitive, whitespace-trimmed uniqueness backed by the partial unique

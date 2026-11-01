@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
 import { env, exports } from "cloudflare:workers";
+import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE } from "@/lib/session";
 import { uuidV7 } from "@/lib/uuid";
-import { beforeEach, describe, expect, it } from "vitest";
 
 // The main worker's default export, invoked with real bindings so requests
 // carry env (D1 + JWT_SECRET) like production traffic does.
@@ -66,7 +66,10 @@ async function createAccount(
 	cookie: string,
 	body: Record<string, unknown>,
 ): Promise<{ id: string; currentBalanceMinor: number }> {
-	const res = await fetchApp(ACCOUNTS_URL, jsonResponseInit("POST", body, cookie));
+	const res = await fetchApp(
+		ACCOUNTS_URL,
+		jsonResponseInit("POST", body, cookie),
+	);
 	expect(res.status).toBe(201);
 	const parsed = (await res.json()) as {
 		id: string;
@@ -97,7 +100,11 @@ async function postTransaction(
 async function accountById(
 	cookie: string,
 	id: string,
-): Promise<{ currentBalanceMinor: number; type: string; openingBalanceMinor: number }> {
+): Promise<{
+	currentBalanceMinor: number;
+	type: string;
+	openingBalanceMinor: number;
+}> {
 	const res = await fetchApp(`${ACCOUNTS_URL}/${id}`, {
 		headers: { cookie },
 	});
@@ -192,7 +199,7 @@ describe("balance effects", () => {
 			type: "income",
 		});
 		const txnId = (
-			await (
+			(await (
 				await postTransaction(cookie, {
 					id: uuidV7(),
 					type: "income",
@@ -201,7 +208,7 @@ describe("balance effects", () => {
 					accountId: account.id,
 					categoryId: category,
 				})
-			).json() as { id: string }
+			).json()) as { id: string }
 		).id;
 
 		const archive = await fetchApp(
@@ -272,7 +279,7 @@ describe("balance effects", () => {
 			type: "income",
 		});
 		const txnId = (
-			await (
+			(await (
 				await postTransaction(cookie, {
 					id: uuidV7(),
 					type: "income",
@@ -281,16 +288,12 @@ describe("balance effects", () => {
 					accountId: from.id,
 					categoryId: category,
 				})
-			).json() as { id: string }
+			).json()) as { id: string }
 		).id;
 
 		const edit = await fetchApp(
 			`${BASE}/${txnId}`,
-			jsonResponseInit(
-				"PATCH",
-				{ accountId: to.id, type: undefined },
-				cookie,
-			),
+			jsonResponseInit("PATCH", { accountId: to.id, type: undefined }, cookie),
 		);
 		expect(edit.status).toBe(200);
 		expect((await accountById(cookie, from.id)).currentBalanceMinor).toBe(0);
@@ -311,7 +314,7 @@ describe("field locks from posted history", () => {
 			type: "expense",
 		});
 		const txnId = (
-			await (
+			(await (
 				await postTransaction(cookie, {
 					id: uuidV7(),
 					type: "expense",
@@ -320,7 +323,7 @@ describe("field locks from posted history", () => {
 					accountId: account.id,
 					categoryId: category,
 				})
-			).json() as { id: string }
+			).json()) as { id: string }
 		).id;
 		void txnId;
 

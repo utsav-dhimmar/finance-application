@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Account } from "@/db/schema";
 import {
-	createAccountService,
-	computeCurrentBalance,
 	type AccountList,
+	computeCurrentBalance,
+	createAccountService,
 } from "@/services/account-service";
 
 // Fake of the repository interface: service rules are tested here without a

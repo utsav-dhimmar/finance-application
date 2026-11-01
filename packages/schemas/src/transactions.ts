@@ -116,10 +116,7 @@ export const transactionListResponseSchema = z.object({
 export const transactionFormSchema = z.object({
 	type: transactionTypeSchema,
 	amount: amountInputSchema.pipe(
-		z.number().refine(
-			(value) => value > 0,
-			"Amount must be greater than zero",
-		),
+		z.number().refine((value) => value > 0, "Amount must be greater than zero"),
 	),
 	date: transactionDateSchema,
 	accountId: z.string().min(1, "Choose an account"),
@@ -136,7 +133,9 @@ export const transactionFormSchema = z.object({
 
 export type CreateTransactionBody = z.infer<typeof createTransactionBodySchema>;
 export type UpdateTransactionBody = z.infer<typeof updateTransactionBodySchema>;
-export type RestoreTransactionBody = z.infer<typeof restoreTransactionBodySchema>;
+export type RestoreTransactionBody = z.infer<
+	typeof restoreTransactionBodySchema
+>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 export type TransactionResponse = z.infer<typeof transactionResponseSchema>;
 export type TransactionListResponse = z.infer<

@@ -7,7 +7,7 @@ of truth for behavior.
 
 ## Stack
 
-- **Web app**: TanStack Start (Vite, SSR) + TanStack Router + TanStack Query,
+- **Web app**: TanStack Start (Vite, SPA mode) + TanStack Router + TanStack Query,
   shadcn/ui on Base UI primitives, Tailwind CSS v4, Lucide icons
 - **Runtime & hosting**: Cloudflare Workers (Hono HTTP API), Cloudflare D1 (SQL)
 - **Data access**: Drizzle ORM
@@ -69,6 +69,33 @@ pnpm dlx shadcn@latest add card
 Components land in `packages/ui/src/components/` and are imported as
 `@finance-application/ui/components/<name>`.
 
+### Serving model and deployment
+
+One Cloudflare Worker serves everything from a single origin:
+
+- **Static assets** — the web app builds in SPA mode (a prerendered shell is
+  copied to `index.html` by `apps/web/scripts/copy-spa-shell.mjs`), and the
+  worker's `assets` config serves `apps/web/dist/client` directly; asset
+  requests never invoke the worker.
+- **API precedence** — `/api/*` requests go to the Hono worker first
+  (`run_worker_first`), so API routing and error envelopes are untouched.
+- **SPA fallback** — any other path returns `index.html` with status `200`
+  (`not_found_handling: "single-page-application"`), so client-side routes
+  survive hard refresh; unknown app paths render the not-found view client-side.
+
+Deploy:
+
+```sh
+pnpm build                          # builds all packages — apps/web must build
+cd server/api
+npx wrangler deploy                 # requires a prior web build (assets dir)
+```
+
+In CI (Cloudflare Builds), the build command is `pnpm run build` and the deploy
+command is `cd server/api && npx wrangler deploy`. Note that `wrangler dev`
+serves the SPA from the last `vite build`, not live edits — use `vite dev`
+with the proxy for day-to-day web work.
+
 ### Database migrations
 
 The API's schema lives in `server/api/src/db/schema.ts` (Drizzle). After
@@ -100,8 +127,9 @@ The web app provides `/register`, `/login`, and a protected `/dashboard`
 
 ## API
 
-The D1 binding in `wrangler.jsonc` is local-only for now; `wrangler dev`
-provisions a local SQLite database, so no Cloudflare account is needed.
+The worker uses a provisioned remote D1 database (`finance_application`
+binding in `wrangler.jsonc`); `wrangler dev` uses a local SQLite database, so
+no Cloudflare account is needed for local development.
 
 - `GET /api/hello` — fixed hello-world response
 - `GET /api/greet/{name}?greeting=Hello&times=1` — personalized greeting;

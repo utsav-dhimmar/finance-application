@@ -1,10 +1,10 @@
 import { createMiddleware } from "hono/factory";
-import type { User } from "@/db/schema";
-import { createUserRepository } from "@/repositories/user-repository";
 import { getDb } from "@/db";
+import type { User } from "@/db/schema";
 import { errorBody } from "@/lib/error";
 import { getAccessToken } from "@/lib/session";
 import { verifyAccessToken } from "@/lib/tokens";
+import { createUserRepository } from "@/repositories/user-repository";
 
 // Object-literal type alias (not interface) so it is assignable to hono's
 // `Record<string, unknown>` Bindings.

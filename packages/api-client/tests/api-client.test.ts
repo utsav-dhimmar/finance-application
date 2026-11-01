@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiFetch } from "../src/client";
 import { login, logout, me, refresh, register } from "../src/auth";
+import { ApiError, apiFetch } from "../src/client";
 
 const user = { id: "uuid-1", email: "user@example.com" };
 

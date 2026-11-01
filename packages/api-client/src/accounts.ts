@@ -6,8 +6,8 @@ import type {
 	RestoreAccountBody,
 	UpdateAccountBody,
 } from "@finance-application/schemas";
-import { apiFetch } from "./client";
 import type { ApiClientOptions } from "./auth";
+import { apiFetch } from "./client";
 
 export type { ApiClientOptions };
 

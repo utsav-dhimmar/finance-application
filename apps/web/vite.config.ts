@@ -16,7 +16,16 @@ const config = defineConfig({
 			},
 		},
 	},
-	plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
+	plugins: [
+		devtools(),
+		tailwindcss(),
+		tanstackStart({
+			// SPA mode: the shell prerenders to _shell.html; a post-build step
+			// copies it to index.html for Cloudflare's SPA asset fallback.
+			spa: { enabled: true },
+		}),
+		viteReact(),
+	],
 });
 
 export default config;

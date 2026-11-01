@@ -149,7 +149,10 @@ export function AccountsPage() {
 	if (me.isPending || me.data === undefined) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
-				<p aria-live="polite" className="text-sm text-muted-foreground animate-pulse">
+				<p
+					aria-live="polite"
+					className="text-sm text-muted-foreground animate-pulse"
+				>
 					Loading...
 				</p>
 			</main>
@@ -171,7 +174,10 @@ export function AccountsPage() {
 							Accounts
 						</h1>
 						{tab === "active" && (
-							<p aria-live="polite" className="mt-1 text-sm text-muted-foreground">
+							<p
+								aria-live="polite"
+								className="mt-1 text-sm text-muted-foreground"
+							>
 								Combined balance across active accounts:{" "}
 								<span className="font-mono font-semibold text-foreground tabular-nums">
 									{formatPaise(accounts.data?.combinedBalanceMinor ?? 0)}
@@ -179,7 +185,10 @@ export function AccountsPage() {
 							</p>
 						)}
 					</div>
-					<Button onClick={() => setCreateOpen(true)} className="gap-1.5 shadow-xs">
+					<Button
+						onClick={() => setCreateOpen(true)}
+						className="gap-1.5 shadow-xs"
+					>
 						<Plus aria-hidden="true" className="size-4" />
 						Add account
 					</Button>
@@ -193,7 +202,11 @@ export function AccountsPage() {
 					>
 						<TabsList className="bg-muted/70 p-1">
 							{TABS.map((status) => (
-								<TabsTrigger key={status} value={status} className="px-3 text-xs">
+								<TabsTrigger
+									key={status}
+									value={status}
+									className="px-3 text-xs"
+								>
 									{TAB_LABELS[status]}
 								</TabsTrigger>
 							))}
@@ -203,7 +216,10 @@ export function AccountsPage() {
 
 				{/* Accounts Content / Skeletons / Grid */}
 				{accounts.isPending ? (
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+					<div
+						className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+						aria-hidden="true"
+					>
 						<Skeleton className="h-40 w-full rounded-xl" />
 						<Skeleton className="h-40 w-full rounded-xl" />
 						<Skeleton className="h-40 w-full rounded-xl" />

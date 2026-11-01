@@ -59,17 +59,19 @@ export function TransactionDetailDialog({
 						{sign}
 						{formatPaise(transaction.amountMinor)}
 					</span>
-					<Badge variant={transaction.status === "active" ? "secondary" : "outline"}>
+					<Badge
+						variant={transaction.status === "active" ? "secondary" : "outline"}
+					>
 						{TRANSACTION_STATUS_LABELS[transaction.status]}
 					</Badge>
 				</div>
 				<Separator />
 				<div className="flex flex-col gap-2">
-					<DetailRow label="Type" value={TRANSACTION_TYPE_LABELS[transaction.type]} />
 					<DetailRow
-						label="Date"
-						value={transaction.date}
+						label="Type"
+						value={TRANSACTION_TYPE_LABELS[transaction.type]}
 					/>
+					<DetailRow label="Date" value={transaction.date} />
 					<DetailRow
 						label="Account"
 						value={transaction.accountName ?? "Unavailable"}

@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TransactionResponse } from "@finance-application/schemas";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../src/client";
 import {
 	archiveTransaction,
 	createTransaction,
@@ -10,7 +11,6 @@ import {
 	restoreTransaction,
 	updateTransaction,
 } from "../src/transactions";
-import { ApiError } from "../src/client";
 
 const transaction: TransactionResponse = {
 	id: "018f6a2c-9b7d-7ce2-8f3a-1d4e5f6a7b8c",
@@ -158,7 +158,8 @@ describe("transaction client functions", () => {
 						JSON.stringify({
 							error: {
 								code: "RESTORE_CONFLICT",
-								message: "The transaction's account or category has been deleted",
+								message:
+									"The transaction's account or category has been deleted",
 								details: [],
 							},
 						}),

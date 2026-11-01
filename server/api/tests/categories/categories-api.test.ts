@@ -13,8 +13,8 @@ function fetchApp(url: string, init?: RequestInit): Promise<Response> {
 	return worker.fetch(new Request(url, init), env);
 }
 
-import { ACCESS_COOKIE } from "@/lib/session";
 import { beforeEach, describe, expect, it } from "vitest";
+import { ACCESS_COOKIE } from "@/lib/session";
 
 const BASE = "https://test.local/api/categories";
 const REGISTER_URL = "https://test.local/api/auth/register";
@@ -292,11 +292,7 @@ describe("PATCH /api/categories/:id", () => {
 	it("renames an active category", async () => {
 		const cookie = await freshCookie();
 		const id = await seed(cookie);
-		const res = await patchJson(
-			`${BASE}/${id}`,
-			{ name: "Food" },
-			cookie,
-		);
+		const res = await patchJson(`${BASE}/${id}`, { name: "Food" }, cookie);
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toMatchObject({ name: "Food" });
 	});
@@ -482,10 +478,7 @@ describe("lifecycle transitions", () => {
 			`${BASE}/${id}/delete`,
 			jsonResponseInit("POST", undefined, cookie),
 		);
-		await createCategory(
-			cookie,
-			categoryBody("GROCERIES", { type: "income" }),
-		);
+		await createCategory(cookie, categoryBody("GROCERIES", { type: "income" }));
 
 		const conflict = await fetchApp(
 			`${BASE}/${id}/restore`,

@@ -14,20 +14,28 @@ export function register(
 	body: RegisterBody,
 	options?: ApiClientOptions,
 ): Promise<UserResponse> {
-	return apiFetch<UserResponse>("/api/auth/register", {
-		method: "POST",
-		body: JSON.stringify(body),
-	}, options);
+	return apiFetch<UserResponse>(
+		"/api/auth/register",
+		{
+			method: "POST",
+			body: JSON.stringify(body),
+		},
+		options,
+	);
 }
 
 export function login(
 	body: LoginBody,
 	options?: ApiClientOptions,
 ): Promise<UserResponse> {
-	return apiFetch<UserResponse>("/api/auth/login", {
-		method: "POST",
-		body: JSON.stringify(body),
-	}, options);
+	return apiFetch<UserResponse>(
+		"/api/auth/login",
+		{
+			method: "POST",
+			body: JSON.stringify(body),
+		},
+		options,
+	);
 }
 
 export function me(options?: ApiClientOptions): Promise<UserResponse> {
@@ -35,7 +43,11 @@ export function me(options?: ApiClientOptions): Promise<UserResponse> {
 }
 
 export function refresh(options?: ApiClientOptions): Promise<UserResponse> {
-	return apiFetch<UserResponse>("/api/auth/refresh", { method: "POST" }, options);
+	return apiFetch<UserResponse>(
+		"/api/auth/refresh",
+		{ method: "POST" },
+		options,
+	);
 }
 
 export function logout(options?: ApiClientOptions): Promise<null> {

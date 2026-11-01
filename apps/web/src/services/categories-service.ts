@@ -45,15 +45,11 @@ export function editCategory(
 	return updateCategory(id, body);
 }
 
-export function archiveExistingCategory(
-	id: string,
-): Promise<CategoryResponse> {
+export function archiveExistingCategory(id: string): Promise<CategoryResponse> {
 	return archiveCategory(id);
 }
 
-export function deleteExistingCategory(
-	id: string,
-): Promise<CategoryResponse> {
+export function deleteExistingCategory(id: string): Promise<CategoryResponse> {
 	return deleteCategory(id);
 }
 

@@ -5,6 +5,13 @@ import type {
 } from "@finance-application/schemas";
 import { Button } from "@finance-application/ui/components/button";
 import { Input } from "@finance-application/ui/components/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@finance-application/ui/components/select";
 import { Skeleton } from "@finance-application/ui/components/skeleton";
 import {
 	Table,
@@ -14,33 +21,26 @@ import {
 	TableHeader,
 	TableRow,
 } from "@finance-application/ui/components/table";
-	import {
-		Select,
-		SelectContent,
-		SelectItem,
-		SelectTrigger,
-		SelectValue,
-	} from "@finance-application/ui/components/select";
-	import {
-		Tabs,
-		TabsList,
-		TabsTrigger,
-	} from "@finance-application/ui/components/tabs";
+import {
+	Tabs,
+	TabsList,
+	TabsTrigger,
+} from "@finance-application/ui/components/tabs";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
 	createColumnHelper,
 	flexRender,
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
 	ChevronLeft,
 	ChevronRight,
 	Eye,
 	Pencil,
 	Plus,
-	RotateCcw,
 	Receipt,
+	RotateCcw,
 	Search,
 	Trash2,
 } from "lucide-react";
@@ -52,12 +52,10 @@ import { CreateTransactionDialog } from "@/components/transactions/create-transa
 import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog";
 import { RestoreTransactionDialog } from "@/components/transactions/restore-transaction-dialog";
 import { TransactionDetailDialog } from "@/components/transactions/transaction-detail-dialog";
-import {
-	useAccounts,
-} from "@/hooks/use-accounts";
-import {
-	useCategories,
-} from "@/hooks/use-categories";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useMe } from "@/hooks/use-auth";
+import { useCategories } from "@/hooks/use-categories";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
 	useArchiveTransaction,
 	useDeleteTransaction,
@@ -65,8 +63,6 @@ import {
 	useRestoreTransaction,
 	useTransactions,
 } from "@/hooks/use-transactions";
-import { useDebounce } from "@/hooks/use-debounce";
-import { useMe } from "@/hooks/use-auth";
 import { formatPaise } from "@/lib/money";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import { getTransactionsErrorMessage } from "@/services/transactions-service";
@@ -202,12 +198,8 @@ export function TransactionsPage() {
 			...(filterState.type
 				? { type: filterState.type as ListTransactionsQuery["type"] }
 				: {}),
-			...(filterState.accountId
-				? { accountId: filterState.accountId }
-				: {}),
-			...(filterState.categoryId
-				? { categoryId: filterState.categoryId }
-				: {}),
+			...(filterState.accountId ? { accountId: filterState.accountId } : {}),
+			...(filterState.categoryId ? { categoryId: filterState.categoryId } : {}),
 			...(filterState.from ? { from: filterState.from } : {}),
 			...(filterState.to ? { to: filterState.to } : {}),
 			...(filterState.q ? { q: filterState.q } : {}),
@@ -251,10 +243,7 @@ export function TransactionsPage() {
 					toast.success("Transaction restored.");
 				},
 				onError: (error) => {
-					if (
-						error instanceof ApiError &&
-						error.code === "RESTORE_CONFLICT"
-					) {
+					if (error instanceof ApiError && error.code === "RESTORE_CONFLICT") {
 						setRenaming(transaction);
 						return;
 					}
@@ -311,11 +300,7 @@ export function TransactionsPage() {
 		}
 		const { action, transaction } = confirming;
 		const mutation =
-			action === "archive"
-				? archive
-				: action === "delete"
-					? remove
-					: destroy;
+			action === "archive" ? archive : action === "delete" ? remove : destroy;
 		mutation.mutate(transaction.id, {
 			onSuccess: () => {
 				setConfirming(null);
@@ -358,122 +343,122 @@ export function TransactionsPage() {
 	];
 
 	const columns = [
-			columnHelper.accessor("date", { header: "Date" }),
-			columnHelper.accessor("type", {
-				header: "Type",
-				cell: (info) => TRANSACTION_TYPE_LABELS[info.getValue()],
-			}),
-			columnHelper.display({
-				id: "amount",
-				header: "Amount",
-				cell: ({ row }) => (
-					<span
-						className={`font-mono tabular-nums ${
-							row.original.type === "income"
-								? "text-foreground"
-								: "text-foreground"
-						}`}
-					>
-						{formatSignedAmount(row.original)}
-					</span>
-				),
-			}),
-			columnHelper.accessor((row) => row.accountName ?? "Unavailable", {
-				id: "account",
-				header: "Account",
-			}),
-			columnHelper.accessor((row) => row.categoryName ?? "Unavailable", {
-				id: "category",
-				header: "Category",
-			}),
-			columnHelper.accessor((row) => row.notes ?? "—", {
-				id: "notes",
-				header: "Notes",
-			}),
-			columnHelper.display({
-				id: "actions",
-				header: "",
-				cell: ({ row }) => {
-					const transaction = row.original;
-					return (
-						<div className="flex items-center justify-end gap-1.5">
-							<Button
-								size="sm"
-								variant="ghost"
-								aria-label={`View transaction from ${transaction.date}`}
-								className="h-7 px-2 text-xs"
-								onClick={() => setViewing(transaction)}
-							>
-								<Eye aria-hidden="true" className="size-3.5" />
-							</Button>
-							{transaction.status === "active" && (
-								<>
-									<Button
-										size="sm"
-										variant="ghost"
-										className="h-7 px-2 text-xs"
-										onClick={() => setEditing(transaction)}
-									>
-										<Pencil aria-hidden="true" className="size-3.5" />
-										Edit
-									</Button>
-									<Button
-										size="sm"
-										variant="ghost"
-										className="h-7 px-2 text-xs"
-										onClick={() => {
-											setConfirming({ action: "archive", transaction });
-										}}
-									>
-										Archive
-									</Button>
+		columnHelper.accessor("date", { header: "Date" }),
+		columnHelper.accessor("type", {
+			header: "Type",
+			cell: (info) => TRANSACTION_TYPE_LABELS[info.getValue()],
+		}),
+		columnHelper.display({
+			id: "amount",
+			header: "Amount",
+			cell: ({ row }) => (
+				<span
+					className={`font-mono tabular-nums ${
+						row.original.type === "income"
+							? "text-foreground"
+							: "text-foreground"
+					}`}
+				>
+					{formatSignedAmount(row.original)}
+				</span>
+			),
+		}),
+		columnHelper.accessor((row) => row.accountName ?? "Unavailable", {
+			id: "account",
+			header: "Account",
+		}),
+		columnHelper.accessor((row) => row.categoryName ?? "Unavailable", {
+			id: "category",
+			header: "Category",
+		}),
+		columnHelper.accessor((row) => row.notes ?? "—", {
+			id: "notes",
+			header: "Notes",
+		}),
+		columnHelper.display({
+			id: "actions",
+			header: "",
+			cell: ({ row }) => {
+				const transaction = row.original;
+				return (
+					<div className="flex items-center justify-end gap-1.5">
+						<Button
+							size="sm"
+							variant="ghost"
+							aria-label={`View transaction from ${transaction.date}`}
+							className="h-7 px-2 text-xs"
+							onClick={() => setViewing(transaction)}
+						>
+							<Eye aria-hidden="true" className="size-3.5" />
+						</Button>
+						{transaction.status === "active" && (
+							<>
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-7 px-2 text-xs"
+									onClick={() => setEditing(transaction)}
+								>
+									<Pencil aria-hidden="true" className="size-3.5" />
+									Edit
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-7 px-2 text-xs"
+									onClick={() => {
+										setConfirming({ action: "archive", transaction });
+									}}
+								>
+									Archive
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+									onClick={() => {
+										setConfirming({ action: "delete", transaction });
+									}}
+								>
+									<Trash2 aria-hidden="true" className="size-3.5" />
+									Delete
+								</Button>
+							</>
+						)}
+						{(transaction.status === "archived" ||
+							transaction.status === "deleted") && (
+							<>
+								<Button
+									size="sm"
+									variant="ghost"
+									className="h-7 gap-1.5 px-2 text-xs"
+									onClick={() => handleRestore(transaction)}
+								>
+									<RotateCcw aria-hidden="true" className="size-3.5" />
+									Restore
+								</Button>
+								{transaction.status === "deleted" && (
 									<Button
 										size="sm"
 										variant="ghost"
 										className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
 										onClick={() => {
-											setConfirming({ action: "delete", transaction });
+											setConfirming({
+												action: "permanent",
+												transaction,
+											});
 										}}
 									>
-										<Trash2 aria-hidden="true" className="size-3.5" />
-										Delete
+										Delete forever
 									</Button>
-								</>
-							)}
-							{(transaction.status === "archived" ||
-								transaction.status === "deleted") && (
-								<>
-									<Button
-										size="sm"
-										variant="ghost"
-										className="h-7 gap-1.5 px-2 text-xs"
-										onClick={() => handleRestore(transaction)}
-									>
-										<RotateCcw aria-hidden="true" className="size-3.5" />
-										Restore
-									</Button>
-									{transaction.status === "deleted" && (
-										<Button
-											size="sm"
-											variant="ghost"
-											className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-											onClick={() => {
-												setConfirming({
-													action: "permanent",
-													transaction,
-												});
-											}}
-										>
-											Delete forever
-										</Button>
-									)}
-								</>
-							)}
-						</div>
-									);
-								},
-							}),
-					];
+								)}
+							</>
+						)}
+					</div>
+				);
+			},
+		}),
+	];
 
 	const table = useReactTable({
 		data: data?.transactions ?? [],
@@ -486,7 +471,10 @@ export function TransactionsPage() {
 	if (me.isPending || me.data === undefined) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
-				<p aria-live="polite" className="text-sm text-muted-foreground animate-pulse">
+				<p
+					aria-live="polite"
+					className="text-sm text-muted-foreground animate-pulse"
+				>
 					Loading...
 				</p>
 			</main>
@@ -514,7 +502,10 @@ export function TransactionsPage() {
 							{total} transaction{total === 1 ? "" : "s"} in this view.
 						</p>
 					</div>
-					<Button onClick={() => setCreateOpen(true)} className="gap-1.5 shadow-xs">
+					<Button
+						onClick={() => setCreateOpen(true)}
+						className="gap-1.5 shadow-xs"
+					>
 						<Plus aria-hidden="true" className="size-4" />
 						Record transaction
 					</Button>
@@ -525,12 +516,19 @@ export function TransactionsPage() {
 					<Tabs
 						value={filterState.tab}
 						onValueChange={(value) => {
-							dispatchFilter({ type: "setTab", value: value as TransactionsTab });
+							dispatchFilter({
+								type: "setTab",
+								value: value as TransactionsTab,
+							});
 						}}
 					>
 						<TabsList className="bg-muted/70 p-1">
 							{(Object.keys(TAB_LABELS) as TransactionsTab[]).map((status) => (
-								<TabsTrigger key={status} value={status} className="px-3 text-xs">
+								<TabsTrigger
+									key={status}
+									value={status}
+									className="px-3 text-xs"
+								>
 									{TAB_LABELS[status]}
 								</TabsTrigger>
 							))}
@@ -583,7 +581,6 @@ export function TransactionsPage() {
 								value: value === ALL_TYPES || value === null ? "" : value,
 							})
 						}
-
 					>
 						<SelectTrigger aria-label="Type filter" className="w-full">
 							<SelectValue />
@@ -735,11 +732,11 @@ export function TransactionsPage() {
 									size="sm"
 									disabled={filterState.page <= 1}
 									onClick={() =>
-									dispatchFilter({
-										type: "setPage",
-										value: filterState.page - 1,
-									})
-								}
+										dispatchFilter({
+											type: "setPage",
+											value: filterState.page - 1,
+										})
+									}
 								>
 									<ChevronLeft aria-hidden="true" className="size-4" />
 									Prev
@@ -789,9 +786,7 @@ export function TransactionsPage() {
 				<ConfirmTransactionLifecycleDialog
 					action={confirming.action}
 					transactionLabel={`${TRANSACTION_TYPE_LABELS[confirming.transaction.type]} of ${formatSignedAmount(confirming.transaction)} on ${confirming.transaction.date}`}
-					pending={
-						archive.isPending || remove.isPending || destroy.isPending
-					}
+					pending={archive.isPending || remove.isPending || destroy.isPending}
 					onConfirm={handleConfirmLifecycle}
 					onOpenChange={(open) => {
 						if (!open) {

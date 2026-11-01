@@ -72,7 +72,9 @@ describe("categoryIconSchema", () => {
 
 describe("createCategoryBodySchema", () => {
 	it("accepts a minimal body without presentation values", () => {
-		expect(createCategoryBodySchema.parse({ name: "Food", type: "expense" })).toEqual({
+		expect(
+			createCategoryBodySchema.parse({ name: "Food", type: "expense" }),
+		).toEqual({
 			name: "Food",
 			type: "expense",
 		});
@@ -112,10 +114,12 @@ describe("updateCategoryBodySchema", () => {
 	});
 
 	it("accepts null to clear presentation values", () => {
-		expect(updateCategoryBodySchema.parse({ color: null, icon: null })).toEqual({
-			color: null,
-			icon: null,
-		});
+		expect(updateCategoryBodySchema.parse({ color: null, icon: null })).toEqual(
+			{
+				color: null,
+				icon: null,
+			},
+		);
 	});
 
 	it("rejects an invalid type change", () => {
@@ -153,7 +157,11 @@ describe("categoryFormSchema", () => {
 			icon: "utensils",
 		});
 		expect(() =>
-			categoryFormSchema.parse({ name: "Food", type: "expense", color: "green" }),
+			categoryFormSchema.parse({
+				name: "Food",
+				type: "expense",
+				color: "green",
+			}),
 		).toThrow();
 	});
 });

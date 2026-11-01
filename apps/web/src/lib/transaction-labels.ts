@@ -1,4 +1,7 @@
-import type { TransactionStatus, TransactionType } from "@finance-application/schemas";
+import type {
+	TransactionStatus,
+	TransactionType,
+} from "@finance-application/schemas";
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
 	income: "Income",

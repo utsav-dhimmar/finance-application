@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-	amountInputSchema,
 	accountFormSchema,
 	accountNameSchema,
 	accountTypeSchema,
+	amountInputSchema,
 	createAccountBodySchema,
 } from "../src/accounts";
 

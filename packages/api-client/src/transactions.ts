@@ -6,8 +6,8 @@ import type {
 	TransactionResponse,
 	UpdateTransactionBody,
 } from "@finance-application/schemas";
-import { apiFetch } from "./client";
 import type { ApiClientOptions } from "./auth";
+import { apiFetch } from "./client";
 
 export function createTransaction(
 	body: CreateTransactionBody,
@@ -45,11 +45,7 @@ export function getTransaction(
 	id: string,
 	options?: ApiClientOptions,
 ): Promise<TransactionResponse> {
-	return apiFetch<TransactionResponse>(
-		`/api/transactions/${id}`,
-		{},
-		options,
-	);
+	return apiFetch<TransactionResponse>(`/api/transactions/${id}`, {}, options);
 }
 
 export function updateTransaction(

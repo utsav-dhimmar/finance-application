@@ -113,7 +113,8 @@ export function Home() {
 							Exact Minor Units
 						</h2>
 						<p className="mt-1 text-xs text-muted-foreground">
-							Paise-level financial arithmetic eliminating floating-point errors.
+							Paise-level financial arithmetic eliminating floating-point
+							errors.
 						</p>
 					</div>
 

@@ -1,6 +1,6 @@
+import type { CategoryResponse } from "@finance-application/schemas";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CategoryResponse } from "@finance-application/schemas";
 import { CategoriesPage } from "@/routes/categories";
 import { renderRoute } from "./helpers";
 
@@ -363,7 +363,12 @@ describe("/categories edit dialog", () => {
 			RequestInit,
 		];
 		expect(init.body).toBe(
-			JSON.stringify({ name: "Salary", type: "income", color: null, icon: null }),
+			JSON.stringify({
+				name: "Salary",
+				type: "income",
+				color: null,
+				icon: null,
+			}),
 		);
 	});
 
@@ -440,9 +445,9 @@ describe("/categories lifecycle actions", () => {
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Archive category" }));
 		await waitFor(() =>
-			expect(
-				callsTo(fetchMock, "/api/categories/cat-1/archive"),
-			).toHaveLength(1),
+			expect(callsTo(fetchMock, "/api/categories/cat-1/archive")).toHaveLength(
+				1,
+			),
 		);
 	});
 
@@ -460,7 +465,9 @@ describe("/categories lifecycle actions", () => {
 		);
 		fireEvent.click(screen.getByRole("button", { name: "Delete category" }));
 		await waitFor(() =>
-			expect(callsTo(fetchMock, "/api/categories/cat-1/delete")).toHaveLength(1),
+			expect(callsTo(fetchMock, "/api/categories/cat-1/delete")).toHaveLength(
+				1,
+			),
 		);
 	});
 
@@ -490,7 +497,9 @@ describe("/categories lifecycle actions", () => {
 			expect(screen.getByRole("tab", { name: "Trash" })).toBeTruthy(),
 		);
 		fireEvent.click(screen.getByRole("tab", { name: "Trash" }));
-		await waitFor(() => expect(screen.getByText("Trashed Category")).toBeTruthy());
+		await waitFor(() =>
+			expect(screen.getByText("Trashed Category")).toBeTruthy(),
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: "Restore" }));
 		await waitFor(() => {

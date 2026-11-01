@@ -81,8 +81,9 @@ export function CreateTransactionDialog({
 	// Only active accounts accept postings; only active categories of the
 	// matching type are selectable (spec: write-time eligibility).
 	const accountOptions: AccountResponse[] = accounts.data?.accounts ?? [];
-	const categoryOptions: CategoryResponse[] = (categories.data?.categories ??
-		[]).filter((category) => category.type === selectedType);
+	const categoryOptions: CategoryResponse[] = (
+		categories.data?.categories ?? []
+	).filter((category) => category.type === selectedType);
 	const chosenAccount = accountOptions.find(
 		(account) => account.id === selectedAccountId,
 	);
@@ -259,7 +260,9 @@ export function CreateTransactionDialog({
 									<FieldError>{fieldState.error.message}</FieldError>
 								) : (
 									<p className="text-sm text-muted-foreground">
-										Only active {TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()} categories are listed.
+										Only active{" "}
+										{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()}{" "}
+										categories are listed.
 									</p>
 								)}
 							</Field>

@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserResponse } from "@finance-application/schemas";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-	ME_QUERY_KEY,
 	loginWithCredentials,
 	logoutCurrentSession,
+	ME_QUERY_KEY,
 	meQueryOptions,
 	registerAccount,
 } from "@/services/auth-service";

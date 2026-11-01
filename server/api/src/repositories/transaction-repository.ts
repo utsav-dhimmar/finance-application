@@ -7,15 +7,15 @@ import {
 	inArray,
 	lte,
 	or,
-	sql,
 	type SQL,
+	sql,
 } from "drizzle-orm";
 import type { Db } from "@/db";
 import {
 	accounts,
 	categories,
-	transactions,
 	type Transaction,
+	transactions,
 } from "@/db/schema";
 
 // One row per transaction with its referenced account and category names
@@ -127,7 +127,9 @@ export function createTransactionRepository(db: Db) {
 			return found[0];
 		},
 
-		async findByIdWithRefs(id: string): Promise<TransactionRowWithRefs | undefined> {
+		async findByIdWithRefs(
+			id: string,
+		): Promise<TransactionRowWithRefs | undefined> {
 			const found = await db
 				.select({
 					transaction: transactions,

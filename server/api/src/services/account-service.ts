@@ -1,14 +1,14 @@
-import type { Account } from "@/db/schema";
-import type { ErrorCode } from "@/lib/error";
-import { uuidV7 } from "@/lib/uuid";
 import type { AccountStatus, AccountType } from "@finance-application/schemas";
-import type { AccountRepository } from "@/repositories/account-repository";
-import { normalizeAccountName } from "@/repositories/account-repository";
-import { isoNow } from "@/utils/datetime";
 import {
 	accountStatusSchema,
 	accountTypeSchema,
 } from "@finance-application/schemas";
+import type { Account } from "@/db/schema";
+import type { ErrorCode } from "@/lib/error";
+import { uuidV7 } from "@/lib/uuid";
+import type { AccountRepository } from "@/repositories/account-repository";
+import { normalizeAccountName } from "@/repositories/account-repository";
+import { isoNow } from "@/utils/datetime";
 
 export interface AccountView {
 	id: string;
@@ -208,7 +208,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 		if (!updated) {
 			return { ok: false, code: "NOT_FOUND" };
 		}
-		return { ok: true, value: toView(updated, await posted.forAccount(accountId)) };
+		return {
+			ok: true,
+			value: toView(updated, await posted.forAccount(accountId)),
+		};
 	}
 
 	return {

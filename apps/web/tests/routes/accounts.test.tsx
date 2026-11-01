@@ -1,6 +1,6 @@
+import type { AccountResponse } from "@finance-application/schemas";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AccountResponse } from "@finance-application/schemas";
 import { AccountsPage } from "@/routes/accounts";
 import { renderRoute } from "./helpers";
 

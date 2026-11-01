@@ -1,13 +1,13 @@
-import { z } from "@hono/zod-openapi";
 import {
 	accountListResponseSchema,
 	accountNameSchema,
 	accountResponseSchema,
-	accountStatusSchema,
 	accountStatuses,
+	accountStatusSchema,
 	accountTypeSchema,
 	amountMinorSchema,
 } from "@finance-application/schemas";
+import { z } from "@hono/zod-openapi";
 
 // The shared package owns the validation rules; this module owns the OpenAPI
 // metadata the route definitions need. The object schemas here are rebuilt

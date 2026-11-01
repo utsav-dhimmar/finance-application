@@ -1,13 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
 	CategoryStatus,
 	CreateCategoryBody,
 	UpdateCategoryBody,
 } from "@finance-application/schemas";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+	archiveExistingCategory,
 	CATEGORIES_QUERY_KEY,
 	categoriesQueryOptions,
-	archiveExistingCategory,
 	createNewCategory,
 	deleteExistingCategory,
 	editCategory,

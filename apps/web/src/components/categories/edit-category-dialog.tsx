@@ -4,6 +4,7 @@ import type {
 	CategoryResponse,
 	UpdateCategoryBody,
 } from "@finance-application/schemas";
+import { categoryFormSchema } from "@finance-application/schemas";
 import { Button } from "@finance-application/ui/components/button";
 import {
 	Dialog,
@@ -28,10 +29,9 @@ import {
 } from "@finance-application/ui/components/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
+import { CATEGORY_TYPE_OPTIONS } from "@/components/categories/create-category-dialog";
 import { useUpdateCategory } from "@/hooks/use-categories";
 import { getCategoriesErrorMessage } from "@/services/categories-service";
-import { CATEGORY_TYPE_OPTIONS } from "@/components/categories/create-category-dialog";
-import { categoryFormSchema } from "@finance-application/schemas";
 
 interface EditCategoryDialogProps {
 	category: CategoryResponse;

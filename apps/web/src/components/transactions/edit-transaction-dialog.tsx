@@ -29,13 +29,13 @@ import {
 } from "@finance-application/ui/components/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
+import { TRANSACTION_TYPE_OPTIONS } from "@/components/transactions/create-transaction-dialog";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCategories } from "@/hooks/use-categories";
 import { useUpdateTransaction } from "@/hooks/use-transactions";
 import { paiseToRupeeInput } from "@/lib/money";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import { getTransactionsErrorMessage } from "@/services/transactions-service";
-import { TRANSACTION_TYPE_OPTIONS } from "@/components/transactions/create-transaction-dialog";
 
 interface EditTransactionDialogProps {
 	transaction: TransactionResponse;
@@ -195,7 +195,9 @@ export function EditTransactionDialog({
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="edit-transaction-account">Account</FieldLabel>
+								<FieldLabel htmlFor="edit-transaction-account">
+									Account
+								</FieldLabel>
 								<Select
 									items={eligibleAccounts.map((account) => ({
 										value: account.id,

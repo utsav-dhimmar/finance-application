@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { User } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import {
-	generateRefreshToken,
-	hashToken,
-	signAccessToken,
-} from "@/lib/tokens";
+import { generateRefreshToken, hashToken, signAccessToken } from "@/lib/tokens";
 import type {
 	NewRefreshTokenRow,
 	RefreshTokenRepository,

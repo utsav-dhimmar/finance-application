@@ -1,0 +1,9 @@
+{
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build", "@finance-application/web#build"],
+			"outputs": ["dist/**"]
+		}
+	}
+}

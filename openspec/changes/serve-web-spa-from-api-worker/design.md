@@ -46,7 +46,7 @@ Cloudflare's assets layer serves matching files directly without invoking the wo
 
 ### D4. Deploy flow — one build, one deploy, package-scoped command
 
-Cloudflare build command stays `pnpm run build` (turbo builds all packages — web must build before the worker deploy anyway, which satisfies asset-directory ordering). Deploy command becomes `cd server/api && npx wrangler deploy` (the fix already identified for the API-only deploy; unchanged by this change). Local `pnpm --filter @finance-application/api exec wrangler deploy` requires a prior web build — documented in README.
+Cloudflare build command stays `pnpm run build` (turbo builds all packages). Because `wrangler deploy --dry-run` validates the assets directory, `api#build` genuinely consumes `web#build`'s output — and turbo runs package builds in parallel unless told otherwise, which CI caught (fresh runner, no leftover `dist`). Fix: `server/api/turbo.json` (package configuration) adds `"dependsOn": ["^build", "@finance-application/web#build"]` to the API's build task, so the web build always completes first — verified from a clean state (both `dist` dirs deleted). Deploy command becomes `cd server/api && npx wrangler deploy` (the fix already identified for the API-only deploy; unchanged by this change). Local `pnpm --filter @finance-application/api exec wrangler deploy` requires a prior web build — documented in README.
 
 ### D5. Dev loop unchanged, with one documented caveat
 

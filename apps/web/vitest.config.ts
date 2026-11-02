@@ -8,8 +8,7 @@ export default defineConfig({
 		},
 	},
 	test: {
-    environment: "jsdom",
-		pool: 'vmThreads',
+		environment: "jsdom",
 		include: ["tests/**/*.test.{ts,tsx}"],
 	},
 });

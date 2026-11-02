@@ -25,6 +25,7 @@ export default defineConfig({
 			"tests/accounts/**/*.test.ts",
 			"tests/categories/**/*.test.ts",
 			"tests/transactions/**/*.test.ts",
+			"tests/transfers/**/*.test.ts",
 		],
 		globalSetup: ["./tests/auth/globalSetup.mts"],
 		setupFiles: ["./tests/auth/setup.ts"],

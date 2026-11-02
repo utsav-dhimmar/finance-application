@@ -5,6 +5,7 @@ import { errorBody, validationHook } from "@/lib/error";
 import { requireAuth } from "@/middleware/auth";
 import { createAccountRepository } from "@/repositories/account-repository";
 import { createTransactionRepository } from "@/repositories/transaction-repository";
+import { createTransferRepository } from "@/repositories/transfer-repository";
 import {
 	accountListResponseSchema,
 	accountResponseSchema,
@@ -25,10 +26,11 @@ type AppBindings = { JWT_SECRET: string; finance_application: D1Database };
 function createAccountServiceForEnv(env: AppBindings): AccountService {
 	const db = getDb(env);
 	const transactionRepository = createTransactionRepository(db);
+	const transferRepository = createTransferRepository(db);
 	return createAccountService({
 		accounts: createAccountRepository(db),
-		// Balances and the field lock derive from the transaction ledger; the
-		// transaction epic owns the SQL, the account service owns the formula.
+		// Balances and the field lock derive from the ledgers; the transaction
+		// and transfer epics own the SQL, the account service owns the formula.
 		postedSums: {
 			forAccount: (accountId) =>
 				transactionRepository.sumNonDeletedEffects(accountId),
@@ -36,6 +38,12 @@ function createAccountServiceForEnv(env: AppBindings): AccountService {
 				transactionRepository.sumNonDeletedEffectsByAccount(userId),
 			countForAccount: (accountId) =>
 				transactionRepository.countNonDeletedByAccount(accountId),
+		},
+		transferSums: {
+			forAccount: (accountId) =>
+				transferRepository.sumNonDeletedEffects(accountId),
+			byUser: (userId) =>
+				transferRepository.sumNonDeletedEffectsByAccount(userId),
 		},
 	});
 }

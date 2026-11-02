@@ -25,19 +25,21 @@ export interface AccountView {
 
 // The single balance computation point: current balance = opening balance +
 // the signed sum of the account's non-deleted posted transactions (income
-// credits, expense debits; transfers add their contribution via the same sum
-// family once that epic lands). Every balance in the app must come through
-// this function so the formula has exactly one definition.
+// credits, expense debits) + the signed sum of its non-deleted transfer sides
+// (−amount as source, +amount as destination). Every balance in the app must
+// come through this function so the formula has exactly one definition.
 export function computeCurrentBalance(
 	openingBalanceMinor: number,
 	postedTransactionsSumMinor: number,
+	transferSumMinor = 0,
 ): number {
-	return openingBalanceMinor + postedTransactionsSumMinor;
+	return openingBalanceMinor + postedTransactionsSumMinor + transferSumMinor;
 }
 
 function toView(
 	account: Account,
 	postedTransactionsSumMinor: number,
+	transferSumMinor: number,
 ): AccountView {
 	// The DB CHECK constraints guarantee the enum values; parsing here keeps
 	// the view types honest without an unsafe cast.
@@ -48,6 +50,7 @@ function toView(
 		currentBalanceMinor: computeCurrentBalance(
 			account.openingBalanceMinor,
 			postedTransactionsSumMinor,
+			transferSumMinor,
 		),
 	};
 }
@@ -109,9 +112,9 @@ const VALID_TRANSITIONS: Record<AccountStatus, readonly AccountStatus[]> = {
 	deleted: ["active"],
 };
 
-// Posted-effect lookups injected from the transaction repository. The defaults
-// keep the service usable before any transactions exist (sum 0, no history);
-// the routes wire the real implementations.
+// Posted-effect lookups injected from the transaction and transfer
+// repositories. The defaults keep the service usable before any records exist
+// (sum 0); the routes wire the real implementations.
 export interface PostedEffectLookup {
 	// Signed sum of the account's non-deleted transaction effects.
 	forAccount: (accountId: string) => Promise<number>;
@@ -121,9 +124,17 @@ export interface PostedEffectLookup {
 	countForAccount: (accountId: string) => Promise<number>;
 }
 
+export interface TransferEffectLookup {
+	// Signed sum of the account's non-deleted transfer sides.
+	forAccount: (accountId: string) => Promise<number>;
+	// Signed sums for every account of one user, in grouped queries.
+	byUser: (userId: string) => Promise<Map<string, number>>;
+}
+
 export interface AccountServiceDeps {
 	accounts: AccountRepository;
 	postedSums?: PostedEffectLookup;
+	transferSums?: TransferEffectLookup;
 }
 
 export function createAccountService(deps: AccountServiceDeps) {
@@ -132,6 +143,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 		forAccount: async () => 0,
 		byUser: async () => new Map(),
 		countForAccount: async () => 0,
+	};
+	const transferEffects: TransferEffectLookup = deps.transferSums ?? {
+		forAccount: async () => 0,
+		byUser: async () => new Map(),
 	};
 
 	async function requireOwnedAccount(
@@ -195,7 +210,11 @@ export function createAccountService(deps: AccountServiceDeps) {
 				}
 				return {
 					ok: true,
-					value: toView(renamed, await posted.forAccount(accountId)),
+					value: toView(
+					renamed,
+					await posted.forAccount(accountId),
+					await transferEffects.forAccount(accountId),
+				),
 				};
 			}
 		}
@@ -210,14 +229,19 @@ export function createAccountService(deps: AccountServiceDeps) {
 		}
 		return {
 			ok: true,
-			value: toView(updated, await posted.forAccount(accountId)),
+			value: toView(
+				updated,
+				await posted.forAccount(accountId),
+				await transferEffects.forAccount(accountId),
+			),
 		};
 	}
 
 	return {
 		// Creation never writes any income/expense record: the opening balance
 		// lives on the account row itself. A brand-new account cannot have
-		// posted transactions yet, so its current balance is the opening one.
+		// posted transactions or transfers yet, so its current balance is the
+		// opening one.
 		async create(input: CreateAccountInput): Promise<CreateAccountOutcome> {
 			const conflict = await findNameConflict(input.userId, input.name);
 			if (conflict) {
@@ -233,20 +257,25 @@ export function createAccountService(deps: AccountServiceDeps) {
 				createdAt: nowIso,
 				updatedAt: nowIso,
 			});
-			return { ok: true, value: toView(account, 0) };
+			return { ok: true, value: toView(account, 0, 0) };
 		},
 
 		// `combinedBalanceMinor` always sums the current balances of the user's
 		// active accounts, regardless of which status slice was requested.
 		async list(userId: string, status: AccountStatus): Promise<AccountList> {
-			const [filtered, active, sums] = await Promise.all([
+			const [filtered, active, sums, transferSumMap] = await Promise.all([
 				accounts.listByStatus(userId, status),
 				accounts.listByStatus(userId, "active"),
 				posted.byUser(userId),
+				transferEffects.byUser(userId),
 			]);
 			return {
 				accounts: filtered.map((account) =>
-					toView(account, sums.get(account.id) ?? 0),
+					toView(
+						account,
+						sums.get(account.id) ?? 0,
+						transferSumMap.get(account.id) ?? 0,
+					),
 				),
 				combinedBalanceMinor: active.reduce(
 					(sum, account) =>
@@ -254,6 +283,7 @@ export function createAccountService(deps: AccountServiceDeps) {
 						computeCurrentBalance(
 							account.openingBalanceMinor,
 							sums.get(account.id) ?? 0,
+							transferSumMap.get(account.id) ?? 0,
 						),
 					0,
 				),
@@ -267,7 +297,11 @@ export function createAccountService(deps: AccountServiceDeps) {
 			}
 			return {
 				ok: true,
-				value: toView(account, await posted.forAccount(accountId)),
+				value: toView(
+					account,
+					await posted.forAccount(accountId),
+					await transferEffects.forAccount(accountId),
+				),
 			};
 		},
 
@@ -307,7 +341,11 @@ export function createAccountService(deps: AccountServiceDeps) {
 			}
 			return {
 				ok: true,
-				value: toView(updated, await posted.forAccount(input.accountId)),
+				value: toView(
+					updated,
+					await posted.forAccount(input.accountId),
+					await transferEffects.forAccount(input.accountId),
+				),
 			};
 		},
 

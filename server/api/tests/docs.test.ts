@@ -11,6 +11,12 @@ describe("GET /api/openapi", () => {
 			paths: {
 				"/api/hello": expect.anything(),
 				"/api/greet/{name}": expect.anything(),
+				"/api/transfers": expect.anything(),
+				"/api/transfers/:id": expect.anything(),
+				"/api/transfers/:id/archive": expect.anything(),
+				"/api/transfers/:id/delete": expect.anything(),
+				"/api/transfers/:id/restore": expect.anything(),
+				"/api/activity": expect.anything(),
 			},
 		});
 	});

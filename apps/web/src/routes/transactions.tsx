@@ -1,8 +1,11 @@
 import { ApiError } from "@finance-application/api-client";
 import type {
-	ListTransactionsQuery,
+	ActivityItem,
+	ListActivityQuery,
 	TransactionResponse,
+	TransferResponse,
 } from "@finance-application/schemas";
+import { Badge } from "@finance-application/ui/components/badge";
 import { Button } from "@finance-application/ui/components/button";
 import { Input } from "@finance-application/ui/components/input";
 import {
@@ -52,6 +55,10 @@ import { CreateTransactionDialog } from "@/components/transactions/create-transa
 import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog";
 import { RestoreTransactionDialog } from "@/components/transactions/restore-transaction-dialog";
 import { TransactionDetailDialog } from "@/components/transactions/transaction-detail-dialog";
+import { CreateTransferDialog } from "@/components/transfers/create-transfer-dialog";
+import { EditTransferDialog } from "@/components/transfers/edit-transfer-dialog";
+import { RestoreTransferDialog } from "@/components/transfers/restore-transfer-dialog";
+import { TransferDetailDialog } from "@/components/transfers/transfer-detail-dialog";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useMe } from "@/hooks/use-auth";
 import { useCategories } from "@/hooks/use-categories";
@@ -61,11 +68,22 @@ import {
 	useDeleteTransaction,
 	usePermanentlyDeleteTransaction,
 	useRestoreTransaction,
-	useTransactions,
 } from "@/hooks/use-transactions";
+import {
+	useActivity,
+	useArchiveTransfer,
+	useDeleteTransfer,
+	usePermanentlyDeleteTransfer,
+	useRestoreTransfer,
+} from "@/hooks/use-transfers";
 import { formatPaise } from "@/lib/money";
+import {
+	TRANSFER_DIRECTION_LABELS,
+	TRANSFER_STATUS_LABELS,
+} from "@/lib/transfer-labels";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import { getTransactionsErrorMessage } from "@/services/transactions-service";
+import { getTransfersErrorMessage } from "@/services/transfers-service";
 
 export const Route = createFileRoute("/transactions")({
 	component: TransactionsPage,
@@ -87,11 +105,60 @@ const EMPTY_MESSAGES: Record<TransactionsTab, string> = {
 
 const PAGE_SIZE = 20;
 
-const columnHelper = createColumnHelper<TransactionResponse>();
+const columnHelper = createColumnHelper<ActivityItem>();
 
-function formatSignedAmount(transaction: TransactionResponse): string {
-	const sign = transaction.type === "income" ? "+" : "−";
-	return `${sign}${formatPaise(transaction.amountMinor)}`;
+// The activity rows carry signed amounts (the effect on the row's account);
+// transactions and transfers re-derive their unsigned API shape from them.
+function transactionFromActivity(row: ActivityItem): TransactionResponse {
+	return {
+		id: row.id,
+		// Transaction rows always carry their type; the fallback never fires.
+		type: row.type ?? "expense",
+		amountMinor: Math.abs(row.amountMinor),
+		date: row.date,
+		accountId: row.accountId,
+		accountName: row.accountName,
+		categoryId: row.categoryId ?? "",
+		categoryName: row.categoryName,
+		notes: row.notes,
+		status: row.status,
+		archivedAt: row.archivedAt,
+		deletedAt: row.deletedAt,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+	};
+}
+
+function transferFromActivity(row: ActivityItem): TransferResponse {
+	const outgoing = row.direction === "out";
+	return {
+		id: row.id,
+		amountMinor: Math.abs(row.amountMinor),
+		date: row.date,
+		sourceAccountId: outgoing
+			? row.accountId
+			: (row.counterpartyAccountId ?? ""),
+		sourceAccountName: outgoing
+			? row.accountName
+			: row.counterpartyAccountName,
+		destinationAccountId: outgoing
+			? (row.counterpartyAccountId ?? "")
+			: row.accountId,
+		destinationAccountName: outgoing
+			? row.counterpartyAccountName
+			: row.accountName,
+		notes: row.notes,
+		status: row.status,
+		archivedAt: row.archivedAt,
+		deletedAt: row.deletedAt,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+	};
+}
+
+function formatSignedAmount(item: ActivityItem): string {
+	const sign = item.amountMinor < 0 ? "−" : "+";
+	return `${sign}${formatPaise(Math.abs(item.amountMinor))}`;
 }
 
 // The "all" sentinels keep Base UI's controlled value non-empty; the reducer
@@ -100,10 +167,13 @@ const ALL_TYPES = "all-types";
 const ALL_ACCOUNTS = "all-accounts";
 const ALL_CATEGORIES = "all-categories";
 
+// The type filter extends the transaction types with transfers: the
+// activity feed's transfer-aware option.
 const TYPE_FILTER_ITEMS = [
 	{ value: ALL_TYPES, label: "All types" },
 	{ value: "income", label: "Income" },
 	{ value: "expense", label: "Expense" },
+	{ value: "transfer", label: "Transfers" },
 ];
 
 // All list-shaping state lives in one reducer: every filter change resets the
@@ -178,6 +248,13 @@ function transactionsFilterReducer(
 	}
 }
 
+interface ConfirmingState {
+	action: "archive" | "delete" | "permanent";
+	kind: "transaction" | "transfer";
+	id: string;
+	label: string;
+}
+
 export function TransactionsPage() {
 	const navigate = useNavigate();
 	const me = useMe();
@@ -192,11 +269,11 @@ export function TransactionsPage() {
 		dispatchFilter({ type: "applyDebouncedQuery", value: debouncedSearch });
 	}, [debouncedSearch]);
 
-	const filters: Partial<ListTransactionsQuery> = useMemo(
+	const filters: Partial<ListActivityQuery> = useMemo(
 		() => ({
 			status: filterState.tab,
 			...(filterState.type
-				? { type: filterState.type as ListTransactionsQuery["type"] }
+				? { type: filterState.type as ListActivityQuery["type"] }
 				: {}),
 			...(filterState.accountId ? { accountId: filterState.accountId } : {}),
 			...(filterState.categoryId ? { categoryId: filterState.categoryId } : {}),
@@ -209,23 +286,36 @@ export function TransactionsPage() {
 		[filterState],
 	);
 
-	const transactions = useTransactions(filters);
+	const activity = useActivity(filters);
 	const accounts = useAccounts("active");
 	const categories = useCategories("active");
 
-	const archive = useArchiveTransaction();
-	const remove = useDeleteTransaction();
-	const restore = useRestoreTransaction();
-	const destroy = usePermanentlyDeleteTransaction();
+	// Transaction mutations.
+	const archiveTransaction = useArchiveTransaction();
+	const deleteTransaction = useDeleteTransaction();
+	const restoreTransaction = useRestoreTransaction();
+	const destroyTransaction = usePermanentlyDeleteTransaction();
+	// Transfer mutations.
+	const archiveTransfer = useArchiveTransfer();
+	const deleteTransfer = useDeleteTransfer();
+	const restoreTransfer = useRestoreTransfer();
+	const destroyTransfer = usePermanentlyDeleteTransfer();
 
 	const [createOpen, setCreateOpen] = useState(false);
-	const [editing, setEditing] = useState<TransactionResponse | null>(null);
-	const [viewing, setViewing] = useState<TransactionResponse | null>(null);
-	const [confirming, setConfirming] = useState<{
-		action: "archive" | "delete" | "permanent";
-		transaction: TransactionResponse;
+	const [createTransferOpen, setCreateTransferOpen] = useState(false);
+	const [editing, setEditing] = useState<{
+		kind: "transaction" | "transfer";
+		row: ActivityItem;
 	} | null>(null);
-	const [renaming, setRenaming] = useState<TransactionResponse | null>(null);
+	const [viewing, setViewing] = useState<{
+		kind: "transaction" | "transfer";
+		row: ActivityItem;
+	} | null>(null);
+	const [confirming, setConfirming] = useState<ConfirmingState | null>(null);
+	const [restoring, setRestoring] = useState<{
+		kind: "transaction" | "transfer";
+		row: ActivityItem;
+	} | null>(null);
 
 	// Guard: unauthenticated visitors are sent to /login without ever seeing
 	// transaction data.
@@ -235,96 +325,155 @@ export function TransactionsPage() {
 		}
 	}, [me.data, navigate]);
 
-	function handleRestore(transaction: TransactionResponse) {
-		restore.mutate(
-			{ id: transaction.id },
-			{
-				onSuccess: () => {
-					toast.success("Transaction restored.");
-				},
-				onError: (error) => {
-					if (error instanceof ApiError && error.code === "RESTORE_CONFLICT") {
-						setRenaming(transaction);
-						return;
-					}
-					toast.error(
-						getTransactionsErrorMessage(
+	function handleRestore(kind: "transaction" | "transfer", row: ActivityItem) {
+		const onSuccess = () => {
+			toast.success(kind === "transfer" ? "Transfer restored." : "Transaction restored.");
+		};
+		const onError = (error: unknown) => {
+			if (error instanceof ApiError && error.code === "RESTORE_CONFLICT") {
+				setRestoring({ kind, row });
+				return;
+			}
+			toast.error(
+				kind === "transfer"
+					? getTransfersErrorMessage(
+							error,
+							"Could not restore the transfer. Is the API running?",
+						)
+					: getTransactionsErrorMessage(
 							error,
 							"Could not restore the transaction. Is the API running?",
 						),
-					);
-				},
-			},
-		);
+			);
+		};
+		if (kind === "transfer") {
+			restoreTransfer.mutate({ id: row.id }, { onSuccess, onError });
+		} else {
+			restoreTransaction.mutate({ id: row.id }, { onSuccess, onError });
+		}
 	}
 
 	function handleRestoreWithReassignment(reassignment: {
 		accountId?: string;
 		categoryId?: string;
+		sourceAccountId?: string;
+		destinationAccountId?: string;
 	}) {
-		if (!renaming) {
+		if (!restoring) {
 			return;
 		}
-		restore.mutate(
-			{ id: renaming.id, ...reassignment },
-			{
-				onSuccess: () => {
-					setRenaming(null);
-					toast.success("Transaction restored.");
-				},
-				onError: (error) => {
-					if (
-						error instanceof ApiError &&
-						error.code === "RESTORE_CONFLICT" &&
-						(reassignment.accountId || reassignment.categoryId)
-					) {
-						toast.error(
-							"Still conflicting: pick a different account or category.",
-						);
-						return;
-					}
-					toast.error(
-						getTransactionsErrorMessage(
+		const { kind, row } = restoring;
+		const hadReassignment =
+			reassignment.accountId !== undefined ||
+			reassignment.categoryId !== undefined ||
+			reassignment.sourceAccountId !== undefined ||
+			reassignment.destinationAccountId !== undefined;
+		const onError = (error: unknown) => {
+			if (
+				error instanceof ApiError &&
+				error.code === "RESTORE_CONFLICT" &&
+				hadReassignment
+			) {
+				toast.error(
+					"Still conflicting: pick a different account or category.",
+				);
+				return;
+			}
+			toast.error(
+				kind === "transfer"
+					? getTransfersErrorMessage(
+							error,
+							"Could not restore the transfer. Is the API running?",
+						)
+					: getTransactionsErrorMessage(
 							error,
 							"Could not restore the transaction. Is the API running?",
 						),
-					);
+			);
+		};
+		if (kind === "transfer") {
+			restoreTransfer.mutate(
+				{
+					id: row.id,
+					sourceAccountId: reassignment.sourceAccountId,
+					destinationAccountId: reassignment.destinationAccountId,
 				},
-			},
-		);
+				{
+					onSuccess: () => {
+						setRestoring(null);
+						toast.success("Transfer restored.");
+					},
+					onError,
+				},
+			);
+		} else {
+			restoreTransaction.mutate(
+				{
+					id: row.id,
+					accountId: reassignment.accountId,
+					categoryId: reassignment.categoryId,
+				},
+				{
+					onSuccess: () => {
+						setRestoring(null);
+						toast.success("Transaction restored.");
+					},
+					onError,
+				},
+			);
+		}
 	}
 
 	function handleConfirmLifecycle() {
 		if (!confirming) {
 			return;
 		}
-		const { action, transaction } = confirming;
-		const mutation =
-			action === "archive" ? archive : action === "delete" ? remove : destroy;
-		mutation.mutate(transaction.id, {
-			onSuccess: () => {
-				setConfirming(null);
-				toast.success(
-					action === "archive"
-						? "Transaction archived."
-						: action === "delete"
-							? "Transaction moved to trash."
-							: "Transaction permanently deleted.",
-				);
-			},
-			onError: (error) => {
-				setConfirming(null);
-				toast.error(
-					getTransactionsErrorMessage(
-						error,
-						"The change failed. Is the API running?",
-					),
-				);
-			},
-		});
+		const { action, kind, id } = confirming;
+		const noun = kind === "transfer" ? "Transfer" : "Transaction";
+		const successCopy =
+			action === "archive"
+				? `${noun} archived.`
+				: action === "delete"
+					? `${noun} moved to trash.`
+					: `${noun} permanently deleted.`;
+		const onSuccess = () => {
+			setConfirming(null);
+			toast.success(successCopy);
+		};
+		const onError = (error: unknown) => {
+			setConfirming(null);
+			toast.error(
+				kind === "transfer"
+					? getTransfersErrorMessage(
+							error,
+							"The change failed. Is the API running?",
+						)
+					: getTransactionsErrorMessage(
+							error,
+							"The change failed. Is the API running?",
+						),
+			);
+		};
+		if (kind === "transfer") {
+			const mutation =
+				action === "archive"
+					? archiveTransfer
+					: action === "delete"
+						? deleteTransfer
+						: destroyTransfer;
+			mutation.mutate(id, { onSuccess, onError });
+		} else {
+			const mutation =
+				action === "archive"
+					? archiveTransaction
+					: action === "delete"
+						? deleteTransaction
+						: destroyTransaction;
+			mutation.mutate(id, { onSuccess, onError });
+		}
 	}
 
-	const data = transactions.data;
+	const data = activity.data;
 
 	// "All" entries for the filter selects, led by their sentinel values.
 	const accountFilterItems = [
@@ -344,21 +493,34 @@ export function TransactionsPage() {
 
 	const columns = [
 		columnHelper.accessor("date", { header: "Date" }),
-		columnHelper.accessor("type", {
+		columnHelper.display({
+			id: "type",
 			header: "Type",
-			cell: (info) => TRANSACTION_TYPE_LABELS[info.getValue()],
+			cell: ({ row }) => {
+				const item = row.original;
+				if (item.kind === "transaction") {
+					return item.type ? TRANSACTION_TYPE_LABELS[item.type] : "—";
+				}
+				return (
+					<span className="flex flex-wrap items-center gap-1.5">
+						Transfer
+						<Badge variant="outline" className="px-1.5 text-[11px]">
+							{TRANSFER_DIRECTION_LABELS[item.direction ?? "out"]}
+						</Badge>
+						{item.status !== "active" && (
+							<Badge variant="outline" className="px-1.5 text-[11px]">
+								{TRANSFER_STATUS_LABELS[item.status]}
+							</Badge>
+						)}
+					</span>
+				);
+			},
 		}),
 		columnHelper.display({
 			id: "amount",
 			header: "Amount",
 			cell: ({ row }) => (
-				<span
-					className={`font-mono tabular-nums ${
-						row.original.type === "income"
-							? "text-foreground"
-							: "text-foreground"
-					}`}
-				>
+				<span className="font-mono tabular-nums text-foreground">
 					{formatSignedAmount(row.original)}
 				</span>
 			),
@@ -367,7 +529,7 @@ export function TransactionsPage() {
 			id: "account",
 			header: "Account",
 		}),
-		columnHelper.accessor((row) => row.categoryName ?? "Unavailable", {
+		columnHelper.accessor((row) => row.categoryName ?? "—", {
 			id: "category",
 			header: "Category",
 		}),
@@ -379,25 +541,27 @@ export function TransactionsPage() {
 			id: "actions",
 			header: "",
 			cell: ({ row }) => {
-				const transaction = row.original;
+				const item = row.original;
+				const kind = item.kind;
+				const noun = kind === "transfer" ? "transfer" : "transaction";
 				return (
 					<div className="flex items-center justify-end gap-1.5">
 						<Button
 							size="sm"
 							variant="ghost"
-							aria-label={`View transaction from ${transaction.date}`}
+							aria-label={`View ${noun} from ${item.date}`}
 							className="h-7 px-2 text-xs"
-							onClick={() => setViewing(transaction)}
+							onClick={() => setViewing({ kind, row: item })}
 						>
 							<Eye aria-hidden="true" className="size-3.5" />
 						</Button>
-						{transaction.status === "active" && (
+						{item.status === "active" && (
 							<>
 								<Button
 									size="sm"
 									variant="ghost"
 									className="h-7 px-2 text-xs"
-									onClick={() => setEditing(transaction)}
+									onClick={() => setEditing({ kind, row: item })}
 								>
 									<Pencil aria-hidden="true" className="size-3.5" />
 									Edit
@@ -407,7 +571,12 @@ export function TransactionsPage() {
 									variant="ghost"
 									className="h-7 px-2 text-xs"
 									onClick={() => {
-										setConfirming({ action: "archive", transaction });
+										setConfirming({
+											action: "archive",
+											kind,
+											id: item.id,
+											label: confirmLabel(item),
+										});
 									}}
 								>
 									Archive
@@ -417,7 +586,12 @@ export function TransactionsPage() {
 									variant="ghost"
 									className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
 									onClick={() => {
-										setConfirming({ action: "delete", transaction });
+										setConfirming({
+											action: "delete",
+											kind,
+											id: item.id,
+											label: confirmLabel(item),
+										});
 									}}
 								>
 									<Trash2 aria-hidden="true" className="size-3.5" />
@@ -425,19 +599,18 @@ export function TransactionsPage() {
 								</Button>
 							</>
 						)}
-						{(transaction.status === "archived" ||
-							transaction.status === "deleted") && (
+						{(item.status === "archived" || item.status === "deleted") && (
 							<>
 								<Button
 									size="sm"
 									variant="ghost"
 									className="h-7 gap-1.5 px-2 text-xs"
-									onClick={() => handleRestore(transaction)}
+									onClick={() => handleRestore(kind, item)}
 								>
 									<RotateCcw aria-hidden="true" className="size-3.5" />
 									Restore
 								</Button>
-								{transaction.status === "deleted" && (
+								{item.status === "deleted" && (
 									<Button
 										size="sm"
 										variant="ghost"
@@ -445,7 +618,9 @@ export function TransactionsPage() {
 										onClick={() => {
 											setConfirming({
 												action: "permanent",
-												transaction,
+												kind,
+												id: item.id,
+												label: confirmLabel(item),
 											});
 										}}
 									>
@@ -461,7 +636,7 @@ export function TransactionsPage() {
 	];
 
 	const table = useReactTable({
-		data: data?.transactions ?? [],
+		data: data?.activity ?? [],
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
@@ -487,6 +662,13 @@ export function TransactionsPage() {
 
 	const total = data?.total ?? 0;
 	const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+	const lifecyclePending =
+		archiveTransaction.isPending ||
+		deleteTransaction.isPending ||
+		destroyTransaction.isPending ||
+		archiveTransfer.isPending ||
+		deleteTransfer.isPending ||
+		destroyTransfer.isPending;
 
 	return (
 		<div className="flex min-h-screen flex-col bg-background">
@@ -499,16 +681,26 @@ export function TransactionsPage() {
 							Transactions
 						</h1>
 						<p className="mt-1 text-sm text-muted-foreground">
-							{total} transaction{total === 1 ? "" : "s"} in this view.
+							{total} record{total === 1 ? "" : "s"} in this view.
 						</p>
 					</div>
-					<Button
-						onClick={() => setCreateOpen(true)}
-						className="gap-1.5 shadow-xs"
-					>
-						<Plus aria-hidden="true" className="size-4" />
-						Record transaction
-					</Button>
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							variant="outline"
+							onClick={() => setCreateTransferOpen(true)}
+							className="gap-1.5 shadow-xs"
+						>
+							<Plus aria-hidden="true" className="size-4" />
+							New transfer
+						</Button>
+						<Button
+							onClick={() => setCreateOpen(true)}
+							className="gap-1.5 shadow-xs"
+						>
+							<Plus aria-hidden="true" className="size-4" />
+							Record transaction
+						</Button>
+					</div>
 				</div>
 
 				{/* Status tabs */}
@@ -641,13 +833,13 @@ export function TransactionsPage() {
 				</div>
 
 				{/* Table content / states */}
-				{transactions.isPending ? (
+				{activity.isPending ? (
 					<div className="flex flex-col gap-2" aria-hidden="true">
 						{[0, 1, 2, 3, 4].map((index) => (
 							<Skeleton key={index} className="h-10 w-full rounded-md" />
 						))}
 					</div>
-				) : transactions.isError ? (
+				) : activity.isError ? (
 					<div
 						role="alert"
 						className="flex flex-col items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-6"
@@ -659,13 +851,13 @@ export function TransactionsPage() {
 							variant="outline"
 							size="sm"
 							onClick={() => {
-								transactions.refetch();
+								activity.refetch();
 							}}
 						>
 							Retry
 						</Button>
 					</div>
-				) : (data?.transactions.length ?? 0) === 0 ? (
+				) : (data?.activity.length ?? 0) === 0 ? (
 					<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
 						<div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
 							<Receipt aria-hidden="true" className="size-5" />
@@ -707,7 +899,7 @@ export function TransactionsPage() {
 								</TableHeader>
 								<TableBody>
 									{table.getRowModel().rows.map((row) => (
-										<TableRow key={row.id}>
+										<TableRow key={`${row.original.kind}:${row.original.id}:${row.original.direction ?? ""}`}>
 											{row.getVisibleCells().map((cell) => (
 												<TableCell key={cell.id}>
 													{flexRender(
@@ -762,31 +954,56 @@ export function TransactionsPage() {
 			</main>
 
 			<CreateTransactionDialog open={createOpen} onOpenChange={setCreateOpen} />
-			{editing && (
-				<EditTransactionDialog
-					transaction={editing}
-					onOpenChange={(open) => {
-						if (!open) {
-							setEditing(null);
-						}
-					}}
-				/>
-			)}
-			{viewing && (
-				<TransactionDetailDialog
-					transaction={viewing}
-					onOpenChange={(open) => {
-						if (!open) {
-							setViewing(null);
-						}
-					}}
-				/>
-			)}
+			<CreateTransferDialog
+				open={createTransferOpen}
+				onOpenChange={setCreateTransferOpen}
+			/>
+			{editing &&
+				(editing.kind === "transaction" ? (
+					<EditTransactionDialog
+						transaction={transactionFromActivity(editing.row)}
+						onOpenChange={(open) => {
+							if (!open) {
+								setEditing(null);
+							}
+						}}
+					/>
+				) : (
+					<EditTransferDialog
+						transfer={transferFromActivity(editing.row)}
+						onOpenChange={(open) => {
+							if (!open) {
+								setEditing(null);
+							}
+						}}
+					/>
+				))}
+			{viewing &&
+				(viewing.kind === "transaction" ? (
+					<TransactionDetailDialog
+						transaction={transactionFromActivity(viewing.row)}
+						onOpenChange={(open) => {
+							if (!open) {
+								setViewing(null);
+							}
+						}}
+					/>
+				) : (
+					<TransferDetailDialog
+						transfer={transferFromActivity(viewing.row)}
+						onOpenChange={(open) => {
+							if (!open) {
+								setViewing(null);
+							}
+						}}
+					/>
+				))}
 			{confirming && (
 				<ConfirmTransactionLifecycleDialog
 					action={confirming.action}
-					transactionLabel={`${TRANSACTION_TYPE_LABELS[confirming.transaction.type]} of ${formatSignedAmount(confirming.transaction)} on ${confirming.transaction.date}`}
-					pending={archive.isPending || remove.isPending || destroy.isPending}
+					noun={confirming.kind === "transfer" ? "transfer" : "transaction"}
+					transactionLabel={confirming.label}
+					pending={lifecyclePending}
 					onConfirm={handleConfirmLifecycle}
 					onOpenChange={(open) => {
 						if (!open) {
@@ -795,18 +1012,41 @@ export function TransactionsPage() {
 					}}
 				/>
 			)}
-			{renaming && (
-				<RestoreTransactionDialog
-					transaction={renaming}
-					pending={restore.isPending}
-					onSubmit={handleRestoreWithReassignment}
-					onOpenChange={(open) => {
-						if (!open) {
-							setRenaming(null);
-						}
-					}}
-				/>
-			)}
+			{restoring &&
+				(restoring.kind === "transaction" ? (
+					<RestoreTransactionDialog
+						transaction={transactionFromActivity(restoring.row)}
+						pending={restoreTransaction.isPending}
+						onSubmit={handleRestoreWithReassignment}
+						onOpenChange={(open) => {
+							if (!open) {
+								setRestoring(null);
+							}
+						}}
+					/>
+				) : (
+					<RestoreTransferDialog
+						transfer={transferFromActivity(restoring.row)}
+						pending={restoreTransfer.isPending}
+						onSubmit={handleRestoreWithReassignment}
+						onOpenChange={(open) => {
+							if (!open) {
+								setRestoring(null);
+							}
+						}}
+					/>
+				))}
 		</div>
 	);
+}
+
+function confirmLabel(item: ActivityItem): string {
+	if (item.kind === "transfer") {
+		const direction =
+			item.direction === "in"
+				? `into ${item.accountName ?? "account"}`
+				: `out of ${item.accountName ?? "account"}`;
+		return `Transfer of ${formatPaise(Math.abs(item.amountMinor))} ${direction} on ${item.date}`;
+	}
+	return `${item.type ? TRANSACTION_TYPE_LABELS[item.type] : "Transaction"} of ${formatSignedAmount(item)} on ${item.date}`;
 }

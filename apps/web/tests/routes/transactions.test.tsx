@@ -1,4 +1,4 @@
-import type { TransactionResponse } from "@finance-application/schemas";
+import type { ActivityItem } from "@finance-application/schemas";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TransactionsPage } from "@/routes/transactions";
@@ -6,37 +6,73 @@ import { renderRoute } from "./helpers";
 
 const sessionUser = { id: "u1", email: "user@example.com" };
 
-function makeTransaction(
-	overrides: Partial<TransactionResponse> & { id: string },
-): TransactionResponse {
+function makeTransactionRow(
+	overrides: Partial<ActivityItem> & { id: string },
+): ActivityItem {
 	return {
-		type: "expense",
-		amountMinor: 125050,
+		kind: "transaction",
 		date: "2026-01-15",
+		// Signed effect on the row's account: expenses are negative.
+		amountMinor: -125050,
+		direction: null,
 		accountId: "acc-1",
 		accountName: "HDFC Bank",
+		status: "active",
+		notes: "weekly shop",
+		type: "expense",
 		categoryId: "cat-1",
 		categoryName: "Groceries",
-		notes: "weekly shop",
-		status: "active",
-		archivedAt: null,
-		deletedAt: null,
+		counterpartyAccountId: null,
+		counterpartyAccountName: null,
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z",
+		archivedAt: null,
+		deletedAt: null,
 		...overrides,
-	} as TransactionResponse;
+	};
 }
 
-const activeTxn = makeTransaction({ id: "txn-1" });
-const incomeTxn = makeTransaction({
+function makeTransferRow(
+	overrides: Partial<ActivityItem> & { id: string },
+): ActivityItem {
+	return {
+		kind: "transfer",
+		date: "2026-01-18",
+		amountMinor: -5000,
+		direction: "out",
+		accountId: "acc-1",
+		accountName: "HDFC Bank",
+		status: "active",
+		notes: "cash withdrawal",
+		type: null,
+		categoryId: null,
+		categoryName: null,
+		counterpartyAccountId: "acc-2",
+		counterpartyAccountName: "Wallet",
+		createdAt: "2026-01-01T00:00:00.000Z",
+		updatedAt: "2026-01-01T00:00:00.000Z",
+		archivedAt: null,
+		deletedAt: null,
+		...overrides,
+	};
+}
+
+const activeTxn = makeTransactionRow({ id: "txn-1" });
+const incomeTxn = makeTransactionRow({
 	id: "txn-2",
 	type: "income",
 	amountMinor: 50000,
 	categoryName: "Salary",
 	date: "2026-01-20",
 });
-const deletedTxn = makeTransaction({
+const deletedTxn = makeTransactionRow({
 	id: "txn-4",
+	status: "deleted",
+	deletedAt: "2026-01-02T00:00:00.000Z",
+});
+const transferOut = makeTransferRow({ id: "tr-1" });
+const deletedTransfer = makeTransferRow({
+	id: "tr-2",
 	status: "deleted",
 	deletedAt: "2026-01-02T00:00:00.000Z",
 });
@@ -48,16 +84,13 @@ function jsonResponse(status: number, body: unknown): Response {
 	});
 }
 
-function listBody(
-	transactions: TransactionResponse[],
-	total = transactions.length,
-) {
-	return { transactions, page: 1, pageSize: 20, total };
+function activityBody(activity: ActivityItem[], total = activity.length) {
+	return { activity, page: 1, pageSize: 20, total };
 }
 
 // Signed-in session by default; tests override the endpoints they exercise.
 // Any URL without an override returns 404 so accidental requests are visible.
-function stubTransactionsApi(
+function stubActivityApi(
 	overrides: Record<string, () => Response> = {},
 ): ReturnType<typeof vi.fn> {
 	const fetchMock = vi.fn(async (input: RequestInfo | string) => {
@@ -72,6 +105,18 @@ function stubTransactionsApi(
 						id: "acc-1",
 						name: "HDFC Bank",
 						type: "bank",
+						openingBalanceMinor: 0,
+						currentBalanceMinor: 0,
+						status: "active",
+						archivedAt: null,
+						deletedAt: null,
+						createdAt: "",
+						updatedAt: "",
+					},
+					{
+						id: "acc-2",
+						name: "Wallet",
+						type: "wallet",
 						openingBalanceMinor: 0,
 						currentBalanceMinor: 0,
 						status: "active",
@@ -146,16 +191,19 @@ afterEach(() => {
 });
 
 describe("/transactions rendering states", () => {
-	it("renders the active list as a table with signed amounts", async () => {
-		stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([activeTxn, incomeTxn])),
+	it("renders the active activity feed as a table with signed amounts", async () => {
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn, incomeTxn, transferOut])),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
 
 		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
 		expect(screen.getByText("−₹1,250.50")).toBeTruthy();
 		expect(screen.getByText("+₹500.00")).toBeTruthy();
+		// The transfer row carries a direction badge and never a category.
+		expect(screen.getByText("Out")).toBeTruthy();
+		expect(screen.getByText("−₹50.00")).toBeTruthy();
 		// Account and category names also appear in the filter-bar options.
 		expect(screen.getAllByText("HDFC Bank").length).toBeGreaterThan(0);
 		expect(screen.getAllByText("Salary").length).toBeGreaterThan(0);
@@ -163,8 +211,8 @@ describe("/transactions rendering states", () => {
 	});
 
 	it("shows the empty state and the error state with retry", async () => {
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
 				jsonResponse(500, {
 					error: {
 						code: "INTERNAL_ERROR",
@@ -182,8 +230,8 @@ describe("/transactions rendering states", () => {
 			if (url === "/api/auth/me") {
 				return jsonResponse(200, sessionUser);
 			}
-			if (url === "/api/transactions?status=active&page=1&pageSize=20") {
-				return jsonResponse(200, listBody([]));
+			if (url === "/api/activity?status=active&page=1&pageSize=20") {
+				return jsonResponse(200, activityBody([]));
 			}
 			return jsonResponse(404, {
 				error: {
@@ -200,11 +248,11 @@ describe("/transactions rendering states", () => {
 	});
 
 	it("switches tabs and fetches the matching lifecycle slice", async () => {
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([activeTxn])),
-			"/api/transactions?status=deleted&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([deletedTxn])),
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
+			"/api/activity?status=deleted&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([deletedTxn])),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
 		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
@@ -214,7 +262,7 @@ describe("/transactions rendering states", () => {
 			expect(
 				callsTo(
 					fetchMock,
-					"/api/transactions?status=deleted&page=1&pageSize=20",
+					"/api/activity?status=deleted&page=1&pageSize=20",
 				).length,
 			).toBeGreaterThan(0),
 		);
@@ -226,9 +274,9 @@ describe("/transactions rendering states", () => {
 	});
 
 	it("applies the type and search filters", async () => {
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([activeTxn])),
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
 		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
@@ -252,7 +300,7 @@ describe("/transactions rendering states", () => {
 			expect(
 				callsTo(
 					fetchMock,
-					"/api/transactions?status=active&type=expense&page=1&pageSize=20",
+					"/api/activity?status=active&type=expense&page=1&pageSize=20",
 				),
 			).toHaveLength(1),
 		);
@@ -264,7 +312,7 @@ describe("/transactions rendering states", () => {
 			expect(
 				callsTo(
 					fetchMock,
-					"/api/transactions?status=active&type=expense&q=shop&page=1&pageSize=20",
+					"/api/activity?status=active&type=expense&q=shop&page=1&pageSize=20",
 				).length,
 			).toBeGreaterThan(0),
 		);
@@ -273,9 +321,9 @@ describe("/transactions rendering states", () => {
 
 describe("/transactions edit dialog", () => {
 	it("prefills the transaction and patches on save", async () => {
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([activeTxn])),
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
 			"/api/transactions/txn-1": () => jsonResponse(200, activeTxn),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
@@ -306,9 +354,9 @@ describe("/transactions lifecycle actions", () => {
 	async function openWithActive(
 		overrides: Record<string, () => Response> = {},
 	) {
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([activeTxn])),
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
 			...overrides,
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
@@ -349,9 +397,9 @@ describe("/transactions lifecycle actions", () => {
 	});
 
 	it("requires typing DELETE before permanent deletion", async () => {
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=deleted&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([deletedTxn])),
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=deleted&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([deletedTxn])),
 			"/api/transactions/txn-4": () => jsonResponse(200, deletedTxn),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
@@ -391,9 +439,9 @@ describe("/transactions lifecycle actions", () => {
 
 	it("restores, prompting reassignment when the restore conflicts", async () => {
 		let restoreCalls = 0;
-		const fetchMock = stubTransactionsApi({
-			"/api/transactions?status=deleted&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([deletedTxn])),
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=deleted&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([deletedTxn])),
 			"/api/transactions/txn-4/restore": () => {
 				restoreCalls += 1;
 				if (restoreCalls === 1) {
@@ -445,9 +493,9 @@ describe("/transactions lifecycle actions", () => {
 
 describe("/transactions create dialog", () => {
 	it("surfaces validation errors before submit succeeds", async () => {
-		stubTransactionsApi({
-			"/api/transactions?status=active&page=1&pageSize=20": () =>
-				jsonResponse(200, listBody([])),
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([])),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
 		await waitFor(() =>
@@ -472,5 +520,198 @@ describe("/transactions create dialog", () => {
 		await waitFor(() =>
 			expect(screen.getAllByRole("alert").length).toBeGreaterThan(0),
 		);
+	});
+});
+
+describe("transfer rows in the history view", () => {
+	it("shows direction badges, lifecycle badges, and the detail view", async () => {
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([transferOut])),
+		});
+		await renderRoute(<TransactionsPage />, "/transactions");
+
+		await waitFor(() => expect(screen.getByText("2026-01-18")).toBeTruthy());
+		expect(screen.getByText("Out")).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: /view transfer/i }));
+		await waitFor(() =>
+			expect(screen.getByText("Transfer details")).toBeTruthy(),
+		);
+		expect(screen.getAllByText("₹50.00").length).toBeGreaterThan(0);
+		expect(screen.getAllByText("HDFC Bank").length).toBeGreaterThan(0);
+		expect(screen.getAllByText("Wallet").length).toBeGreaterThan(0);
+	});
+
+	it("archives and soft-deletes transfers through the transfer endpoints", async () => {
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([transferOut])),
+			"/api/transfers/tr-1/archive": () =>
+				jsonResponse(200, { ...transferOut, status: "archived" }),
+		});
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() => expect(screen.getByText("2026-01-18")).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+		await waitFor(() =>
+			expect(screen.getByText(/archive this transfer\?/i)).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Archive transfer" }));
+		await waitFor(() =>
+			expect(callsTo(fetchMock, "/api/transfers/tr-1/archive")).toHaveLength(1),
+		);
+	});
+
+	it("restores a deleted transfer with reassignment on conflict", async () => {
+		let restoreCalls = 0;
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=deleted&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([deletedTransfer])),
+			"/api/transfers/tr-2/restore": () => {
+				restoreCalls += 1;
+				if (restoreCalls === 1) {
+					return jsonResponse(409, {
+						error: {
+							code: "RESTORE_CONFLICT",
+							message: "conflict",
+							details: [],
+						},
+					});
+				}
+				return jsonResponse(200, { ...deletedTransfer, status: "active" });
+			},
+		});
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() =>
+			expect(screen.getByRole("tab", { name: "Trash" })).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole("tab", { name: "Trash" }));
+		await waitFor(() => expect(screen.getByText("Restore")).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: "Restore" }));
+		await waitFor(() => {
+			expect(
+				callsTo(fetchMock, "/api/transfers/tr-2/restore"),
+			).toHaveLength(1);
+		});
+
+		// The conflict opens the transfer reassignment dialog.
+		await waitFor(() =>
+			expect(screen.getByText("Choose restore targets")).toBeTruthy(),
+		);
+		fireEvent.click(
+			within(screen.getByRole("dialog")).getByRole("button", {
+				name: "Restore",
+			}),
+		);
+		await waitFor(() => {
+			expect(
+				callsTo(fetchMock, "/api/transfers/tr-2/restore"),
+			).toHaveLength(2);
+		});
+		const [, secondInit] = callsTo(
+			fetchMock,
+			"/api/transfers/tr-2/restore",
+		)[1] as [string, RequestInit];
+		// Unchanged references are not sent.
+		expect(secondInit.body).toBe(JSON.stringify({}));
+	});
+
+	it("requires typing DELETE before permanent transfer deletion", async () => {
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=deleted&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([deletedTransfer])),
+		});
+		await renderRoute(<TransactionsPage />, "/transactions");
+		fireEvent.click(screen.getByRole("tab", { name: "Trash" }));
+		await waitFor(() =>
+			expect(screen.getByText("Delete forever")).toBeTruthy(),
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Delete forever" }));
+		await waitFor(() =>
+			expect(screen.getByText(/permanently delete this transfer\?/i)).toBeTruthy(),
+		);
+		const confirmButton = screen.getByRole("button", {
+			name: "Delete forever",
+		}) as HTMLButtonElement;
+		expect(confirmButton.disabled).toBe(true);
+		fireEvent.change(screen.getByLabelText(/type delete to confirm/i), {
+			target: { value: "DELETE" },
+		});
+		fireEvent.click(confirmButton);
+		await waitFor(() => {
+			const calls = callsTo(fetchMock, "/api/transfers/tr-2");
+			expect(calls).toHaveLength(1);
+		});
+		const [, init] = callsTo(fetchMock, "/api/transfers/tr-2")[0] as [
+			string,
+			RequestInit,
+		];
+		expect(init.method).toBe("DELETE");
+	});
+});
+
+describe("create transfer dialog", () => {
+	it("opens from the header and rejects same-account selections", async () => {
+		let createCalls = 0;
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([])),
+			"/api/transfers": () => {
+				createCalls += 1;
+				return jsonResponse(201, {});
+			},
+		});
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: "New transfer" })).toBeTruthy(),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "New transfer" }));
+		await waitFor(() =>
+			expect(
+				screen.getByText("Record transfer", {
+					selector: "[role=dialog] h2, h2",
+				}),
+			).toBeTruthy(),
+		);
+
+		// Fill only the two account selects with the same account.
+		fireEvent.click(screen.getByLabelText("From account (source)"));
+		const sourceOption = await waitFor(() => {
+			const match = screen
+				.getAllByRole("option")
+				.find((option) => option.textContent === "HDFC Bank");
+			if (!match) {
+				throw new Error("source option not rendered yet");
+			}
+			return match;
+		});
+		fireEvent.pointerDown(sourceOption);
+		fireEvent.click(sourceOption);
+
+		fireEvent.click(screen.getByLabelText("To account (destination)"));
+		const sameOption = await waitFor(() => {
+			const match = screen
+				.getAllByRole("option")
+				.find((option) => option.textContent === "HDFC Bank");
+			if (!match) {
+				throw new Error("destination option not rendered yet");
+			}
+			return match;
+		});
+		fireEvent.pointerDown(sameOption);
+		fireEvent.click(sameOption);
+
+		fireEvent.click(
+			within(screen.getByRole("dialog")).getByRole("button", {
+				name: "Record transfer",
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getAllByRole("alert").length).toBeGreaterThan(0),
+		);
+		expect(createCalls).toBe(0);
 	});
 });

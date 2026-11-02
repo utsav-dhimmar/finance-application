@@ -3,3 +3,4 @@ export * from "./auth";
 export * from "./categories";
 export { ApiError, apiFetch } from "./client";
 export * from "./transactions";
+export * from "./transfers";

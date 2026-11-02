@@ -24,6 +24,8 @@ interface ConfirmTransactionLifecycleDialogProps {
 	pending: boolean;
 	onConfirm: () => void;
 	onOpenChange: (open: boolean) => void;
+	// The record kind named in the copy; transfers reuse this dialog.
+	noun?: string;
 }
 
 // Destructive actions always confirm. Archive and delete are reversible and
@@ -35,6 +37,7 @@ export function ConfirmTransactionLifecycleDialog({
 	pending,
 	onConfirm,
 	onOpenChange,
+	noun = "transaction",
 }: ConfirmTransactionLifecycleDialogProps) {
 	const [confirmText, setConfirmText] = useState("");
 	const [error, setError] = useState<string | null>(null);
@@ -67,14 +70,14 @@ export function ConfirmTransactionLifecycleDialog({
 							: isPermanent
 								? "Permanently delete"
 								: "Delete"}{" "}
-						this transaction?
+						this {noun}?
 					</AlertDialogTitle>
 					<AlertDialogDescription>
 						{isArchive
-							? "Archived transactions leave the active list but keep their balance effect and stay in reports. You can restore it from the Archived tab."
+							? `Archived ${noun}s leave the active list but keep their balance effect and stay in reports. You can restore it from the Archived tab.`
 							: isPermanent
 								? `"${transactionLabel}" will be removed from history forever. This cannot be undone.`
-								: "Deleted transactions move to Trash and their balance effect reverses. You can restore it from the Trash tab."}
+								: `Deleted ${noun}s move to Trash and their balance effect reverses. You can restore it from the Trash tab.`}
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				{isPermanent && (
@@ -99,10 +102,10 @@ export function ConfirmTransactionLifecycleDialog({
 						disabled={pending || (isPermanent && confirmText !== "DELETE")}
 					>
 						{isArchive
-							? "Archive transaction"
+							? `Archive ${noun}`
 							: isPermanent
 								? "Delete forever"
-								: "Delete transaction"}
+								: `Delete ${noun}`}
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>

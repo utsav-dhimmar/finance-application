@@ -178,6 +178,64 @@ export const transactions = sqliteTable(
 	],
 );
 
+// Inter-account transfers. A transfer is one row with both sides, so "both
+// accounts move together" is a property of the row rather than an invariant to
+// maintain across paired rows. Transfers never touch categories and never
+// create transactions: they are structurally excluded from income/expense.
+// Balance contribution is derived like transactions': the account service sums
+// −amount on the source and +amount on the destination for non-deleted
+// transfers (archived transfers keep their effect; deleted ones carry none).
+// Amounts are strictly positive integer paise; creation is idempotent via the
+// client-generated UUIDv7 primary key.
+export const transfers = sqliteTable(
+	"transfers",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		sourceAccountId: text("source_account_id")
+			.notNull()
+			.references(() => accounts.id, { onDelete: "restrict" }),
+		destinationAccountId: text("destination_account_id")
+			.notNull()
+			.references(() => accounts.id, { onDelete: "restrict" }),
+		amountMinor: integer("amount_minor").notNull(),
+		// Calendar date (YYYY-MM-DD) the transfer belongs to, distinct from the
+		// audit timestamps; lexicographic order equals chronological order.
+		date: text("date").notNull(),
+		notes: text("notes"),
+		status: text("status").notNull().default("active"),
+		archivedAt: text("archived_at"),
+		deletedAt: text("deleted_at"),
+		createdAt: text("created_at").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		check("transfers_amount_positive_check", sql`${table.amountMinor} > 0`),
+		check(
+			"transfers_status_check",
+			sql`${table.status} in ('active', 'archived', 'deleted')`,
+		),
+		index("transfers_user_date_idx").on(table.userId, table.date),
+		index("transfers_user_source_date_idx").on(
+			table.userId,
+			table.sourceAccountId,
+			table.date,
+		),
+		index("transfers_user_destination_date_idx").on(
+			table.userId,
+			table.destinationAccountId,
+			table.date,
+		),
+		index("transfers_user_status_date_idx").on(
+			table.userId,
+			table.status,
+			table.date,
+		),
+	],
+);
+
 export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
@@ -186,3 +244,5 @@ export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
+export type Transfer = typeof transfers.$inferSelect;
+export type NewTransfer = typeof transfers.$inferInsert;

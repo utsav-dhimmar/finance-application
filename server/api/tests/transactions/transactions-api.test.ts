@@ -364,6 +364,125 @@ describe("GET /api/transactions", () => {
 		).json()) as { total: number };
 		expect(active.total).toBe(0);
 	});
+
+	// US-021 historical reporting: archived accounts and categories remain
+	// reportable through the list filters, with names still resolved.
+	it("filters by an archived account and archived or deleted categories", async () => {
+		const cookie = await freshCookie();
+		const activeAccount = await createAccount(cookie, {
+			name: "HDFC Bank",
+			type: "bank",
+		});
+		const archivedAccount = await createAccount(cookie, {
+			name: "Old Bank",
+			type: "bank",
+		});
+		const archivedCategory = await createCategory(cookie, {
+			name: "Old Hobby",
+			type: "expense",
+		});
+		const deletedCategory = await createCategory(cookie, {
+			name: "Old Subscription",
+			type: "expense",
+		});
+		const activeCategory = await createCategory(cookie, {
+			name: "Groceries",
+			type: "expense",
+		});
+
+		for (const body of [
+			transactionBody({
+				accountId: archivedAccount,
+				categoryId: archivedCategory,
+				date: "2026-01-05",
+				amountMinor: 3000,
+			}),
+			transactionBody({
+				accountId: archivedAccount,
+				categoryId: deletedCategory,
+				date: "2026-01-10",
+				amountMinor: 2000,
+			}),
+			transactionBody({
+				accountId: activeAccount,
+				categoryId: activeCategory,
+				date: "2026-02-01",
+				amountMinor: 1000,
+			}),
+		]) {
+			expect((await postTransaction(cookie, body)).status).toBe(201);
+		}
+		expect(
+			(
+				await fetchApp(
+					`${ACCOUNTS_URL}/${archivedAccount}/archive`,
+					jsonResponseInit("POST", undefined, cookie),
+				)
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await fetchApp(
+					`${CATEGORIES_URL}/${archivedCategory}/archive`,
+					jsonResponseInit("POST", undefined, cookie),
+				)
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await fetchApp(
+					`${CATEGORIES_URL}/${deletedCategory}/delete`,
+					jsonResponseInit("POST", undefined, cookie),
+				)
+			).status,
+		).toBe(200);
+
+		// The archived account's historical transactions remain reportable.
+		const byArchivedAccount = (await (
+			await fetchApp(`${BASE}?accountId=${archivedAccount}`, {
+				headers: { cookie },
+			})
+		).json()) as {
+			total: number;
+			transactions: Array<{ accountName: string | null }>;
+		};
+		expect(byArchivedAccount.total).toBe(2);
+		expect(byArchivedAccount.transactions[0]?.accountName).toBe("Old Bank");
+
+		// Archived and soft-deleted categories remain reportable with names.
+		const byArchivedCategory = (await (
+			await fetchApp(`${BASE}?categoryId=${archivedCategory}`, {
+				headers: { cookie },
+			})
+		).json()) as {
+			total: number;
+			transactions: Array<{ categoryName: string | null }>;
+		};
+		expect(byArchivedCategory.total).toBe(1);
+		expect(byArchivedCategory.transactions[0]?.categoryName).toBe("Old Hobby");
+
+		const byDeletedCategory = (await (
+			await fetchApp(`${BASE}?categoryId=${deletedCategory}`, {
+				headers: { cookie },
+			})
+		).json()) as {
+			total: number;
+			transactions: Array<{ categoryName: string | null }>;
+		};
+		expect(byDeletedCategory.total).toBe(1);
+		expect(byDeletedCategory.transactions[0]?.categoryName).toBe(
+			"Old Subscription",
+		);
+
+		// Historical range over the archived account stays boundary-inclusive.
+		const ranged = (await (
+			await fetchApp(
+				`${BASE}?accountId=${archivedAccount}&from=2026-01-05&to=2026-01-10`,
+				{ headers: { cookie } },
+			)
+		).json()) as { total: number };
+		expect(ranged.total).toBe(2);
+	});
 });
 
 describe("GET /api/transactions/:id", () => {

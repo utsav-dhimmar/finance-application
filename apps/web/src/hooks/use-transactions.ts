@@ -6,6 +6,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ACCOUNTS_QUERY_KEY } from "@/services/accounts-service";
 import { CATEGORIES_QUERY_KEY } from "@/services/categories-service";
+import { REPORTS_QUERY_KEY } from "@/services/reports-service";
 import {
 	archiveExistingTransaction,
 	createNewTransaction,
@@ -22,14 +23,16 @@ export function useTransactions(filters: Partial<ListTransactionsQuery>) {
 }
 
 // Every balance-affecting mutation invalidates the transaction list, the
-// account slices (their balances derive from the ledger), and the category
-// slices (their type-lock state derives from references).
+// account slices (their balances derive from the ledger), the category
+// slices (their type-lock state derives from references), and the report
+// summaries (their totals derive from the same ledger).
 function useInvalidateTransactionRelated() {
 	const queryClient = useQueryClient();
 	return () => {
 		queryClient.invalidateQueries({ queryKey: TRANSACTIONS_QUERY_KEY });
 		queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
 		queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+		queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 	};
 }
 

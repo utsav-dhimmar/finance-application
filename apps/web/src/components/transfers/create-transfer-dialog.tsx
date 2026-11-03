@@ -151,8 +151,8 @@ export function CreateTransferDialog({
 				<DialogHeader>
 					<DialogTitle>Record transfer</DialogTitle>
 					<DialogDescription>
-						Money moves between two of your accounts. Transfers are never
-						income or expense.
+						Money moves between two of your accounts. Transfers are never income
+						or expense.
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>

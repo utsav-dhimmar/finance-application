@@ -103,7 +103,7 @@ describe("useTransfers", () => {
 });
 
 describe("transfer mutations", () => {
-	it("createTransfer posts and invalidates transfer, account, and activity caches", async () => {
+	it("createTransfer posts and invalidates transfer, account, activity, and report caches", async () => {
 		const fetchMock = vi.fn(async (input: RequestInfo | string) => {
 			const url = typeof input === "string" ? input : input.url;
 			if (url === "/api/transfers") {
@@ -136,6 +136,11 @@ describe("transfer mutations", () => {
 			pageSize: 20,
 			total: 0,
 		});
+		// The dashboard's period summary must refresh after a recording.
+		queryClient.setQueryData(["reports", "month=2026-01"], {
+			incomeMinor: 0,
+			expenseMinor: 0,
+		});
 		act(() => {
 			view.result.current.mutate({
 				id: UUID,
@@ -163,6 +168,11 @@ describe("transfer mutations", () => {
 					?.isInvalidated,
 			).toBe(true),
 		);
+		await waitFor(() =>
+			expect(
+				queryClient.getQueryState(["reports", "month=2026-01"])?.isInvalidated,
+			).toBe(true),
+		);
 	});
 
 	it("updateTransfer patches by id", async () => {
@@ -181,11 +191,7 @@ describe("transfer mutations", () => {
 	it.each([
 		["archive", useArchiveTransfer, "/api/transfers/txn-1/archive"],
 		["delete", useDeleteTransfer, "/api/transfers/txn-1/delete"],
-		[
-			"permanent delete",
-			usePermanentlyDeleteTransfer,
-			"/api/transfers/txn-1",
-		],
+		["permanent delete", usePermanentlyDeleteTransfer, "/api/transfers/txn-1"],
 	])("%s hits its endpoint", async (_label, useHook, endpoint) => {
 		const fetchMock = stubTransferApi(endpoint);
 		const { view } = renderWithProvider(useHook);
@@ -252,9 +258,7 @@ describe("getTransfersErrorMessage", () => {
 
 	it("explains restore conflicts", () => {
 		const error = new ApiError(409, "RESTORE_CONFLICT", "x", []);
-		expect(getTransfersErrorMessage(error, "fallback")).toMatch(
-			/replacement/i,
-		);
+		expect(getTransfersErrorMessage(error, "fallback")).toMatch(/replacement/i);
 	});
 
 	it("falls back for unknown errors", () => {

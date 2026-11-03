@@ -31,9 +31,12 @@ describe("transferDateSchema", () => {
 		expect(transferDateSchema.parse(input)).toBe(input);
 	});
 
-	it.each(["2026-02-30", "2026-13-01", "2026/01/01", ""])("rejects %s", (input) => {
-		expect(() => transferDateSchema.parse(input)).toThrow();
-	});
+	it.each(["2026-02-30", "2026-13-01", "2026/01/01", ""])(
+		"rejects %s",
+		(input) => {
+			expect(() => transferDateSchema.parse(input)).toThrow();
+		},
+	);
 });
 
 describe("transferIdSchema", () => {
@@ -75,7 +78,9 @@ describe("createTransferBodySchema", () => {
 		["negative amount", { amountMinor: -100 }],
 		["fractional paise", { amountMinor: 12.5 }],
 	])("rejects a body with a %s", (_label, patch) => {
-		expect(() => createTransferBodySchema.parse({ ...valid, ...patch })).toThrow();
+		expect(() =>
+			createTransferBodySchema.parse({ ...valid, ...patch }),
+		).toThrow();
 	});
 
 	it("rejects a non-UUIDv7 id", () => {
@@ -118,7 +123,9 @@ describe("updateTransferBodySchema", () => {
 
 	it("rejects invalid patches", () => {
 		expect(() => updateTransferBodySchema.parse({ amountMinor: 0 })).toThrow();
-		expect(() => updateTransferBodySchema.parse({ date: "2026-13-01" })).toThrow();
+		expect(() =>
+			updateTransferBodySchema.parse({ date: "2026-13-01" }),
+		).toThrow();
 	});
 });
 
@@ -150,9 +157,7 @@ describe("transferListQuerySchema", () => {
 		expect(
 			transferListQuerySchema.parse({ page: "2", pageSize: "50" }),
 		).toMatchObject({ page: 2, pageSize: 50 });
-		expect(() =>
-			transferListQuerySchema.parse({ pageSize: 101 }),
-		).toThrow();
+		expect(() => transferListQuerySchema.parse({ pageSize: 101 })).toThrow();
 	});
 
 	it("rejects unknown statuses", () => {
@@ -188,7 +193,9 @@ describe("transferFormSchema", () => {
 
 	it("rejects zero, negative, and malformed amounts", () => {
 		expect(() => transferFormSchema.parse({ ...valid, amount: "0" })).toThrow();
-		expect(() => transferFormSchema.parse({ ...valid, amount: "-5" })).toThrow();
+		expect(() =>
+			transferFormSchema.parse({ ...valid, amount: "-5" }),
+		).toThrow();
 		expect(() =>
 			transferFormSchema.parse({ ...valid, amount: "12.505" }),
 		).toThrow();

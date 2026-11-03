@@ -42,11 +42,16 @@ export const createTransferBodySchema = z.object({
 	date: transferDateSchema.openapi({
 		description: "Calendar date (YYYY-MM-DD) the transfer belongs to",
 	}),
-	sourceAccountId: z.string().min(1).openapi({ description: "Source account id" }),
+	sourceAccountId: z
+		.string()
+		.min(1)
+		.openapi({ description: "Source account id" }),
 	destinationAccountId: z
 		.string()
 		.min(1)
-		.openapi({ description: "Destination account id; must differ from the source" }),
+		.openapi({
+			description: "Destination account id; must differ from the source",
+		}),
 	notes: transferNotesSchema
 		.openapi({ description: "Optional notes" })
 		.optional(),

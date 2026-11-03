@@ -138,9 +138,7 @@ function transferFromActivity(row: ActivityItem): TransferResponse {
 		sourceAccountId: outgoing
 			? row.accountId
 			: (row.counterpartyAccountId ?? ""),
-		sourceAccountName: outgoing
-			? row.accountName
-			: row.counterpartyAccountName,
+		sourceAccountName: outgoing ? row.accountName : row.counterpartyAccountName,
 		destinationAccountId: outgoing
 			? (row.counterpartyAccountId ?? "")
 			: row.accountId,
@@ -327,7 +325,9 @@ export function TransactionsPage() {
 
 	function handleRestore(kind: "transaction" | "transfer", row: ActivityItem) {
 		const onSuccess = () => {
-			toast.success(kind === "transfer" ? "Transfer restored." : "Transaction restored.");
+			toast.success(
+				kind === "transfer" ? "Transfer restored." : "Transaction restored.",
+			);
 		};
 		const onError = (error: unknown) => {
 			if (error instanceof ApiError && error.code === "RESTORE_CONFLICT") {
@@ -374,9 +374,7 @@ export function TransactionsPage() {
 				error.code === "RESTORE_CONFLICT" &&
 				hadReassignment
 			) {
-				toast.error(
-					"Still conflicting: pick a different account or category.",
-				);
+				toast.error("Still conflicting: pick a different account or category.");
 				return;
 			}
 			toast.error(
@@ -899,7 +897,9 @@ export function TransactionsPage() {
 								</TableHeader>
 								<TableBody>
 									{table.getRowModel().rows.map((row) => (
-										<TableRow key={`${row.original.kind}:${row.original.id}:${row.original.direction ?? ""}`}>
+										<TableRow
+											key={`${row.original.kind}:${row.original.id}:${row.original.direction ?? ""}`}
+										>
 											{row.getVisibleCells().map((cell) => (
 												<TableCell key={cell.id}>
 													{flexRender(

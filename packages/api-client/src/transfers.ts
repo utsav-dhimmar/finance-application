@@ -36,11 +36,7 @@ export function listTransfers(
 		}
 	}
 	const suffix = params.size > 0 ? `?${params}` : "";
-	return apiFetch<TransferListResponse>(
-		`/api/transfers${suffix}`,
-		{},
-		options,
-	);
+	return apiFetch<TransferListResponse>(`/api/transfers${suffix}`, {}, options);
 }
 
 export function getTransfer(

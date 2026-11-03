@@ -1,5 +1,6 @@
 import {
 	and,
+	asc,
 	count,
 	desc,
 	eq,
@@ -236,6 +237,117 @@ export function createTransactionRepository(db: Db) {
 					),
 				);
 			return rows[0]?.value ?? 0;
+		},
+
+		// Reporting aggregations for one user over an inclusive calendar-date
+		// range. All three include active and archived transactions and exclude
+		// soft-deleted ones; transfers are structurally absent (different table),
+		// so they can never enter income or expense totals.
+
+		// Income and expense totals over non-deleted transactions in range.
+		async sumTypeEffectsInRange(
+			userId: string,
+			from: string,
+			to: string,
+		): Promise<{ incomeMinor: number; expenseMinor: number }> {
+			const rows = await db
+				.select({
+					incomeMinor: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountMinor} ELSE 0 END), 0)`,
+					expenseMinor: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountMinor} ELSE 0 END), 0)`,
+				})
+				.from(transactions)
+				.where(
+					and(
+						eq(transactions.userId, userId),
+						inArray(transactions.status, ["active", "archived"]),
+						gte(transactions.date, from),
+						lte(transactions.date, to),
+					),
+				);
+			const row = rows[0];
+			return {
+				incomeMinor: row === undefined ? 0 : Number(row.incomeMinor),
+				expenseMinor: row === undefined ? 0 : Number(row.expenseMinor),
+			};
+		},
+
+		// Expense-side totals grouped by category in range, with names resolved
+		// by reference regardless of the category's lifecycle state (a left join;
+		// the name is null only when the category row was permanently deleted).
+		// Largest total first, ties broken by category id for determinism.
+		async expenseByCategoryInRange(
+			userId: string,
+			from: string,
+			to: string,
+		): Promise<
+			Array<{
+				categoryId: string;
+				categoryName: string | null;
+				amountMinor: number;
+			}>
+		> {
+			const rows = await db
+				.select({
+					categoryId: transactions.categoryId,
+					categoryName: categories.name,
+					amountMinor: sql<number>`SUM(${transactions.amountMinor})`,
+				})
+				.from(transactions)
+				.leftJoin(categories, eq(categories.id, transactions.categoryId))
+				.where(
+					and(
+						eq(transactions.userId, userId),
+						inArray(transactions.status, ["active", "archived"]),
+						eq(transactions.type, "expense"),
+						gte(transactions.date, from),
+						lte(transactions.date, to),
+					),
+				)
+				.groupBy(transactions.categoryId, categories.name)
+				.orderBy(
+					desc(sql`SUM(${transactions.amountMinor})`),
+					asc(transactions.categoryId),
+				);
+			return rows.map((row) => ({
+				categoryId: row.categoryId,
+				categoryName: row.categoryName ?? null,
+				amountMinor: Number(row.amountMinor),
+			}));
+		},
+
+		// Income and expense sums per calendar date in range — the raw material
+		// for the comparison chart's sub-period buckets. Dates with no
+		// transactions are absent; the service zero-fills them.
+		async typeSumsPerDayInRange(
+			userId: string,
+			from: string,
+			to: string,
+		): Promise<Map<string, { incomeMinor: number; expenseMinor: number }>> {
+			const rows = await db
+				.select({
+					date: transactions.date,
+					incomeMinor: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amountMinor} ELSE 0 END), 0)`,
+					expenseMinor: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amountMinor} ELSE 0 END), 0)`,
+				})
+				.from(transactions)
+				.where(
+					and(
+						eq(transactions.userId, userId),
+						inArray(transactions.status, ["active", "archived"]),
+						gte(transactions.date, from),
+						lte(transactions.date, to),
+					),
+				)
+				.groupBy(transactions.date);
+			return new Map(
+				rows.map((row) => [
+					row.date,
+					{
+						incomeMinor: Number(row.incomeMinor),
+						expenseMinor: Number(row.expenseMinor),
+					},
+				]),
+			);
 		},
 
 		async updateDetails(

@@ -82,7 +82,9 @@ export function EditTransferDialog({
 			side === "source"
 				? transfer.sourceAccountName
 				: transfer.destinationAccountName;
-		const ownIsEligible = accountOptions.some((account) => account.id === ownId);
+		const ownIsEligible = accountOptions.some(
+			(account) => account.id === ownId,
+		);
 		const options: AccountOption[] = ownIsEligible
 			? accountOptions
 			: [
@@ -134,12 +136,12 @@ export function EditTransferDialog({
 					<Field data-invalid={fieldState.invalid || undefined}>
 						<FieldLabel htmlFor={id}>{label}</FieldLabel>
 						<Select
-							items={eligibleSides(name === "sourceAccountId" ? "source" : "destination").map(
-								(account) => ({
-									value: account.id,
-									label: account.name,
-								}),
-							)}
+							items={eligibleSides(
+								name === "sourceAccountId" ? "source" : "destination",
+							).map((account) => ({
+								value: account.id,
+								label: account.name,
+							}))}
 							value={field.value}
 							onValueChange={(value) => field.onChange(value)}
 						>

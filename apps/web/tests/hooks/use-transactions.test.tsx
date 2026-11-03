@@ -99,7 +99,7 @@ describe("useTransactions", () => {
 });
 
 describe("transaction mutations", () => {
-	it("createTransaction posts and invalidates transaction, account, and category caches", async () => {
+	it("createTransaction posts and invalidates transaction, account, category, and report caches", async () => {
 		const fetchMock = vi.fn(async (input: RequestInfo | string) => {
 			const url = typeof input === "string" ? input : input.url;
 			if (url === "/api/transactions") {
@@ -126,6 +126,11 @@ describe("transaction mutations", () => {
 			accounts: [],
 			combinedBalanceMinor: 0,
 		});
+		// The dashboard's period summary must refresh after a recording.
+		queryClient.setQueryData(["reports", "month=2026-01"], {
+			incomeMinor: 0,
+			expenseMinor: 0,
+		});
 		act(() => {
 			view.result.current.mutate({
 				id: UUID,
@@ -146,6 +151,11 @@ describe("transaction mutations", () => {
 		await waitFor(() =>
 			expect(
 				queryClient.getQueryState(["accounts", "active"])?.isInvalidated,
+			).toBe(true),
+		);
+		await waitFor(() =>
+			expect(
+				queryClient.getQueryState(["reports", "month=2026-01"])?.isInvalidated,
 			).toBe(true),
 		);
 	});

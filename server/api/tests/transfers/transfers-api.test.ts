@@ -68,7 +68,10 @@ async function createAccount(
 	cookie: string,
 	body: Record<string, unknown>,
 ): Promise<{ id: string; currentBalanceMinor: number }> {
-	const res = await fetchApp(ACCOUNTS_URL, jsonResponseInit("POST", body, cookie));
+	const res = await fetchApp(
+		ACCOUNTS_URL,
+		jsonResponseInit("POST", body, cookie),
+	);
 	expect(res.status).toBe(201);
 	return (await res.json()) as { id: string; currentBalanceMinor: number };
 }
@@ -124,11 +127,14 @@ beforeEach(async () => {
 
 describe("authentication", () => {
 	it("rejects transfer endpoints without a session", async () => {
-		expect((await fetchApp(BASE, jsonResponseInit("POST", {}))).status).toBe(401);
+		expect((await fetchApp(BASE, jsonResponseInit("POST", {}))).status).toBe(
+			401,
+		);
 		expect((await fetchApp(BASE)).status).toBe(401);
 		expect((await fetchApp(`${BASE}/some-id`)).status).toBe(401);
 		expect(
-			(await fetchApp(`${BASE}/some-id/archive`, jsonResponseInit("POST"))).status,
+			(await fetchApp(`${BASE}/some-id/archive`, jsonResponseInit("POST")))
+				.status,
 		).toBe(401);
 		expect(
 			(await fetchApp(`${BASE}/some-id`, jsonResponseInit("DELETE"))).status,
@@ -208,7 +214,10 @@ describe("create transfer", () => {
 	])("rejects a body with a %s with 400", async (_label, patch) => {
 		const cookie = await freshCookie();
 		const source = await createAccount(cookie, { name: "A", type: "bank" });
-		const destination = await createAccount(cookie, { name: "B", type: "cash" });
+		const destination = await createAccount(cookie, {
+			name: "B",
+			type: "cash",
+		});
 		const res = await postTransfer(
 			cookie,
 			validTransferBody(source.id, destination.id, patch),
@@ -265,7 +274,10 @@ describe("create transfer", () => {
 			type: "bank",
 			openingBalanceMinor: 100,
 		});
-		const destination = await createAccount(cookie, { name: "B", type: "cash" });
+		const destination = await createAccount(cookie, {
+			name: "B",
+			type: "cash",
+		});
 		const res = await postTransfer(
 			cookie,
 			validTransferBody(source.id, destination.id, { amountMinor: 500 }),
@@ -359,7 +371,10 @@ describe("lifecycle balance effects", () => {
 		const cookie = await freshCookie();
 		const from = await createAccount(cookie, { name: "From", type: "bank" });
 		const to = await createAccount(cookie, { name: "To", type: "wallet" });
-		const newSource = await createAccount(cookie, { name: "New", type: "cash" });
+		const newSource = await createAccount(cookie, {
+			name: "New",
+			type: "cash",
+		});
 		const newDestination = await createAccount(cookie, {
 			name: "Dest",
 			type: "bank",
@@ -433,7 +448,11 @@ describe("lifecycle balance effects", () => {
 
 		const restored = await fetchApp(
 			`${BASE}/${transfer.id}/restore`,
-			jsonResponseInit("POST", { destinationAccountId: replacement.id }, cookie),
+			jsonResponseInit(
+				"POST",
+				{ destinationAccountId: replacement.id },
+				cookie,
+			),
 		);
 		expect(restored.status).toBe(200);
 		const restoredTransfer = (await restored.json()) as {
@@ -507,7 +526,10 @@ describe("list filters", () => {
 	it("filters by status, date range, and account on either side", async () => {
 		const cookie = await freshCookie();
 		const bank = await createAccount(cookie, { name: "Bank", type: "bank" });
-		const wallet = await createAccount(cookie, { name: "Wallet", type: "wallet" });
+		const wallet = await createAccount(cookie, {
+			name: "Wallet",
+			type: "wallet",
+		});
 		const cash = await createAccount(cookie, { name: "Cash", type: "cash" });
 
 		await postTransfer(
@@ -547,7 +569,10 @@ describe("list filters", () => {
 	it("keeps users isolated from each other's transfers", async () => {
 		const cookie = await freshCookie();
 		const source = await createAccount(cookie, { name: "A", type: "bank" });
-		const destination = await createAccount(cookie, { name: "B", type: "cash" });
+		const destination = await createAccount(cookie, {
+			name: "B",
+			type: "cash",
+		});
 		const created = await postTransfer(
 			cookie,
 			validTransferBody(source.id, destination.id),
@@ -566,7 +591,9 @@ describe("list filters", () => {
 				})
 			).status,
 		).toBe(404);
-		const otherList = await fetchApp(BASE, { headers: { cookie: otherCookie } });
+		const otherList = await fetchApp(BASE, {
+			headers: { cookie: otherCookie },
+		});
 		expect(((await otherList.json()) as { total: number }).total).toBe(0);
 	});
 });
@@ -575,7 +602,10 @@ describe("account activity endpoint", () => {
 	it("shows the transfer in both accounts' histories with direction", async () => {
 		const cookie = await freshCookie();
 		const bank = await createAccount(cookie, { name: "Bank", type: "bank" });
-		const wallet = await createAccount(cookie, { name: "Wallet", type: "wallet" });
+		const wallet = await createAccount(cookie, {
+			name: "Wallet",
+			type: "wallet",
+		});
 		const created = await postTransfer(
 			cookie,
 			validTransferBody(bank.id, wallet.id, { amountMinor: 5000 }),
@@ -605,9 +635,12 @@ describe("account activity endpoint", () => {
 			counterpartyAccountId: wallet.id,
 		});
 
-		const walletHistory = await fetchApp(`${ACTIVITY_URL}?accountId=${wallet.id}`, {
-			headers: { cookie },
-		});
+		const walletHistory = await fetchApp(
+			`${ACTIVITY_URL}?accountId=${wallet.id}`,
+			{
+				headers: { cookie },
+			},
+		);
 		const walletActivity = (await walletHistory.json()) as {
 			activity: Array<{ direction: string | null; amountMinor: number }>;
 		};
@@ -620,7 +653,10 @@ describe("account activity endpoint", () => {
 	it("interleaves with transactions and excludes transfers from category filters", async () => {
 		const cookie = await freshCookie();
 		const bank = await createAccount(cookie, { name: "Bank", type: "bank" });
-		const wallet = await createAccount(cookie, { name: "Wallet", type: "wallet" });
+		const wallet = await createAccount(cookie, {
+			name: "Wallet",
+			type: "wallet",
+		});
 		const category = await createCategory(cookie, "Groceries");
 		await postTransfer(
 			cookie,

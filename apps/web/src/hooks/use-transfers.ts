@@ -6,6 +6,7 @@ import type {
 } from "@finance-application/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ACCOUNTS_QUERY_KEY } from "@/services/accounts-service";
+import { REPORTS_QUERY_KEY } from "@/services/reports-service";
 import {
 	activityQueryOptions,
 	archiveExistingTransfer,
@@ -28,15 +29,16 @@ export function useActivity(filters: Partial<ListActivityQuery>) {
 }
 
 // Every balance-affecting mutation invalidates the transfer list, the account
-// slices (their balances derive from the ledgers), and the unified activity
-// feed (its transfer legs and balance effects change). Categories are not
-// involved: transfers never touch them.
+// slices (their balances derive from the ledgers), the unified activity feed
+// (its transfer legs and balance effects change), and the report summaries.
+// Categories are not involved: transfers never touch them.
 function useInvalidateTransferRelated() {
 	const queryClient = useQueryClient();
 	return () => {
 		queryClient.invalidateQueries({ queryKey: TRANSFERS_QUERY_KEY });
 		queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
 		queryClient.invalidateQueries({ queryKey: ACTIVITY_QUERY_KEY });
+		queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 	};
 }
 

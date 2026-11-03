@@ -441,33 +441,33 @@ describe("createTransferService lifecycle", () => {
 		["archived", "deleted", false],
 		["deleted", "archived", false],
 		["active", "active", false],
-	])(
-		"allows %s → %s: %s",
-		async (from, target, allowed) => {
-			const fakes = createFakes();
-			// Restore targets resolve against the transfer's own references.
-			fakes.seedAccount({ id: "acc-a" });
-			fakes.seedAccount({ id: "acc-b" });
-			fakes.seedTransfer({ id: UUID_V7, status: from });
-			const outcome =
-				target === "archived"
-					? await fakes.service.archive("user-1", UUID_V7)
-					: target === "deleted"
-						? await fakes.service.remove("user-1", UUID_V7)
-						: await fakes.service.restore({ userId: "user-1", transferId: UUID_V7 });
-			if (allowed) {
-				expect(outcome).toEqual({
-					ok: true,
-					value: expect.objectContaining({ status: target }),
-				});
-			} else {
-				expect(outcome).toEqual({
-					ok: false,
-					code: "TRANSFER_TRANSITION_INVALID",
-				});
-			}
-		},
-	);
+	])("allows %s → %s: %s", async (from, target, allowed) => {
+		const fakes = createFakes();
+		// Restore targets resolve against the transfer's own references.
+		fakes.seedAccount({ id: "acc-a" });
+		fakes.seedAccount({ id: "acc-b" });
+		fakes.seedTransfer({ id: UUID_V7, status: from });
+		const outcome =
+			target === "archived"
+				? await fakes.service.archive("user-1", UUID_V7)
+				: target === "deleted"
+					? await fakes.service.remove("user-1", UUID_V7)
+					: await fakes.service.restore({
+							userId: "user-1",
+							transferId: UUID_V7,
+						});
+		if (allowed) {
+			expect(outcome).toEqual({
+				ok: true,
+				value: expect.objectContaining({ status: target }),
+			});
+		} else {
+			expect(outcome).toEqual({
+				ok: false,
+				code: "TRANSFER_TRANSITION_INVALID",
+			});
+		}
+	});
 
 	it("restoring keeps the archived-target allowance", async () => {
 		const fakes = createFakes();
@@ -553,9 +553,10 @@ describe("createTransferService lifecycle", () => {
 	it("permanently deletes only from the deleted status", async () => {
 		const fakes = createFakes();
 		fakes.seedTransfer({ id: "t-active" });
-		expect(
-			await fakes.service.destroy("user-1", "t-active"),
-		).toEqual({ ok: false, code: "TRANSFER_TRANSITION_INVALID" });
+		expect(await fakes.service.destroy("user-1", "t-active")).toEqual({
+			ok: false,
+			code: "TRANSFER_TRANSITION_INVALID",
+		});
 		expect(fakes.transfers.rows.has("t-active")).toBe(true);
 
 		fakes.seedTransfer({ id: "t-trash", status: "deleted" });

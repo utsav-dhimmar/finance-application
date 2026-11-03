@@ -39,13 +39,10 @@ export const createTransferBodySchema = z
 		destinationAccountId: z.string().min(1),
 		notes: transferNotesSchema.optional(),
 	})
-	.refine(
-		(values) => values.sourceAccountId !== values.destinationAccountId,
-		{
-			message: "Source and destination accounts must be different",
-			path: ["destinationAccountId"],
-		},
-	);
+	.refine((values) => values.sourceAccountId !== values.destinationAccountId, {
+		message: "Source and destination accounts must be different",
+		path: ["destinationAccountId"],
+	});
 
 // Partial by design; the service merges patches onto the stored transfer and
 // enforces the distinct-accounts rule against the merged pair (a body changing
@@ -101,7 +98,9 @@ export const transferListResponseSchema = z.object({
 export const transferFormSchema = z
 	.object({
 		amount: amountInputSchema.pipe(
-			z.number().refine((value) => value > 0, "Amount must be greater than zero"),
+			z
+				.number()
+				.refine((value) => value > 0, "Amount must be greater than zero"),
 		),
 		date: transferDateSchema,
 		sourceAccountId: z.string().min(1, "Choose a source account"),
@@ -115,13 +114,10 @@ export const transferFormSchema = z
 			)
 			.optional(),
 	})
-	.refine(
-		(values) => values.sourceAccountId !== values.destinationAccountId,
-		{
-			message: "Source and destination must be different accounts",
-			path: ["destinationAccountId"],
-		},
-	);
+	.refine((values) => values.sourceAccountId !== values.destinationAccountId, {
+		message: "Source and destination must be different accounts",
+		path: ["destinationAccountId"],
+	});
 
 // Unified account-history contract: account-scoped transactions UNION ALL
 // transfer sides, every row written from one account's perspective. Category

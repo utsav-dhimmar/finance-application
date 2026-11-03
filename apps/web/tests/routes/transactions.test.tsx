@@ -260,10 +260,8 @@ describe("/transactions rendering states", () => {
 		fireEvent.click(screen.getByRole("tab", { name: "Trash" }));
 		await waitFor(() =>
 			expect(
-				callsTo(
-					fetchMock,
-					"/api/activity?status=deleted&page=1&pageSize=20",
-				).length,
+				callsTo(fetchMock, "/api/activity?status=deleted&page=1&pageSize=20")
+					.length,
 			).toBeGreaterThan(0),
 		);
 		// Trashed rows offer restore/permanent-delete actions, not Edit.
@@ -591,9 +589,7 @@ describe("transfer rows in the history view", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Restore" }));
 		await waitFor(() => {
-			expect(
-				callsTo(fetchMock, "/api/transfers/tr-2/restore"),
-			).toHaveLength(1);
+			expect(callsTo(fetchMock, "/api/transfers/tr-2/restore")).toHaveLength(1);
 		});
 
 		// The conflict opens the transfer reassignment dialog.
@@ -606,9 +602,7 @@ describe("transfer rows in the history view", () => {
 			}),
 		);
 		await waitFor(() => {
-			expect(
-				callsTo(fetchMock, "/api/transfers/tr-2/restore"),
-			).toHaveLength(2);
+			expect(callsTo(fetchMock, "/api/transfers/tr-2/restore")).toHaveLength(2);
 		});
 		const [, secondInit] = callsTo(
 			fetchMock,
@@ -631,7 +625,9 @@ describe("transfer rows in the history view", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Delete forever" }));
 		await waitFor(() =>
-			expect(screen.getByText(/permanently delete this transfer\?/i)).toBeTruthy(),
+			expect(
+				screen.getByText(/permanently delete this transfer\?/i),
+			).toBeTruthy(),
 		);
 		const confirmButton = screen.getByRole("button", {
 			name: "Delete forever",

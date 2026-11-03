@@ -13,6 +13,7 @@ import {
 	editAccount,
 	restoreTrashedAccount,
 } from "@/services/accounts-service";
+import { REPORTS_QUERY_KEY } from "@/services/reports-service";
 
 export function useAccounts(status: AccountStatus) {
 	return useQuery(accountsQueryOptions(status));
@@ -20,13 +21,14 @@ export function useAccounts(status: AccountStatus) {
 
 // Every mutation invalidates the whole ["accounts"] prefix: each tab's
 // response carries the combined balance over active accounts, so all slices
-// must refresh together.
+// must refresh together. Reports share the balances, so they refresh too.
 export function useCreateAccount() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: CreateAccountBody) => createNewAccount(body),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 		},
 	});
 }
@@ -38,6 +40,7 @@ export function useUpdateAccount() {
 			editAccount(id, body),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 		},
 	});
 }
@@ -48,6 +51,7 @@ export function useArchiveAccount() {
 		mutationFn: (id: string) => archiveExistingAccount(id),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 		},
 	});
 }
@@ -58,6 +62,7 @@ export function useDeleteAccount() {
 		mutationFn: (id: string) => deleteExistingAccount(id),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 		},
 	});
 }
@@ -69,6 +74,7 @@ export function useRestoreAccount() {
 			restoreTrashedAccount(id, newName ? { newName } : {}),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
 		},
 	});
 }

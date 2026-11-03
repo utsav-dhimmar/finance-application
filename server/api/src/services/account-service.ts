@@ -211,10 +211,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 				return {
 					ok: true,
 					value: toView(
-					renamed,
-					await posted.forAccount(accountId),
-					await transferEffects.forAccount(accountId),
-				),
+						renamed,
+						await posted.forAccount(accountId),
+						await transferEffects.forAccount(accountId),
+					),
 				};
 			}
 		}

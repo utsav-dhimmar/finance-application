@@ -362,3 +362,201 @@ describe("TransactionRepository.update and lifecycle", () => {
 		expect(await repo.delete(inserted.id)).toBe(false);
 	});
 });
+
+describe("TransactionRepository.reporting aggregations", () => {
+	it("sums active and archived transactions in range and excludes deleted and out-of-range ones", async () => {
+		await insertTransaction({
+			type: "income",
+			amountMinor: 50_000,
+			date: "2026-01-10",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 20_000,
+			date: "2026-01-20",
+			status: "archived",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 9_999,
+			date: "2026-01-25",
+			status: "deleted",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 9_999,
+			date: "2026-02-01",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 9_999,
+			date: "2025-12-31",
+		});
+
+		const sums = await repo.sumTypeEffectsInRange(
+			userId,
+			"2026-01-01",
+			"2026-01-31",
+		);
+		expect(sums).toEqual({ incomeMinor: 50_000, expenseMinor: 20_000 });
+	});
+
+	it("includes transactions dated exactly on the range boundaries", async () => {
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 100,
+			date: "2026-01-01",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 100,
+			date: "2026-01-31",
+		});
+		const sums = await repo.sumTypeEffectsInRange(
+			userId,
+			"2026-01-01",
+			"2026-01-31",
+		);
+		expect(sums).toEqual({ incomeMinor: 0, expenseMinor: 200 });
+	});
+
+	it("returns zero sums for an empty range", async () => {
+		const sums = await repo.sumTypeEffectsInRange(
+			userId,
+			"2030-01-01",
+			"2030-01-31",
+		);
+		expect(sums).toEqual({ incomeMinor: 0, expenseMinor: 0 });
+	});
+
+	it("groups expense totals by category with names resolved regardless of category status", async () => {
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 6_000,
+			date: "2026-01-05",
+			categoryId,
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 3_000,
+			date: "2026-01-06",
+			categoryId: otherCategoryId,
+			status: "archived",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 1_000,
+			date: "2026-01-07",
+			categoryId: otherCategoryId,
+		});
+		// A soft-deleted category's expenses still report under its name.
+		await categories.updateStatus(
+			otherCategoryId,
+			"deleted",
+			{ archivedAt: null, deletedAt: nowIso },
+			nowIso,
+		);
+		// Income rows never enter the expense breakdown.
+		await insertTransaction({
+			type: "income",
+			amountMinor: 50_000,
+			date: "2026-01-08",
+			categoryId: otherCategoryId,
+		});
+
+		const breakdown = await repo.expenseByCategoryInRange(
+			userId,
+			"2026-01-01",
+			"2026-01-31",
+		);
+		expect(breakdown).toEqual([
+			{ categoryId, categoryName: "Groceries", amountMinor: 6_000 },
+			{
+				categoryId: otherCategoryId,
+				categoryName: "Salary",
+				amountMinor: 4_000,
+			},
+		]);
+	});
+
+	it("orders the breakdown by descending total and isolates users", async () => {
+		const otherUser = await users.insert({
+			id: uuidV7(),
+			email: "report-other@example.com",
+			passwordHash: "hash",
+			createdAt: nowIso,
+			updatedAt: nowIso,
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 2_000,
+			date: "2026-01-05",
+			categoryId,
+		});
+		// The helper always attributes rows to the primary user, so the foreign
+		// row is written directly.
+		await repo.insert({
+			id: uuidV7(),
+			userId: otherUser.id,
+			type: "expense",
+			amountMinor: 8_000,
+			date: "2026-01-06",
+			accountId: otherAccountId,
+			categoryId,
+			notes: null,
+			createdAt: nowIso,
+			updatedAt: nowIso,
+		});
+
+		const breakdown = await repo.expenseByCategoryInRange(
+			userId,
+			"2026-01-01",
+			"2026-01-31",
+		);
+		expect(breakdown).toHaveLength(1);
+		expect(breakdown[0]?.amountMinor).toBe(2_000);
+	});
+
+	it("sums income and expense per calendar date", async () => {
+		await insertTransaction({
+			type: "income",
+			amountMinor: 1_000,
+			date: "2026-01-02",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 300,
+			date: "2026-01-02",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 700,
+			date: "2026-01-02",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 500,
+			date: "2026-01-09",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 500,
+			date: "2026-02-01",
+		});
+
+		const perDay = await repo.typeSumsPerDayInRange(
+			userId,
+			"2026-01-01",
+			"2026-01-31",
+		);
+		expect(perDay.size).toBe(2);
+		expect(perDay.get("2026-01-02")).toEqual({
+			incomeMinor: 1_000,
+			expenseMinor: 1_000,
+		});
+		expect(perDay.get("2026-01-09")).toEqual({
+			incomeMinor: 0,
+			expenseMinor: 500,
+		});
+	});
+});

@@ -17,6 +17,7 @@ export default defineConfig({
 			"tests/categories/**",
 			"tests/transactions/**",
 			"tests/transfers/**",
+			"tests/reports/**",
 			"**/node_modules/**",
 		],
 	},

@@ -133,7 +133,10 @@ export function createTransferRepository(db: Db) {
 					destinationAccountName: destinationAccounts.name,
 				})
 				.from(transfers)
-				.leftJoin(sourceAccounts, eq(sourceAccounts.id, transfers.sourceAccountId))
+				.leftJoin(
+					sourceAccounts,
+					eq(sourceAccounts.id, transfers.sourceAccountId),
+				)
 				.leftJoin(
 					destinationAccounts,
 					eq(destinationAccounts.id, transfers.destinationAccountId),
@@ -155,7 +158,10 @@ export function createTransferRepository(db: Db) {
 					destinationAccountName: destinationAccounts.name,
 				})
 				.from(transfers)
-				.leftJoin(sourceAccounts, eq(sourceAccounts.id, transfers.sourceAccountId))
+				.leftJoin(
+					sourceAccounts,
+					eq(sourceAccounts.id, transfers.sourceAccountId),
+				)
 				.leftJoin(
 					destinationAccounts,
 					eq(destinationAccounts.id, transfers.destinationAccountId),
@@ -167,7 +173,10 @@ export function createTransferRepository(db: Db) {
 			const totals = await db
 				.select({ value: count() })
 				.from(transfers)
-				.leftJoin(sourceAccounts, eq(sourceAccounts.id, transfers.sourceAccountId))
+				.leftJoin(
+					sourceAccounts,
+					eq(sourceAccounts.id, transfers.sourceAccountId),
+				)
 				.leftJoin(
 					destinationAccounts,
 					eq(destinationAccounts.id, transfers.destinationAccountId),
@@ -205,10 +214,16 @@ export function createTransferRepository(db: Db) {
 			]);
 			const sums = new Map<string, number>();
 			for (const row of outRows) {
-				sums.set(row.accountId, (sums.get(row.accountId) ?? 0) - Number(row.total));
+				sums.set(
+					row.accountId,
+					(sums.get(row.accountId) ?? 0) - Number(row.total),
+				);
 			}
 			for (const row of inRows) {
-				sums.set(row.accountId, (sums.get(row.accountId) ?? 0) + Number(row.total));
+				sums.set(
+					row.accountId,
+					(sums.get(row.accountId) ?? 0) + Number(row.total),
+				);
 			}
 			return sums;
 		},
@@ -230,10 +245,7 @@ export function createTransferRepository(db: Db) {
 					.select({ total: sql<number>`SUM(${transfers.amountMinor})` })
 					.from(transfers)
 					.where(
-						and(
-							eq(transfers.destinationAccountId, accountId),
-							statusCondition,
-						),
+						and(eq(transfers.destinationAccountId, accountId), statusCondition),
 					),
 			]);
 			const out = outRows[0]?.total;

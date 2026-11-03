@@ -106,6 +106,11 @@ describe("account mutations", () => {
 			accounts: [],
 			combinedBalanceMinor: 0,
 		});
+		// The dashboard's period summary must refresh after a recording.
+		queryClient.setQueryData(["reports", "month=2026-01"], {
+			incomeMinor: 0,
+			expenseMinor: 0,
+		});
 		act(() => {
 			view.result.current.mutate({
 				name: "HDFC Bank",
@@ -118,6 +123,11 @@ describe("account mutations", () => {
 		await waitFor(() =>
 			expect(
 				queryClient.getQueryState(["accounts", "active"])?.isInvalidated,
+			).toBe(true),
+		);
+		await waitFor(() =>
+			expect(
+				queryClient.getQueryState(["reports", "month=2026-01"])?.isInvalidated,
 			).toBe(true),
 		);
 	});

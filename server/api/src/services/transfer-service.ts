@@ -250,9 +250,7 @@ export function createTransferService(deps: TransferServiceDeps) {
 		// Creation is idempotent: a repeated request with the same
 		// client-generated id returns the existing transfer without re-applying
 		// any balance effect.
-		async create(
-			input: CreateTransferInput,
-		): Promise<CreateTransferOutcome> {
+		async create(input: CreateTransferInput): Promise<CreateTransferOutcome> {
 			const existing = await transfers.findById(input.id);
 			if (existing && existing.userId === input.userId) {
 				const row = await transfers.findByIdWithRefs(input.id);
@@ -348,10 +346,7 @@ export function createTransferService(deps: TransferServiceDeps) {
 			};
 		},
 
-		async get(
-			userId: string,
-			transferId: string,
-		): Promise<GetTransferOutcome> {
+		async get(userId: string, transferId: string): Promise<GetTransferOutcome> {
 			const row = await transfers.findByIdWithRefs(transferId);
 			if (!row || row.transfer.userId !== userId) {
 				return { ok: false, code: "NOT_FOUND" };
@@ -368,9 +363,7 @@ export function createTransferService(deps: TransferServiceDeps) {
 
 		// Edits recompute balances implicitly: balances are derived from the
 		// ledgers, so the update lands atomically in one row write.
-		async update(
-			input: UpdateTransferInput,
-		): Promise<UpdateTransferOutcome> {
+		async update(input: UpdateTransferInput): Promise<UpdateTransferOutcome> {
 			const transfer = await requireOwnedTransfer(
 				input.userId,
 				input.transferId,
@@ -383,8 +376,7 @@ export function createTransferService(deps: TransferServiceDeps) {
 			}
 			// The distinct-accounts rule applies to the merged pair: a patch
 			// moving one side onto the other is a conflict.
-			const mergedSourceId =
-				input.sourceAccountId ?? transfer.sourceAccountId;
+			const mergedSourceId = input.sourceAccountId ?? transfer.sourceAccountId;
 			const mergedDestinationId =
 				input.destinationAccountId ?? transfer.destinationAccountId;
 			if (mergedSourceId === mergedDestinationId) {

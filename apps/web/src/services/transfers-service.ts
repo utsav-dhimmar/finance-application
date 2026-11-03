@@ -34,9 +34,7 @@ export function transfersQueryKey(filters: Partial<ListTransfersQuery>) {
 	return [...TRANSFERS_QUERY_KEY, serializeFilters(filters)] as const;
 }
 
-export function serializeFilters(
-	filters: Partial<ListTransfersQuery>,
-): string {
+export function serializeFilters(filters: Partial<ListTransfersQuery>): string {
 	const params = new URLSearchParams();
 	for (const [key, value] of Object.entries(filters)) {
 		if (value !== undefined && value !== "") {
@@ -46,9 +44,7 @@ export function serializeFilters(
 	return params.toString();
 }
 
-export function transfersQueryOptions(
-	filters: Partial<ListTransfersQuery>,
-) {
+export function transfersQueryOptions(filters: Partial<ListTransfersQuery>) {
 	return {
 		queryKey: transfersQueryKey(filters),
 		queryFn: () => listTransfers(filters),
@@ -63,9 +59,7 @@ export function activityQueryKey(filters: Partial<ListActivityQuery>) {
 	] as const;
 }
 
-export function activityQueryOptions(
-	filters: Partial<ListActivityQuery>,
-) {
+export function activityQueryOptions(filters: Partial<ListActivityQuery>) {
 	return {
 		queryKey: activityQueryKey(filters),
 		queryFn: () => listActivity(filters),

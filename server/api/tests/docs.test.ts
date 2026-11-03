@@ -17,6 +17,7 @@ describe("GET /api/openapi", () => {
 				"/api/transfers/:id/delete": expect.anything(),
 				"/api/transfers/:id/restore": expect.anything(),
 				"/api/activity": expect.anything(),
+				"/api/reports/summary": expect.anything(),
 			},
 		});
 	});

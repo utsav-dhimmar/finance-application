@@ -20,7 +20,8 @@ export type ErrorCode =
 	| "TRANSACTION_TRANSITION_INVALID"
 	| "SAME_ACCOUNT_TRANSFER"
 	| "TRANSFER_TRANSITION_INVALID"
-	| "RESTORE_CONFLICT";
+	| "RESTORE_CONFLICT"
+	| "INVALID_PERIOD";
 
 export interface ApiErrorDetail {
 	readonly path: string;

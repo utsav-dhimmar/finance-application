@@ -26,7 +26,7 @@
 - [x] 4.1 Run the full pipeline locally with `pnpm turbo run typecheck lint test build` and verify every task exits 0 (build validates via `wrangler deploy --dry-run` per design D6)
 - [x] 4.2 Start `pnpm --filter server/api exec wrangler dev` and smoke-test against the live server: `/api/hello`, `/api/greet/Utsav?greeting=Namaste&times=3`, an invalid `/api/greet/x?times=abc`, and an unknown path; verify responses match the spec deltas, then stop the server
 - [x] 4.3 Document setup and dev commands (`pnpm install`, turbo tasks, `wrangler dev`, wrangler types regeneration) in `README.md`; verify each documented command runs as written
-- [ ] 4.4 After the implementing commits are pushed, verify the GitHub Actions workflow runs green end-to-end on the branch
+- [x] 4.4 After the implementing commits are pushed, verify the GitHub Actions workflow runs green end-to-end on the branch
 
 ## Workflow follow-up
 

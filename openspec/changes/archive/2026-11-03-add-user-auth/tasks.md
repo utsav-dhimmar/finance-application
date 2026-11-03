@@ -38,7 +38,7 @@
 - [x] 6.1 Run `pnpm turbo run typecheck lint test build` and verify every task exits 0 across all packages (node-pool and workers-pool tests included)
 - [x] 6.2 Start both dev servers and smoke-test the full flow in the browser: register → land on `/dashboard` showing the email, reload (session persists via refresh), sign out → redirected to `/login`, wrong password shows the generic error, and re-login succeeds; verify `/api/auth/me` returns `401 UNAUTHENTICATED` after logout; stop both servers
 - [x] 6.3 Document the auth endpoints, pages, `.dev.vars` setup, and the migration command in `README.md`; verify each documented command runs as written
-- [ ] 6.4 After the implementing commits are pushed, verify the GitHub Actions workflow runs green
+- [x] 6.4 After the implementing commits are pushed, verify the GitHub Actions workflow runs green
 
 ## Workflow follow-up
 

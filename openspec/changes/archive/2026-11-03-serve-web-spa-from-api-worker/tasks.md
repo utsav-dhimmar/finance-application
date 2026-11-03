@@ -13,8 +13,8 @@
 
 ## 3. Deployment
 
-- [ ] 3.1 In the Cloudflare dashboard, set the Worker's deploy command to `cd server/api && npx wrangler deploy` (build command unchanged: `pnpm run build`); verify the setting is saved
-- [ ] 3.2 Commit, push, and verify the Cloudflare build deploys successfully; verify against the live URL: `/` serves the shell, a client route hard-refresh renders, `/api/*` returns API responses, and an unknown `/api/*` path returns the `404` envelope
+- [x] 3.1 In the Cloudflare dashboard, set the Worker's deploy command to `cd server/api && npx wrangler deploy` (build command unchanged: `pnpm run build`); verify the setting is saved
+- [x] 3.2 Commit, push, and verify the Cloudflare build deploys successfully; verify against the live URL: `/` serves the shell, a client route hard-refresh renders, `/api/*` returns API responses, and an unknown `/api/*` path returns the `404` envelope
 
 ## Workflow follow-up
 

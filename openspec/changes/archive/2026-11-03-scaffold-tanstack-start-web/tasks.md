@@ -21,7 +21,7 @@
 - [x] 3.1 Run the full pipeline with `pnpm turbo run typecheck lint test build`; verify every task exits 0 with `server/api`, `packages/ui`, and `apps/web` included
 - [x] 3.2 Start both dev servers (`wrangler dev` for the API, Vite dev for the web app) and smoke-test: `/` returns HTML containing the heading and button before hydration and then displays `Hello, utsav!` once the query resolves through the proxy, an unknown path returns HTTP 404 with the not-found view, and `/api/hello` through the Vite proxy returns the hello JSON; stop both servers
 - [x] 3.3 Update `README.md` with the web and UI-package commands and the updated repository layout; verify each documented command runs as written
-- [ ] 3.4 After the implementing commits are pushed, verify the GitHub Actions workflow runs green with `apps/web` and `packages/ui` included
+- [x] 3.4 After the implementing commits are pushed, verify the GitHub Actions workflow runs green with `apps/web` and `packages/ui` included
 
 ## Workflow follow-up
 

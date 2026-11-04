@@ -21,6 +21,7 @@ export type ErrorCode =
 	| "SAME_ACCOUNT_TRANSFER"
 	| "TRANSFER_TRANSITION_INVALID"
 	| "RESTORE_CONFLICT"
+	| "PERMANENT_DELETE_BLOCKED"
 	| "INVALID_PERIOD";
 
 export interface ApiErrorDetail {

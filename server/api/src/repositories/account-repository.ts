@@ -145,6 +145,17 @@ export function createAccountRepository(db: Db) {
 				.returning();
 			return updated[0];
 		},
+
+		// Physical removal — permanent deletion from trash, always user-requested
+		// and gate-checked by the service so no referencing transaction or
+		// transfer of any status remains to trip the enforced RESTRICT FKs.
+		async delete(id: string): Promise<boolean> {
+			const removed = await db
+				.delete(accounts)
+				.where(eq(accounts.id, id))
+				.returning();
+			return removed.length > 0;
+		},
 	};
 }
 

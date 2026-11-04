@@ -70,8 +70,7 @@ export function archiveCategory(
 	);
 }
 
-// Soft-delete: the category moves to trash and stays restorable; permanent
-// deletion arrives with the archive/trash epic.
+// Soft-delete: the category moves to trash and stays restorable.
 export function deleteCategory(
 	id: string,
 	options?: ApiClientOptions,
@@ -80,6 +79,23 @@ export function deleteCategory(
 		`/api/categories/${id}/delete`,
 		{
 			method: "POST",
+		},
+		options,
+	);
+}
+
+// Permanent deletion from trash: irreversible, always user-requested, and
+// gated server-side on zero referencing transactions in any lifecycle
+// status. The endpoint answers 204 with no body.
+export async function permanentlyDeleteCategory(
+	id: string,
+	options?: ApiClientOptions,
+): Promise<void> {
+	// The body is always empty on success; discard it to honor the void type.
+	await apiFetch<unknown>(
+		`/api/categories/${id}`,
+		{
+			method: "DELETE",
 		},
 		options,
 	);

@@ -45,6 +45,14 @@ function createAccountServiceForEnv(env: AppBindings): AccountService {
 			byUser: (userId) =>
 				transferRepository.sumNonDeletedEffectsByAccount(userId),
 		},
+		// Strict permanent-delete gate: counts of every lifecycle status, since
+		// the enforced RESTRICT FKs reject the physical delete while even
+		// tombstoned ledgers reference the account.
+		referenceCounts: {
+			transactions: (accountId) =>
+				transactionRepository.countByAccount(accountId),
+			transfers: (accountId) => transferRepository.countByAccount(accountId),
+		},
 	});
 }
 
@@ -55,6 +63,10 @@ const TRANSITION_INVALID_MESSAGE =
 const LOCKED_FIELDS_MESSAGE =
 	"Opening balance and account type can no longer be changed because this account has posted transactions";
 const NOT_EDITABLE_MESSAGE = "Archived or deleted accounts cannot be edited";
+const NOT_SOFT_DELETED_MESSAGE =
+	"Only soft-deleted accounts can be permanently removed";
+const PERMANENT_DELETE_BLOCKED_MESSAGE =
+	"This account still has transactions or transfers referencing it — restore them, or permanently delete them from trash, before permanently deleting this account";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
@@ -247,6 +259,33 @@ const restoreAccountRoute = createRoute({
 	},
 });
 
+const permanentlyDeleteAccountRoute = createRoute({
+	method: "delete",
+	path: "/api/accounts/:id",
+	request: {
+		params: paramsSchema,
+	},
+	responses: {
+		204: {
+			description:
+				"Account permanently removed; no transactions or transfers referenced it in any status",
+		},
+		401: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Missing, invalid, or expired access token",
+		},
+		404: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "No such account for the authenticated user",
+		},
+		409: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description:
+				"Only soft-deleted accounts can be permanently removed, and only while no transaction or transfer references them in any status",
+		},
+	},
+});
+
 export const accountsRoutes = new OpenAPIHono<{
 	Bindings: AppBindings;
 	Variables: { user: User };
@@ -354,6 +393,29 @@ accountsRoutes.openapi(restoreAccountRoute, async (c) => {
 		return c.json(transitionErrorBody(outcome), transitionErrorStatus(outcome));
 	}
 	return c.json(outcome.value, 200);
+});
+
+accountsRoutes.openapi(permanentlyDeleteAccountRoute, async (c) => {
+	const { id } = c.req.valid("param");
+	const outcome = await createAccountServiceForEnv(c.env).destroy(
+		c.get("user").id,
+		id,
+	);
+	if (!outcome.ok) {
+		if (outcome.code === "NOT_FOUND") {
+			return c.json(ACCOUNT_NOT_FOUND, 404);
+		}
+		return c.json(
+			errorBody(
+				outcome.code,
+				outcome.code === "PERMANENT_DELETE_BLOCKED"
+					? PERMANENT_DELETE_BLOCKED_MESSAGE
+					: NOT_SOFT_DELETED_MESSAGE,
+			),
+			409,
+		);
+	}
+	return c.body(null, 204);
 });
 
 function transitionErrorStatus(

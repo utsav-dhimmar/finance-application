@@ -7,7 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@finance-application/ui/components/card";
-import { Coins, Landmark, RotateCcw, Wallet } from "lucide-react";
+import { Coins, Landmark, RotateCcw, Trash2, Wallet } from "lucide-react";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
 import { formatPaise } from "@/lib/money";
 
@@ -17,6 +17,9 @@ export interface AccountCardProps {
 	onArchive: (account: AccountResponse) => void;
 	onDelete: (account: AccountResponse) => void;
 	onRestore: (account: AccountResponse) => void;
+	// Offered only for trashed accounts when provided: permanent deletion is
+	// exclusive to trash and always confirmed by the caller.
+	onPermanentDelete?: (account: AccountResponse) => void;
 }
 
 function getAccountTypeIcon(type: AccountResponse["type"]) {
@@ -36,6 +39,7 @@ export function AccountCard({
 	onArchive,
 	onDelete,
 	onRestore,
+	onPermanentDelete,
 }: AccountCardProps) {
 	const isArchived = account.status === "archived";
 	const isDeleted = account.status === "deleted";
@@ -106,15 +110,28 @@ export function AccountCard({
 					</>
 				)}
 				{(isArchived || isDeleted) && (
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={() => onRestore(account)}
-						className="h-7 gap-1.5 text-xs"
-					>
-						<RotateCcw aria-hidden="true" className="size-3" />
-						Restore
-					</Button>
+					<>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => onRestore(account)}
+							className="h-7 gap-1.5 text-xs"
+						>
+							<RotateCcw aria-hidden="true" className="size-3" />
+							Restore
+						</Button>
+						{isDeleted && onPermanentDelete && (
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => onPermanentDelete(account)}
+								className="h-7 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+							>
+								<Trash2 aria-hidden="true" className="size-3" />
+								Delete forever
+							</Button>
+						)}
+					</>
 				)}
 			</CardContent>
 		</Card>

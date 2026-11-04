@@ -239,6 +239,27 @@ export function createTransactionRepository(db: Db) {
 			return rows[0]?.value ?? 0;
 		},
 
+		// Referencing transaction counts across every lifecycle status — the
+		// permanent-delete gate predicates. D1 enforces the RESTRICT foreign keys
+		// unconditionally, so a referenced account/category row cannot be
+		// physically removed even when only tombstoned transactions point at it;
+		// these counts let the gate reject such requests with a meaningful error.
+		async countByAccount(accountId: string): Promise<number> {
+			const rows = await db
+				.select({ value: count() })
+				.from(transactions)
+				.where(eq(transactions.accountId, accountId));
+			return rows[0]?.value ?? 0;
+		},
+
+		async countByCategory(categoryId: string): Promise<number> {
+			const rows = await db
+				.select({ value: count() })
+				.from(transactions)
+				.where(eq(transactions.categoryId, categoryId));
+			return rows[0]?.value ?? 0;
+		},
+
 		// Reporting aggregations for one user over an inclusive calendar-date
 		// range. All three include active and archived transactions and exclude
 		// soft-deleted ones; transfers are structurally absent (different table),

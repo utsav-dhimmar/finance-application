@@ -4,6 +4,7 @@ import type { User } from "@/db/schema";
 import { errorBody, validationHook } from "@/lib/error";
 import { requireAuth } from "@/middleware/auth";
 import { createCategoryRepository } from "@/repositories/category-repository";
+import { createTransactionRepository } from "@/repositories/transaction-repository";
 import { errorEnvelopeSchema } from "@/schemas/auth";
 import {
 	categoryListResponseSchema,
@@ -22,8 +23,16 @@ import {
 type AppBindings = { JWT_SECRET: string; finance_application: D1Database };
 
 function createCategoryServiceForEnv(env: AppBindings): CategoryService {
+	const db = getDb(env);
 	return createCategoryService({
-		categories: createCategoryRepository(getDb(env)),
+		categories: createCategoryRepository(db),
+		// Strict permanent-delete gate: transactions of every lifecycle status,
+		// since the enforced RESTRICT FKs reject the physical delete while even
+		// tombstoned ledgers reference the category.
+		referenceCounts: {
+			transactions: (categoryId) =>
+				createTransactionRepository(db).countByCategory(categoryId),
+		},
 	});
 }
 
@@ -34,6 +43,10 @@ const TRANSITION_INVALID_MESSAGE =
 const TYPE_LOCKED_MESSAGE =
 	"The category type can no longer be changed because transactions reference it";
 const NOT_EDITABLE_MESSAGE = "Archived or deleted categories cannot be edited";
+const NOT_SOFT_DELETED_MESSAGE =
+	"Only soft-deleted categories can be permanently removed";
+const PERMANENT_DELETE_BLOCKED_MESSAGE =
+	"This category still has transactions referencing it — restore them, or permanently delete them from trash, before permanently deleting this category";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
@@ -227,6 +240,33 @@ const restoreCategoryRoute = createRoute({
 	},
 });
 
+const permanentlyDeleteCategoryRoute = createRoute({
+	method: "delete",
+	path: "/api/categories/:id",
+	request: {
+		params: paramsSchema,
+	},
+	responses: {
+		204: {
+			description:
+				"Category permanently removed; no transactions referenced it in any status",
+		},
+		401: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Missing, invalid, or expired access token",
+		},
+		404: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "No such category for the authenticated user",
+		},
+		409: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description:
+				"Only soft-deleted categories can be permanently removed, and only while no transaction references them in any status",
+		},
+	},
+});
+
 export const categoriesRoutes = new OpenAPIHono<{
 	Bindings: AppBindings;
 	Variables: { user: User };
@@ -335,6 +375,29 @@ categoriesRoutes.openapi(restoreCategoryRoute, async (c) => {
 		return c.json(transitionErrorBody(outcome), transitionErrorStatus(outcome));
 	}
 	return c.json(outcome.value, 200);
+});
+
+categoriesRoutes.openapi(permanentlyDeleteCategoryRoute, async (c) => {
+	const { id } = c.req.valid("param");
+	const outcome = await createCategoryServiceForEnv(c.env).destroy(
+		c.get("user").id,
+		id,
+	);
+	if (!outcome.ok) {
+		if (outcome.code === "NOT_FOUND") {
+			return c.json(CATEGORY_NOT_FOUND, 404);
+		}
+		return c.json(
+			errorBody(
+				outcome.code,
+				outcome.code === "PERMANENT_DELETE_BLOCKED"
+					? PERMANENT_DELETE_BLOCKED_MESSAGE
+					: NOT_SOFT_DELETED_MESSAGE,
+			),
+			409,
+		);
+	}
+	return c.body(null, 204);
 });
 
 function transitionErrorStatus(

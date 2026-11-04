@@ -256,6 +256,25 @@ export function createTransferRepository(db: Db) {
 			return inSum - outSum;
 		},
 
+		// Referencing transfer count across every lifecycle status — the account
+		// permanent-delete gate predicate (an account participates on either
+		// side). D1 enforces the RESTRICT foreign keys unconditionally, so a
+		// referenced account row cannot be physically removed even when only
+		// tombstoned transfers point at it; this count lets the gate reject such
+		// requests with a meaningful error.
+		async countByAccount(accountId: string): Promise<number> {
+			const rows = await db
+				.select({ value: count() })
+				.from(transfers)
+				.where(
+					or(
+						eq(transfers.sourceAccountId, accountId),
+						eq(transfers.destinationAccountId, accountId),
+					),
+				);
+			return rows[0]?.value ?? 0;
+		},
+
 		async updateDetails(
 			id: string,
 			patch: TransferDetailsPatch,

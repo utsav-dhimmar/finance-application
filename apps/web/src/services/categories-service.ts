@@ -4,6 +4,7 @@ import {
 	createCategory,
 	deleteCategory,
 	listCategories,
+	permanentlyDeleteCategory,
 	restoreCategory,
 	updateCategory,
 } from "@finance-application/api-client";
@@ -51,6 +52,10 @@ export function archiveExistingCategory(id: string): Promise<CategoryResponse> {
 
 export function deleteExistingCategory(id: string): Promise<CategoryResponse> {
 	return deleteCategory(id);
+}
+
+export function destroyCategory(id: string): Promise<void> {
+	return permanentlyDeleteCategory(id);
 }
 
 export function restoreTrashedCategory(

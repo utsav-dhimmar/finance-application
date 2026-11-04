@@ -6,6 +6,7 @@ import {
 	deleteCategory,
 	getCategory,
 	listCategories,
+	permanentlyDeleteCategory,
 	restoreCategory,
 	updateCategory,
 } from "../src/categories";
@@ -110,6 +111,44 @@ describe("category client functions", () => {
 				body: JSON.stringify({ newName: "Restored" }),
 			}),
 		);
+	});
+
+	it("permanentlyDeleteCategory sends DELETE and resolves empty on 204", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response(null, { status: 204 })),
+		);
+		await expect(permanentlyDeleteCategory("uuid-1")).resolves.toBeUndefined();
+		expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+			"/api/categories/uuid-1",
+			expect.objectContaining({ method: "DELETE" }),
+		);
+	});
+
+	it("surfaces PERMANENT_DELETE_BLOCKED as an ApiError", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							error: {
+								code: "PERMANENT_DELETE_BLOCKED",
+								message:
+									"This category still has transactions referencing it",
+								details: [],
+							},
+						}),
+						{ status: 409, headers: { "content-type": "application/json" } },
+					),
+			),
+		);
+		const error = await permanentlyDeleteCategory("uuid-1").catch(
+			(e: unknown) => e,
+		);
+		expect(error).toBeInstanceOf(ApiError);
+		expect((error as ApiError).status).toBe(409);
+		expect((error as ApiError).code).toBe("PERMANENT_DELETE_BLOCKED");
 	});
 
 	it("decodes the shared error envelope into an ApiError", async () => {

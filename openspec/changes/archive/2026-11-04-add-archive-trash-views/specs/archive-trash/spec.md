@@ -44,19 +44,23 @@ Restoration from the Archive or Trash view SHALL apply the same validation as ea
 
 ### Requirement: Permanent deletion eligibility
 
-The system SHALL allow permanent deletion per record, only after explicit confirmation, and only for eligible records: transactions and transfers in trash are always eligible; an account or category in trash is eligible only when no non-deleted record references it. Ineligible requests SHALL be rejected with a conflict error explaining the history-preservation policy. Permanent deletion SHALL physically remove the record, SHALL be irreversible, and SHALL never run automatically.
+The system SHALL allow permanent deletion per record, only after explicit confirmation, and only for eligible records: transactions and transfers in trash are always eligible; an account or category in trash is eligible only when no record references it in any lifecycle status (accounts: no transaction or transfer, whether active, archived, or trashed; categories: no transaction in any status), because the database's foreign keys are always enforced and physically removing a referenced record is rejected. Ineligible requests SHALL be rejected with a conflict error explaining the history-preservation policy, and a blocked account or category becomes eligible only after its referencing records are themselves restored or permanently deleted. Permanent deletion SHALL physically remove the record, SHALL be irreversible, SHALL never run automatically, and SHALL never leave dangling references.
 
 #### Scenario: Unreferenced account permanently deleted
-- **WHEN** the user permanently deletes a trashed account that no non-deleted transaction or transfer references
+- **WHEN** the user permanently deletes a trashed account that no transaction or transfer references in any status
 - **THEN** the account row is physically removed and no longer appears anywhere
 
 #### Scenario: Referenced account blocked
-- **WHEN** the user permanently deletes a trashed account that at least one non-deleted transaction references
+- **WHEN** the user permanently deletes a trashed account that at least one transaction references — active, archived, or trashed
 - **THEN** the request is rejected with a conflict error and the record remains in trash
 
 #### Scenario: Referenced category blocked
-- **WHEN** the user permanently deletes a trashed category that at least one non-deleted transaction references
+- **WHEN** the user permanently deletes a trashed category that at least one transaction references — active, archived, or trashed
 - **THEN** the request is rejected with a conflict error and the record remains in trash
+
+#### Scenario: Eligibility after clearing the chain
+- **WHEN** the referencing trashed records are themselves permanently deleted
+- **THEN** the previously blocked account or category becomes eligible for permanent deletion
 
 #### Scenario: Confirmation required
 - **WHEN** any permanent deletion is performed
@@ -70,17 +74,17 @@ Permanent deletion SHALL only ever remove records whose lifecycle state already 
 - **WHEN** the user permanently deletes any trashed record
 - **THEN** every account's current balance and every report total is unchanged
 
-#### Scenario: Historical references remain resolvable
-- **WHEN** a permanently deleted category had been referenced only by deleted transactions
-- **THEN** those transactions still exist in trash and the system handles their dangling reference without error, displaying the reference as unavailable
-
 ### Requirement: Ordinary queries exclude hidden records
 
-Ordinary lists, selection workflows, dashboards, and reports SHALL exclude archived and deleted records by default, consistently across all record types — the unified views are the only places where they appear.
+Ordinary lists and selection workflows SHALL exclude archived and deleted records by default, consistently across all record types — the unified views are the only places where hidden records appear as list entries. Reports follow their established inclusion rules as specced by the reporting capability: archived transactions keep counting in income, expense, and category totals, soft-deleted transactions are excluded from reporting, and archived or deleted accounts never contribute to account or combined balances.
 
-#### Scenario: Hidden records absent everywhere else
-- **WHEN** the user browses ordinary lists, the dashboard, or reports after archiving or deleting records
+#### Scenario: Hidden records absent from ordinary lists
+- **WHEN** the user browses ordinary lists or selection workflows after archiving or deleting records
 - **THEN** no archived or deleted record appears in them
+
+#### Scenario: Reports follow their inclusion rules
+- **WHEN** the user opens a report after archiving or deleting records
+- **THEN** period totals and balances follow the reporting capability's inclusion rules — archived transactions counted, soft-deleted transactions excluded, and archived or deleted accounts contributing nothing to balances — with no hidden record appearing as an ordinary list entry
 
 ### Requirement: Authenticated and scoped lifecycle management
 

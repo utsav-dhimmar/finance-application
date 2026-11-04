@@ -126,6 +126,8 @@ describe("transaction mutations", () => {
 			accounts: [],
 			combinedBalanceMinor: 0,
 		});
+		// The unified activity feed carries transaction legs, so it refreshes too.
+		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
 		// The dashboard's period summary must refresh after a recording.
 		queryClient.setQueryData(["reports", "month=2026-01"], {
 			incomeMinor: 0,
@@ -151,6 +153,11 @@ describe("transaction mutations", () => {
 		await waitFor(() =>
 			expect(
 				queryClient.getQueryState(["accounts", "active"])?.isInvalidated,
+			).toBe(true),
+		);
+		await waitFor(() =>
+			expect(
+				queryClient.getQueryState(["activity", ""])?.isInvalidated,
 			).toBe(true),
 		);
 		await waitFor(() =>

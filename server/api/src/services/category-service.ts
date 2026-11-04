@@ -58,6 +58,10 @@ export type TransitionCategoryOutcome = CategoryOutcome<
 	CategoryView,
 	"NOT_FOUND" | "CATEGORY_TRANSITION_INVALID" | "CATEGORY_NAME_TAKEN"
 >;
+export type DestroyCategoryOutcome = CategoryOutcome<
+	undefined,
+	"NOT_FOUND" | "CATEGORY_TRANSITION_INVALID" | "PERMANENT_DELETE_BLOCKED"
+>;
 
 export interface CategoryList {
 	categories: CategoryView[];
@@ -94,9 +98,21 @@ const VALID_TRANSITIONS: Record<CategoryStatus, readonly CategoryStatus[]> = {
 	deleted: ["active"],
 };
 
+// Referencing-row counts across every lifecycle status — the strict
+// permanent-delete gate. D1 enforces the RESTRICT foreign keys
+// unconditionally, so a referenced category row cannot be physically removed
+// even when only tombstoned transactions point at it; counting non-deleted
+// referencers alone would let the gate pass and the delete fail with a raw
+// constraint error.
+export interface CategoryReferenceCounts {
+	// Transactions referencing the category in any status.
+	transactions: (categoryId: string) => Promise<number>;
+}
+
 export interface CategoryServiceDeps {
 	categories: CategoryRepository;
 	getReferencingTransactionCount?: (categoryId: string) => Promise<number>;
+	referenceCounts?: CategoryReferenceCounts;
 }
 
 export function createCategoryService(deps: CategoryServiceDeps) {
@@ -105,6 +121,9 @@ export function createCategoryService(deps: CategoryServiceDeps) {
 		deps.getReferencingTransactionCount ??
 		((categoryId: string) =>
 			categories.getReferencingTransactionCount(categoryId));
+	const referenceCounts: CategoryReferenceCounts = deps.referenceCounts ?? {
+		transactions: async () => 0,
+	};
 
 	async function requireOwnedCategory(
 		userId: string,
@@ -280,6 +299,34 @@ export function createCategoryService(deps: CategoryServiceDeps) {
 			return transitionTo(input.userId, input.categoryId, "active", {
 				newName: input.newName,
 			});
+		},
+
+		// Permanent deletion: only from trash, never automatic, physically
+		// removes the row. The strict reference gate counts transactions of every
+		// status — the enforced RESTRICT foreign keys reject the physical delete
+		// while any row references the category, so the gate must match that and
+		// fail with a meaningful error instead. A trashed category carries no
+		// financial effect, so removal cannot change any balance or report.
+		async destroy(
+			userId: string,
+			categoryId: string,
+		): Promise<DestroyCategoryOutcome> {
+			const category = await requireOwnedCategory(userId, categoryId);
+			if (!category) {
+				return { ok: false, code: "NOT_FOUND" };
+			}
+			if (category.status !== "deleted") {
+				return { ok: false, code: "CATEGORY_TRANSITION_INVALID" };
+			}
+			const transactionCount = await referenceCounts.transactions(categoryId);
+			if (transactionCount > 0) {
+				return { ok: false, code: "PERMANENT_DELETE_BLOCKED" };
+			}
+			const removed = await categories.delete(categoryId);
+			if (!removed) {
+				return { ok: false, code: "NOT_FOUND" };
+			}
+			return { ok: true, value: undefined };
 		},
 
 		transition: transitionTo,

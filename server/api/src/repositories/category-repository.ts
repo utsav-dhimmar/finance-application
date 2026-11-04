@@ -164,6 +164,17 @@ export function createCategoryRepository(db: Db) {
 				);
 			return rows[0]?.value ?? 0;
 		},
+
+		// Physical removal — permanent deletion from trash, always user-requested
+		// and gate-checked by the service so no referencing transaction of any
+		// status remains to trip the enforced RESTRICT FKs.
+		async delete(id: string): Promise<boolean> {
+			const removed = await db
+				.delete(categories)
+				.where(eq(categories.id, id))
+				.returning();
+			return removed.length > 0;
+		},
 	};
 }
 

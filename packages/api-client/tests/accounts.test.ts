@@ -6,9 +6,11 @@ import {
 	deleteAccount,
 	getAccount,
 	listAccounts,
+	permanentlyDeleteAccount,
 	restoreAccount,
 	updateAccount,
 } from "../src/accounts";
+import { ApiError } from "../src/client";
 
 const account: AccountResponse = {
 	id: "uuid-1",
@@ -108,5 +110,43 @@ describe("account client functions", () => {
 				body: JSON.stringify({ newName: "Restored" }),
 			}),
 		);
+	});
+
+	it("permanentlyDeleteAccount sends DELETE and resolves empty on 204", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response(null, { status: 204 })),
+		);
+		await expect(permanentlyDeleteAccount("uuid-1")).resolves.toBeUndefined();
+		expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+			"/api/accounts/uuid-1",
+			expect.objectContaining({ method: "DELETE" }),
+		);
+	});
+
+	it("surfaces PERMANENT_DELETE_BLOCKED as an ApiError", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							error: {
+								code: "PERMANENT_DELETE_BLOCKED",
+								message:
+									"This account still has transactions or transfers referencing it",
+								details: [],
+							},
+						}),
+						{ status: 409, headers: { "content-type": "application/json" } },
+					),
+			),
+		);
+		const error = await permanentlyDeleteAccount("uuid-1").catch(
+			(e: unknown) => e,
+		);
+		expect(error).toBeInstanceOf(ApiError);
+		expect((error as ApiError).status).toBe(409);
+		expect((error as ApiError).code).toBe("PERMANENT_DELETE_BLOCKED");
 	});
 });

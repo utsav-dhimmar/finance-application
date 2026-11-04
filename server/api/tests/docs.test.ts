@@ -21,6 +21,16 @@ describe("GET /api/openapi", () => {
 			},
 		});
 	});
+
+	it("registers the permanent-delete operations for accounts and categories", async () => {
+		const res = await app.request("/api/openapi");
+		expect(res.status).toBe(200);
+		const doc = (await res.json()) as {
+			paths: Record<string, Record<string, unknown>>;
+		};
+		expect(doc.paths["/api/accounts/:id"]?.delete).toBeDefined();
+		expect(doc.paths["/api/categories/:id"]?.delete).toBeDefined();
+	});
 });
 
 describe("GET /api/docs", () => {

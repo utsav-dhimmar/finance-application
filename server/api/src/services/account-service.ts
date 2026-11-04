@@ -77,6 +77,10 @@ export type TransitionAccountOutcome = AccountOutcome<
 	AccountView,
 	"NOT_FOUND" | "ACCOUNT_TRANSITION_INVALID" | "ACCOUNT_NAME_TAKEN"
 >;
+export type DestroyAccountOutcome = AccountOutcome<
+	undefined,
+	"NOT_FOUND" | "ACCOUNT_TRANSITION_INVALID" | "PERMANENT_DELETE_BLOCKED"
+>;
 
 export interface AccountList {
 	accounts: AccountView[];
@@ -131,10 +135,24 @@ export interface TransferEffectLookup {
 	byUser: (userId: string) => Promise<Map<string, number>>;
 }
 
+// Referencing-row counts across every lifecycle status — the strict
+// permanent-delete gate. D1 enforces the RESTRICT foreign keys
+// unconditionally, so a referenced account row cannot be physically removed
+// even when only tombstoned transactions or transfers point at it; counting
+// non-deleted referencers alone would let the gate pass and the delete fail
+// with a raw constraint error.
+export interface AccountReferenceCounts {
+	// Transactions referencing the account in any status.
+	transactions: (accountId: string) => Promise<number>;
+	// Transfers referencing the account (either side) in any status.
+	transfers: (accountId: string) => Promise<number>;
+}
+
 export interface AccountServiceDeps {
 	accounts: AccountRepository;
 	postedSums?: PostedEffectLookup;
 	transferSums?: TransferEffectLookup;
+	referenceCounts?: AccountReferenceCounts;
 }
 
 export function createAccountService(deps: AccountServiceDeps) {
@@ -147,6 +165,10 @@ export function createAccountService(deps: AccountServiceDeps) {
 	const transferEffects: TransferEffectLookup = deps.transferSums ?? {
 		forAccount: async () => 0,
 		byUser: async () => new Map(),
+	};
+	const referenceCounts: AccountReferenceCounts = deps.referenceCounts ?? {
+		transactions: async () => 0,
+		transfers: async () => 0,
 	};
 
 	async function requireOwnedAccount(
@@ -372,6 +394,38 @@ export function createAccountService(deps: AccountServiceDeps) {
 			return transitionTo(input.userId, input.accountId, "active", {
 				newName: input.newName,
 			});
+		},
+
+		// Permanent deletion: only from trash, never automatic, physically
+		// removes the row. The strict reference gate counts transactions and
+		// transfers of every status — the enforced RESTRICT foreign keys reject
+		// the physical delete while any row references the account, so the gate
+		// must match that and fail with a meaningful error instead. A trashed
+		// account carries zero balance effect, so removal cannot change any
+		// balance or report.
+		async destroy(
+			userId: string,
+			accountId: string,
+		): Promise<DestroyAccountOutcome> {
+			const account = await requireOwnedAccount(userId, accountId);
+			if (!account) {
+				return { ok: false, code: "NOT_FOUND" };
+			}
+			if (account.status !== "deleted") {
+				return { ok: false, code: "ACCOUNT_TRANSITION_INVALID" };
+			}
+			const [transactionCount, transferCount] = await Promise.all([
+				referenceCounts.transactions(accountId),
+				referenceCounts.transfers(accountId),
+			]);
+			if (transactionCount + transferCount > 0) {
+				return { ok: false, code: "PERMANENT_DELETE_BLOCKED" };
+			}
+			const removed = await accounts.delete(accountId);
+			if (!removed) {
+				return { ok: false, code: "NOT_FOUND" };
+			}
+			return { ok: true, value: undefined };
 		},
 
 		transition: transitionTo,

@@ -4,6 +4,7 @@ import {
 	createAccount,
 	deleteAccount,
 	listAccounts,
+	permanentlyDeleteAccount,
 	restoreAccount,
 	updateAccount,
 } from "@finance-application/api-client";
@@ -51,6 +52,10 @@ export function archiveExistingAccount(id: string): Promise<AccountResponse> {
 
 export function deleteExistingAccount(id: string): Promise<AccountResponse> {
 	return deleteAccount(id);
+}
+
+export function destroyAccount(id: string): Promise<void> {
+	return permanentlyDeleteAccount(id);
 }
 
 export function restoreTrashedAccount(

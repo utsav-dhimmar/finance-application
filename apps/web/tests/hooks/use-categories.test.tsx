@@ -8,6 +8,7 @@ import {
 	useCategories,
 	useCreateCategory,
 	useDeleteCategory,
+	usePermanentlyDeleteCategory,
 	useRestoreCategory,
 	useUpdateCategory,
 } from "@/hooks/use-categories";
@@ -146,6 +147,80 @@ describe("category mutations", () => {
 		expect(call).toBeDefined();
 		const [, init] = call as [string, RequestInit];
 		expect(init.body).toBe(JSON.stringify({ newName: "Back again" }));
+	});
+
+	it("category mutations invalidate every affected query family", async () => {
+		stubCategoryApi("/api/categories/cat-1/archive");
+		const { view, queryClient } = renderWithProvider(useArchiveCategory);
+		// Transaction rows and the unified activity feed resolve category names
+		// at read time, and the report breakdown groups by category, so all of
+		// them refresh on a category change.
+		queryClient.setQueryData(["categories", "active"], {
+			categories: [category],
+		});
+		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
+		queryClient.setQueryData(["reports", "month=2026-01"], {
+			incomeMinor: 0,
+			expenseMinor: 0,
+		});
+		act(() => {
+			view.result.current.mutate("cat-1");
+		});
+		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+		const invalidatedKeys: Array<string[]> = [
+			["categories", "active"],
+			["transactions", ""],
+			["activity", ""],
+			["reports", "month=2026-01"],
+		];
+		for (const key of invalidatedKeys) {
+			await waitFor(() =>
+				expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true),
+			);
+		}
+	});
+
+	it("permanent delete sends DELETE and invalidates every affected query family", async () => {
+		const fetchMock = vi.fn(async (input: RequestInfo | string) => {
+			const url = typeof input === "string" ? input : input.url;
+			if (url === "/api/categories/cat-1") {
+				return new Response(null, { status: 204 });
+			}
+			return listResponse([category]);
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		const { view, queryClient } = renderWithProvider(
+			usePermanentlyDeleteCategory,
+		);
+		queryClient.setQueryData(["categories", "deleted"], {
+			categories: [category],
+		});
+		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
+		queryClient.setQueryData(["reports", "month=2026-01"], {
+			incomeMinor: 0,
+			expenseMinor: 0,
+		});
+		act(() => {
+			view.result.current.mutate("cat-1");
+		});
+		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+		const call = callsUrl(fetchMock, "/api/categories/cat-1");
+		expect(call).toBeDefined();
+		const [, init] = call as [string, RequestInit];
+		expect(init.method).toBe("DELETE");
+		const invalidatedKeys: Array<string[]> = [
+			["categories", "deleted"],
+			["transactions", ""],
+			["activity", ""],
+			["reports", "month=2026-01"],
+		];
+		for (const key of invalidatedKeys) {
+			await waitFor(() =>
+				expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true),
+			);
+		}
 	});
 });
 

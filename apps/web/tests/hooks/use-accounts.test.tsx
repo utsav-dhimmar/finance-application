@@ -8,6 +8,7 @@ import {
 	useArchiveAccount,
 	useCreateAccount,
 	useDeleteAccount,
+	usePermanentlyDeleteAccount,
 	useRestoreAccount,
 	useUpdateAccount,
 } from "@/hooks/use-accounts";
@@ -132,6 +133,35 @@ describe("account mutations", () => {
 		);
 	});
 
+	it("account mutations invalidate every affected query family", async () => {
+		stubAccountApi("/api/accounts/acc-1/archive");
+		const { view, queryClient } = renderWithProvider(useArchiveAccount);
+		// Ledger rows and the unified activity feed resolve account names at
+		// read time, so renames and lifecycle changes must refresh them.
+		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["transfers", ""], { transfers: [], total: 0 });
+		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
+		act(() => {
+			view.result.current.mutate("acc-1");
+		});
+		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+		await waitFor(() =>
+			expect(
+				queryClient.getQueryState(["transactions", ""])?.isInvalidated,
+			).toBe(true),
+		);
+		await waitFor(() =>
+			expect(queryClient.getQueryState(["transfers", ""])?.isInvalidated).toBe(
+				true,
+			),
+		);
+		await waitFor(() =>
+			expect(queryClient.getQueryState(["activity", ""])?.isInvalidated).toBe(
+				true,
+			),
+		);
+	});
+
 	it("updateAccount patches and invalidates account caches", async () => {
 		const fetchMock = stubAccountApi("/api/accounts/acc-1");
 		const { view } = renderWithProvider(useUpdateAccount);
@@ -173,6 +203,53 @@ describe("account mutations", () => {
 		expect(call).toBeDefined();
 		const [, init] = call as [string, RequestInit];
 		expect(init.body).toBe(JSON.stringify({ newName: "Back again" }));
+	});
+
+	it("permanent delete sends DELETE and invalidates every affected query family", async () => {
+		const fetchMock = vi.fn(async (input: RequestInfo | string) => {
+			const url = typeof input === "string" ? input : input.url;
+			if (url === "/api/accounts/acc-1") {
+				return new Response(null, { status: 204 });
+			}
+			return listResponse([account]);
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		const { view, queryClient } = renderWithProvider(
+			usePermanentlyDeleteAccount,
+		);
+		queryClient.setQueryData(["accounts", "deleted"], {
+			accounts: [account],
+			combinedBalanceMinor: 0,
+		});
+		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["transfers", ""], { transfers: [], total: 0 });
+		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
+		queryClient.setQueryData(["reports", "month=2026-01"], {
+			incomeMinor: 0,
+			expenseMinor: 0,
+		});
+		act(() => {
+			view.result.current.mutate("acc-1");
+		});
+		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+		const call = callsUrl(fetchMock, "/api/accounts/acc-1");
+		expect(call).toBeDefined();
+		const [, init] = call as [string, RequestInit];
+		expect(init.method).toBe("DELETE");
+		// Every affected family refreshes: the trash slice, the ledger slices,
+		// the unified activity feed, and the report summaries.
+		const invalidatedKeys: Array<string[]> = [
+			["accounts", "deleted"],
+			["transactions", ""],
+			["transfers", ""],
+			["activity", ""],
+			["reports", "month=2026-01"],
+		];
+		for (const key of invalidatedKeys) {
+			await waitFor(() =>
+				expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true),
+			);
+		}
 	});
 });
 

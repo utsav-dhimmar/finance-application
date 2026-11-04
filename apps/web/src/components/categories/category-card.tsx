@@ -7,7 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@finance-application/ui/components/card";
-import { RotateCcw, Tag } from "lucide-react";
+import { RotateCcw, Tag, Trash2 } from "lucide-react";
 import { CATEGORY_TYPE_LABELS } from "@/lib/category-labels";
 
 export interface CategoryCardProps {
@@ -16,6 +16,9 @@ export interface CategoryCardProps {
 	onArchive: (category: CategoryResponse) => void;
 	onDelete: (category: CategoryResponse) => void;
 	onRestore: (category: CategoryResponse) => void;
+	// Offered only for trashed categories when provided: permanent deletion is
+	// exclusive to trash and always confirmed by the caller.
+	onPermanentDelete?: (category: CategoryResponse) => void;
 }
 
 export function CategoryCard({
@@ -24,6 +27,7 @@ export function CategoryCard({
 	onArchive,
 	onDelete,
 	onRestore,
+	onPermanentDelete,
 }: CategoryCardProps) {
 	const isArchived = category.status === "archived";
 	const isDeleted = category.status === "deleted";
@@ -98,15 +102,28 @@ export function CategoryCard({
 					</>
 				)}
 				{(isArchived || isDeleted) && (
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={() => onRestore(category)}
-						className="h-7 gap-1.5 text-xs"
-					>
-						<RotateCcw aria-hidden="true" className="size-3" />
-						Restore
-					</Button>
+					<>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => onRestore(category)}
+							className="h-7 gap-1.5 text-xs"
+						>
+							<RotateCcw aria-hidden="true" className="size-3" />
+							Restore
+						</Button>
+						{isDeleted && onPermanentDelete && (
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => onPermanentDelete(category)}
+								className="h-7 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+							>
+								<Trash2 aria-hidden="true" className="size-3" />
+								Delete forever
+							</Button>
+						)}
+					</>
 				)}
 			</CardContent>
 		</Card>

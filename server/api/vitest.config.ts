@@ -18,6 +18,7 @@ export default defineConfig({
 			"tests/transactions/**",
 			"tests/transfers/**",
 			"tests/reports/**",
+			"tests/lifecycle/**",
 			"**/node_modules/**",
 		],
 	},

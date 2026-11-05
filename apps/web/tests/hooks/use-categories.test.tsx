@@ -158,7 +158,10 @@ describe("category mutations", () => {
 		queryClient.setQueryData(["categories", "active"], {
 			categories: [category],
 		});
-		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["transactions", ""], {
+			transactions: [],
+			total: 0,
+		});
 		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
 		queryClient.setQueryData(["reports", "month=2026-01"], {
 			incomeMinor: 0,
@@ -196,7 +199,10 @@ describe("category mutations", () => {
 		queryClient.setQueryData(["categories", "deleted"], {
 			categories: [category],
 		});
-		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["transactions", ""], {
+			transactions: [],
+			total: 0,
+		});
 		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
 		queryClient.setQueryData(["reports", "month=2026-01"], {
 			incomeMinor: 0,

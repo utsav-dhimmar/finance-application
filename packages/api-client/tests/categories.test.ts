@@ -134,8 +134,7 @@ describe("category client functions", () => {
 						JSON.stringify({
 							error: {
 								code: "PERMANENT_DELETE_BLOCKED",
-								message:
-									"This category still has transactions referencing it",
+								message: "This category still has transactions referencing it",
 								details: [],
 							},
 						}),

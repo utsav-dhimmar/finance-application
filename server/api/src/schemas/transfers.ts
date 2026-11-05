@@ -46,12 +46,9 @@ export const createTransferBodySchema = z.object({
 		.string()
 		.min(1)
 		.openapi({ description: "Source account id" }),
-	destinationAccountId: z
-		.string()
-		.min(1)
-		.openapi({
-			description: "Destination account id; must differ from the source",
-		}),
+	destinationAccountId: z.string().min(1).openapi({
+		description: "Destination account id; must differ from the source",
+	}),
 	notes: transferNotesSchema
 		.openapi({ description: "Optional notes" })
 		.optional(),

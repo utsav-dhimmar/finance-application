@@ -14,7 +14,10 @@ import {
 	editAccount,
 	restoreTrashedAccount,
 } from "@/services/accounts-service";
-import { ACTIVITY_QUERY_KEY, TRANSFERS_QUERY_KEY } from "@/services/transfers-service";
+import {
+	ACTIVITY_QUERY_KEY,
+	TRANSFERS_QUERY_KEY,
+} from "@/services/transfers-service";
 import { REPORTS_QUERY_KEY } from "@/services/reports-service";
 import { TRANSACTIONS_QUERY_KEY } from "@/services/transactions-service";
 

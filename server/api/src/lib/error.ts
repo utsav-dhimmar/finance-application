@@ -22,6 +22,7 @@ export type ErrorCode =
 	| "TRANSFER_TRANSITION_INVALID"
 	| "RESTORE_CONFLICT"
 	| "PERMANENT_DELETE_BLOCKED"
+	| "UNSUPPORTED_CURRENCY"
 	| "INVALID_PERIOD";
 
 export interface ApiErrorDetail {

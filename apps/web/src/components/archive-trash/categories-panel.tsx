@@ -146,9 +146,7 @@ export function CategoriesPanel({ mode }: CategoriesPanelProps) {
 					<Tag aria-hidden="true" className="size-5" />
 				</div>
 				<p className="mt-3 text-sm text-muted-foreground">
-					{mode === "archived"
-						? "No archived categories."
-						: "Trash is empty."}
+					{mode === "archived" ? "No archived categories." : "Trash is empty."}
 				</p>
 			</div>
 		);

@@ -165,7 +165,10 @@ describe("/archive rendering states", () => {
 	it("lists archived accounts under the accounts tab by default", async () => {
 		stubLifecycleApi({
 			"/api/accounts?status=archived": () =>
-				jsonResponse(200, { accounts: [archivedAccount], combinedBalanceMinor: 0 }),
+				jsonResponse(200, {
+					accounts: [archivedAccount],
+					combinedBalanceMinor: 0,
+				}),
 		});
 		await renderRoute(<ArchivePage />, "/archive");
 
@@ -238,10 +241,12 @@ describe("/archive record-type tabs", () => {
 		);
 		fireEvent.click(screen.getByRole("tab", { name: "Categories" }));
 
-		await waitFor(() => expect(screen.getByText("Old Subscriptions")).toBeTruthy());
-		expect(
-			callsTo(fetchMock, "/api/categories?status=archived"),
-		).toHaveLength(1);
+		await waitFor(() =>
+			expect(screen.getByText("Old Subscriptions")).toBeTruthy(),
+		);
+		expect(callsTo(fetchMock, "/api/categories?status=archived")).toHaveLength(
+			1,
+		);
 	});
 
 	it("switches to the transactions tab and fetches its archived slice", async () => {
@@ -264,7 +269,10 @@ describe("/archive record-type tabs", () => {
 		expect(screen.getByText("₹250.00")).toBeTruthy();
 		expect(screen.getByText("Groceries")).toBeTruthy();
 		expect(
-			callsTo(fetchMock, "/api/transactions?status=archived&page=1&pageSize=20"),
+			callsTo(
+				fetchMock,
+				"/api/transactions?status=archived&page=1&pageSize=20",
+			),
 		).toHaveLength(1);
 	});
 
@@ -295,7 +303,10 @@ describe("/archive restore wiring", () => {
 		let restoreCalls = 0;
 		const fetchMock = stubLifecycleApi({
 			"/api/accounts?status=archived": () =>
-				jsonResponse(200, { accounts: [archivedAccount], combinedBalanceMinor: 0 }),
+				jsonResponse(200, {
+					accounts: [archivedAccount],
+					combinedBalanceMinor: 0,
+				}),
 			"/api/accounts/acc-3/restore": () => {
 				restoreCalls += 1;
 				if (restoreCalls === 1) {
@@ -366,10 +377,10 @@ describe("/archive restore wiring", () => {
 			const calls = callsTo(fetchMock, "/api/transactions/txn-3/restore");
 			expect(calls).toHaveLength(1);
 		});
-		const [, init] = callsTo(fetchMock, "/api/transactions/txn-3/restore")[0] as [
-			string,
-			RequestInit,
-		];
+		const [, init] = callsTo(
+			fetchMock,
+			"/api/transactions/txn-3/restore",
+		)[0] as [string, RequestInit];
 		expect(init.method).toBe("POST");
 	});
 });

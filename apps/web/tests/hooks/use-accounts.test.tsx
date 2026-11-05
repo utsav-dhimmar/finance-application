@@ -138,7 +138,10 @@ describe("account mutations", () => {
 		const { view, queryClient } = renderWithProvider(useArchiveAccount);
 		// Ledger rows and the unified activity feed resolve account names at
 		// read time, so renames and lifecycle changes must refresh them.
-		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["transactions", ""], {
+			transactions: [],
+			total: 0,
+		});
 		queryClient.setQueryData(["transfers", ""], { transfers: [], total: 0 });
 		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
 		act(() => {
@@ -221,7 +224,10 @@ describe("account mutations", () => {
 			accounts: [account],
 			combinedBalanceMinor: 0,
 		});
-		queryClient.setQueryData(["transactions", ""], { transactions: [], total: 0 });
+		queryClient.setQueryData(["transactions", ""], {
+			transactions: [],
+			total: 0,
+		});
 		queryClient.setQueryData(["transfers", ""], { transfers: [], total: 0 });
 		queryClient.setQueryData(["activity", ""], { activity: [], total: 0 });
 		queryClient.setQueryData(["reports", "month=2026-01"], {

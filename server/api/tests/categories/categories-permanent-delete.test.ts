@@ -78,13 +78,14 @@ async function createCategory(
 	return ((await res.json()) as { id: string }).id;
 }
 
-async function createAccount(
-	cookie: string,
-	name: string,
-): Promise<string> {
+async function createAccount(cookie: string, name: string): Promise<string> {
 	const res = await fetchApp(
 		ACCOUNTS_URL,
-		jsonResponseInit("POST", { name, type: "bank", openingBalanceMinor: 50_000 }, cookie),
+		jsonResponseInit(
+			"POST",
+			{ name, type: "bank", openingBalanceMinor: 50_000 },
+			cookie,
+		),
 	);
 	expect(res.status).toBe(201);
 	return ((await res.json()) as { id: string }).id;

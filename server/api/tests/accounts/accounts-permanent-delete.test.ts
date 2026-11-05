@@ -136,7 +136,10 @@ async function lifecycle(
 	id: string,
 	action: "archive" | "delete",
 ): Promise<Response> {
-	return fetchApp(`${BASE}/${id}/${action}`, jsonResponseInit("POST", undefined, cookie));
+	return fetchApp(
+		`${BASE}/${id}/${action}`,
+		jsonResponseInit("POST", undefined, cookie),
+	);
 }
 
 function permanentDelete(cookie: string, id: string): Promise<Response> {

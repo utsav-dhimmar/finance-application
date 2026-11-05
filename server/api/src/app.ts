@@ -7,6 +7,7 @@ import { authRoutes } from "@/routes/auth";
 import { categoriesRoutes } from "@/routes/categories";
 import { greetRoutes } from "@/routes/greet";
 import { helloRoutes } from "@/routes/hello";
+import { preferencesRoutes } from "@/routes/preferences";
 import { reportsRoutes } from "@/routes/reports";
 import { transactionsRoutes } from "@/routes/transactions";
 import { transfersRoutes } from "@/routes/transfers";
@@ -20,6 +21,7 @@ app.route("/", accountsRoutes);
 app.route("/", categoriesRoutes);
 app.route("/", transactionsRoutes);
 app.route("/", transfersRoutes);
+app.route("/", preferencesRoutes);
 app.route("/", reportsRoutes);
 
 app.doc31("/api/openapi", {

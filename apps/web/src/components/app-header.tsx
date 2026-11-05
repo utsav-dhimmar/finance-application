@@ -107,6 +107,13 @@ export function AppHeader() {
 								>
 									Trash
 								</SafeLink>
+								<SafeLink
+									to="/settings"
+									className="text-muted-foreground transition-colors hover:text-foreground"
+									activeProps={{ className: "text-foreground font-medium" }}
+								>
+									Settings
+								</SafeLink>
 							</>
 						) : (
 							<SafeLink

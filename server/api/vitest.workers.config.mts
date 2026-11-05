@@ -28,6 +28,7 @@ export default defineConfig({
 			"tests/transfers/**/*.test.ts",
 			"tests/reports/**/*.test.ts",
 			"tests/lifecycle/**/*.test.ts",
+			"tests/preferences/**/*.test.ts",
 		],
 		globalSetup: ["./tests/auth/globalSetup.mts"],
 		setupFiles: ["./tests/auth/setup.ts"],

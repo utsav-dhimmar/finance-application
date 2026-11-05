@@ -158,7 +158,10 @@ async function openTrash(
 ): Promise<ReturnType<typeof vi.fn>> {
 	const fetchMock = stubLifecycleApi({
 		"/api/accounts?status=deleted": () =>
-			jsonResponse(200, { accounts: [deletedAccount], combinedBalanceMinor: 0 }),
+			jsonResponse(200, {
+				accounts: [deletedAccount],
+				combinedBalanceMinor: 0,
+			}),
 		...overrides,
 	});
 	await renderRoute(<TrashPage />, "/trash");
@@ -192,7 +195,9 @@ describe("/trash rendering", () => {
 		});
 		await renderRoute(<TrashPage />, "/trash");
 
-		await waitFor(() => expect(screen.getByText("Trash is empty.")).toBeTruthy());
+		await waitFor(() =>
+			expect(screen.getByText("Trash is empty.")).toBeTruthy(),
+		);
 	});
 });
 
@@ -249,9 +254,7 @@ describe("/trash permanent deletion", () => {
 		expect(toastSuccess).toHaveBeenCalled();
 		// The mutation invalidates the trash slice, so it refetches.
 		await waitFor(() => {
-			expect(callsTo(fetchMock, "/api/accounts?status=deleted").length).toBe(
-				2,
-			);
+			expect(callsTo(fetchMock, "/api/accounts?status=deleted").length).toBe(2);
 		});
 	});
 
@@ -309,7 +312,9 @@ describe("/trash permanent deletion", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Delete forever" }));
 		await waitFor(() =>
-			expect(screen.getByText(/permanently delete this transaction/i)).toBeTruthy(),
+			expect(
+				screen.getByText(/permanently delete this transaction/i),
+			).toBeTruthy(),
 		);
 		fireEvent.change(screen.getByLabelText(/type delete to confirm/i), {
 			target: { value: "DELETE" },
@@ -447,7 +452,10 @@ describe("/trash restore wiring", () => {
 				}),
 			// The reassignment dialog lists active accounts and categories.
 			"/api/accounts?status=active": () =>
-				jsonResponse(200, { accounts: [activeAccount], combinedBalanceMinor: 0 }),
+				jsonResponse(200, {
+					accounts: [activeAccount],
+					combinedBalanceMinor: 0,
+				}),
 			"/api/categories?status=active": () =>
 				jsonResponse(200, { categories: [activeCategory] }),
 			"/api/transactions/txn-4/restore": () => {

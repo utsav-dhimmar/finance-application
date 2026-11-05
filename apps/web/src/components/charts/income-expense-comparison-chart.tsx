@@ -63,10 +63,7 @@ export function IncomeExpenseComparisonChart({
 	series,
 }: IncomeExpenseComparisonChartProps) {
 	return (
-		<ChartContainer
-			config={chartConfig}
-			className="aspect-auto h-70 w-full"
-		>
+		<ChartContainer config={chartConfig} className="aspect-auto h-70 w-full">
 			<BarChart accessibilityLayer data={series} margin={{ left: 4, right: 4 }}>
 				<CartesianGrid vertical={false} />
 				<XAxis

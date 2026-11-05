@@ -147,9 +147,7 @@ export function AccountsPanel({ mode }: AccountsPanelProps) {
 					<Landmark aria-hidden="true" className="size-5" />
 				</div>
 				<p className="mt-3 text-sm text-muted-foreground">
-					{mode === "archived"
-						? "No archived accounts."
-						: "Trash is empty."}
+					{mode === "archived" ? "No archived accounts." : "Trash is empty."}
 				</p>
 			</div>
 		);

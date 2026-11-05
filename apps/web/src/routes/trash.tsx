@@ -57,9 +57,9 @@ export function TrashPage() {
 						Trash
 					</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Deleted records of every type. Restore them, or remove them for
-						good — referenced records refuse permanent deletion to preserve
-						financial history.
+						Deleted records of every type. Restore them, or remove them for good
+						— referenced records refuse permanent deletion to preserve financial
+						history.
 					</p>
 				</div>
 

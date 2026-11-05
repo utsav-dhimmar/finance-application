@@ -156,9 +156,9 @@ describe("transaction mutations", () => {
 			).toBe(true),
 		);
 		await waitFor(() =>
-			expect(
-				queryClient.getQueryState(["activity", ""])?.isInvalidated,
-			).toBe(true),
+			expect(queryClient.getQueryState(["activity", ""])?.isInvalidated).toBe(
+				true,
+			),
 		);
 		await waitFor(() =>
 			expect(

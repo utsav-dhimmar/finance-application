@@ -16,12 +16,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import {
-	ArrowLeftRight,
-	ChevronLeft,
-	ChevronRight,
-	Eye,
-} from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmTransactionLifecycleDialog } from "@/components/transactions/confirm-transaction-lifecycle-dialog";
@@ -162,10 +157,13 @@ export function TransfersPanel({ mode }: TransfersPanelProps) {
 			id: "source",
 			header: "From",
 		}),
-		columnHelper.accessor((row) => row.destinationAccountName ?? "Unavailable", {
-			id: "destination",
-			header: "To",
-		}),
+		columnHelper.accessor(
+			(row) => row.destinationAccountName ?? "Unavailable",
+			{
+				id: "destination",
+				header: "To",
+			},
+		),
 		columnHelper.accessor((row) => row.notes ?? "—", {
 			id: "notes",
 			header: "Notes",
@@ -291,10 +289,7 @@ export function TransfersPanel({ mode }: TransfersPanelProps) {
 							<TableRow key={row.original.id}>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell key={cell.id}>
-										{flexRender(
-											cell.column.columnDef.cell,
-											cell.getContext(),
-										)}
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
 									</TableCell>
 								))}
 							</TableRow>
@@ -320,7 +315,9 @@ export function TransfersPanel({ mode }: TransfersPanelProps) {
 						variant="outline"
 						size="sm"
 						disabled={page >= pageCount}
-						onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+						onClick={() =>
+							setPage((current) => Math.min(pageCount, current + 1))
+						}
 					>
 						Next
 						<ChevronRight aria-hidden="true" className="size-4" />

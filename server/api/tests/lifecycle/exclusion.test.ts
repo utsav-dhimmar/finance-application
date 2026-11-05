@@ -75,7 +75,11 @@ async function createAccount(
 ): Promise<string> {
 	const res = await fetchApp(
 		ACCOUNTS_URL,
-		jsonResponseInit("POST", { name, type: "bank", openingBalanceMinor }, cookie),
+		jsonResponseInit(
+			"POST",
+			{ name, type: "bank", openingBalanceMinor },
+			cookie,
+		),
 	);
 	expect(res.status).toBe(201);
 	return ((await res.json()) as { id: string }).id;
@@ -243,7 +247,11 @@ describe("lifecycle exclusion guarantee", () => {
 		);
 
 		// Records headed for trash.
-		const deletedAccountId = await createAccount(cookie, "Trashed Bank", 20_000);
+		const deletedAccountId = await createAccount(
+			cookie,
+			"Trashed Bank",
+			20_000,
+		);
 		const deletedCategoryId = await createCategory(
 			cookie,
 			"Trashed Utility",
@@ -292,7 +300,11 @@ describe("lifecycle exclusion guarantee", () => {
 		// Hide one of every type on each side of the lifecycle.
 		await lifecycle(cookie, `${ACCOUNTS_URL}/${archivedAccountId}`, "archive");
 		await lifecycle(cookie, `${ACCOUNTS_URL}/${deletedAccountId}`, "delete");
-		await lifecycle(cookie, `${CATEGORIES_URL}/${archivedCategoryId}`, "archive");
+		await lifecycle(
+			cookie,
+			`${CATEGORIES_URL}/${archivedCategoryId}`,
+			"archive",
+		);
 		await lifecycle(cookie, `${CATEGORIES_URL}/${deletedCategoryId}`, "delete");
 		await lifecycle(
 			cookie,
@@ -304,7 +316,11 @@ describe("lifecycle exclusion guarantee", () => {
 			`${TRANSACTIONS_URL}/${deletedTransactionId}`,
 			"delete",
 		);
-		await lifecycle(cookie, `${TRANSFERS_URL}/${archivedTransferId}`, "archive");
+		await lifecycle(
+			cookie,
+			`${TRANSFERS_URL}/${archivedTransferId}`,
+			"archive",
+		);
 		await lifecycle(cookie, `${TRANSFERS_URL}/${deletedTransferId}`, "delete");
 
 		// Account lists: only the active account is ordinary; the combined

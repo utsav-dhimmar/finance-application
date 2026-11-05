@@ -5,7 +5,11 @@ import {
 } from "@finance-application/ui/components/tabs";
 
 // The record types the unified Archive and Trash views manage, in tab order.
-export type RecordType = "accounts" | "categories" | "transactions" | "transfers";
+export type RecordType =
+	| "accounts"
+	| "categories"
+	| "transactions"
+	| "transfers";
 
 export const RECORD_TYPES: RecordType[] = [
 	"accounts",

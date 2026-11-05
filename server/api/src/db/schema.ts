@@ -246,3 +246,30 @@ export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
 export type Transfer = typeof transfers.$inferSelect;
 export type NewTransfer = typeof transfers.$inferInsert;
+
+// One row per user holding application preferences, created lazily on first
+// read. Preferences are display configuration only: they never create,
+// modify, or reinterpret stored financial records (AGENTS.md
+// financial-correctness rules). The currency_code CHECK mirrors the shared
+// supported-currency union, so the database rejects values the API already
+// rejects.
+export const userPreferences = sqliteTable(
+	"user_preferences",
+	{
+		userId: text("user_id")
+			.primaryKey()
+			.references(() => users.id, { onDelete: "cascade" }),
+		currencyCode: text("currency_code").notNull().default("INR"),
+		createdAt: text("created_at").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		check(
+			"user_preferences_currency_code_check",
+			sql`${table.currencyCode} in ('INR')`,
+		),
+	],
+);
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type NewUserPreferences = typeof userPreferences.$inferInsert;

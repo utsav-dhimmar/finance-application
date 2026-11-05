@@ -47,13 +47,19 @@ interface TransactionsPanelProps {
 // confirmation.
 export function TransactionsPanel({ mode }: TransactionsPanelProps) {
 	const [page, setPage] = useState(1);
-	const transactions = useTransactions({ status: mode, page, pageSize: PAGE_SIZE });
+	const transactions = useTransactions({
+		status: mode,
+		page,
+		pageSize: PAGE_SIZE,
+	});
 	const restore = useRestoreTransaction();
 	const destroy = usePermanentlyDeleteTransaction();
 
 	const [viewing, setViewing] = useState<TransactionResponse | null>(null);
 	const [restoring, setRestoring] = useState<TransactionResponse | null>(null);
-	const [confirming, setConfirming] = useState<TransactionResponse | null>(null);
+	const [confirming, setConfirming] = useState<TransactionResponse | null>(
+		null,
+	);
 
 	function handleRestore(transaction: TransactionResponse) {
 		restore.mutate(
@@ -295,10 +301,7 @@ export function TransactionsPanel({ mode }: TransactionsPanelProps) {
 							<TableRow key={row.original.id}>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell key={cell.id}>
-										{flexRender(
-											cell.column.columnDef.cell,
-											cell.getContext(),
-										)}
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
 									</TableCell>
 								))}
 							</TableRow>
@@ -324,7 +327,9 @@ export function TransactionsPanel({ mode }: TransactionsPanelProps) {
 						variant="outline"
 						size="sm"
 						disabled={page >= pageCount}
-						onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+						onClick={() =>
+							setPage((current) => Math.min(pageCount, current + 1))
+						}
 					>
 						Next
 						<ChevronRight aria-hidden="true" className="size-4" />

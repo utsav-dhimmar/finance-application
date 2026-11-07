@@ -1,4 +1,5 @@
 import { Toaster } from "@finance-application/ui/components/sonner";
+import { ThemeProvider } from "@finance-application/ui/components/theme-provider";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -64,15 +65,22 @@ export function NotFound() {
 function RootDocument({ children }: { children: React.ReactNode }) {
 	const { queryClient } = Route.useRouteContext();
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<HeadContent />
+				<script>
+					{
+						'(function(){try{var t=localStorage.getItem("finance-app-theme")||"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme:dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();'
+					}
+				</script>
 			</head>
 			<body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/10 selection:text-primary">
-				<QueryClientProvider client={queryClient}>
-					{children}
-					<Toaster position="bottom-right" richColors />
-				</QueryClientProvider>
+				<ThemeProvider defaultTheme="system" storageKey="finance-app-theme">
+					<QueryClientProvider client={queryClient}>
+						{children}
+						<Toaster position="bottom-right" richColors />
+					</QueryClientProvider>
+				</ThemeProvider>
 				{/* Dev-only tooling: never shipped in the production bundle. */}
 				{import.meta.env.DEV && (
 					<TanStackDevtools

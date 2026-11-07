@@ -20,6 +20,7 @@ import {
 	FieldLabel,
 } from "@finance-application/ui/components/field";
 import { Input } from "@finance-application/ui/components/input";
+import { ScrollArea } from "@finance-application/ui/components/scroll-area";
 import {
 	Select,
 	SelectContent,
@@ -134,166 +135,174 @@ export function CreateTransactionDialog({
 							{form.formState.errors.root.message}
 						</p>
 					)}
-					<Controller
-						name="type"
-						control={form.control}
-						render={({ field }) => (
-							<Field>
-								<FieldLabel htmlFor="transaction-type">Type</FieldLabel>
-								<Select
-									items={TRANSACTION_TYPE_OPTIONS}
-									value={field.value}
-									onValueChange={(value) => {
-										field.onChange(value);
-										// The chosen category must match the new type.
-										form.setValue("categoryId", "");
-									}}
-								>
-									<SelectTrigger id="transaction-type">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{TRANSACTION_TYPE_OPTIONS.map((option) => (
-											<SelectItem key={option.value} value={option.value}>
-												{option.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</Field>
-						)}
-					/>
-					<Controller
-						name="amount"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transaction-amount">Amount (₹)</FieldLabel>
-								<Input
-									id="transaction-amount"
-									inputMode="decimal"
-									placeholder="0.00"
-									className="font-mono tabular-nums"
-									{...field}
-								/>
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+					<ScrollArea className="max-h-[min(55dvh,420px)] -mx-1.5">
+						<div className="flex flex-col gap-4 py-1.5 pl-1.5 pr-4">
+							<Controller
+								name="type"
+								control={form.control}
+								render={({ field }) => (
+									<Field>
+										<FieldLabel htmlFor="transaction-type">Type</FieldLabel>
+										<Select
+											items={TRANSACTION_TYPE_OPTIONS}
+											value={field.value}
+											onValueChange={(value) => {
+												field.onChange(value);
+												// The chosen category must match the new type.
+												form.setValue("categoryId", "");
+											}}
+										>
+											<SelectTrigger id="transaction-type">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												{TRANSACTION_TYPE_OPTIONS.map((option) => (
+													<SelectItem key={option.value} value={option.value}>
+														{option.label}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					<Controller
-						name="date"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transaction-date">Date</FieldLabel>
-								<Input id="transaction-date" type="date" {...field} />
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+							/>
+							<Controller
+								name="amount"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transaction-amount">
+											Amount (₹)
+										</FieldLabel>
+										<Input
+											id="transaction-amount"
+											inputMode="decimal"
+											placeholder="0.00"
+											className="font-mono tabular-nums"
+											{...field}
+										/>
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					<Controller
-						name="accountId"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transaction-account">
-									{selectedType === "income" ? "To account" : "From account"}
-								</FieldLabel>
-								<Select
-									items={accountOptions.map((account) => ({
-										value: account.id,
-										label: account.name,
-									}))}
-									value={field.value}
-									onValueChange={(value) => field.onChange(value)}
-								>
-									<SelectTrigger id="transaction-account">
-										<SelectValue placeholder="Choose an account" />
-									</SelectTrigger>
-									<SelectContent>
-										{accountOptions.map((account) => (
-											<SelectItem key={account.id} value={account.id}>
-												{account.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+							/>
+							<Controller
+								name="date"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transaction-date">Date</FieldLabel>
+										<Input id="transaction-date" type="date" {...field} />
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					<Controller
-						name="categoryId"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transaction-category">
-									Category (
-									{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()})
-								</FieldLabel>
-								<Select
-									items={categoryOptions.map((category) => ({
-										value: category.id,
-										label: category.name,
-									}))}
-									value={field.value}
-									onValueChange={(value) => field.onChange(value)}
-								>
-									<SelectTrigger id="transaction-category">
-										<SelectValue placeholder="Choose a category" />
-									</SelectTrigger>
-									<SelectContent>
-										{categoryOptions.map((category) => (
-											<SelectItem key={category.id} value={category.id}>
-												{category.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{fieldState.error ? (
-									<FieldError>{fieldState.error.message}</FieldError>
-								) : (
-									<p className="text-sm text-muted-foreground">
-										Only active{" "}
-										{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()}{" "}
-										categories are listed.
-									</p>
+							/>
+							<Controller
+								name="accountId"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transaction-account">
+											{selectedType === "income"
+												? "To account"
+												: "From account"}
+										</FieldLabel>
+										<Select
+											items={accountOptions.map((account) => ({
+												value: account.id,
+												label: account.name,
+											}))}
+											value={field.value}
+											onValueChange={(value) => field.onChange(value)}
+										>
+											<SelectTrigger id="transaction-account">
+												<SelectValue placeholder="Choose an account" />
+											</SelectTrigger>
+											<SelectContent>
+												{accountOptions.map((account) => (
+													<SelectItem key={account.id} value={account.id}>
+														{account.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					<Controller
-						name="notes"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transaction-notes">
-									Notes (optional)
-								</FieldLabel>
-								<Input
-									id="transaction-notes"
-									placeholder="What was this for?"
-									autoComplete="off"
-									{...field}
-									value={field.value ?? ""}
-								/>
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+							/>
+							<Controller
+								name="categoryId"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transaction-category">
+											Category (
+											{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()})
+										</FieldLabel>
+										<Select
+											items={categoryOptions.map((category) => ({
+												value: category.id,
+												label: category.name,
+											}))}
+											value={field.value}
+											onValueChange={(value) => field.onChange(value)}
+										>
+											<SelectTrigger id="transaction-category">
+												<SelectValue placeholder="Choose a category" />
+											</SelectTrigger>
+											<SelectContent>
+												{categoryOptions.map((category) => (
+													<SelectItem key={category.id} value={category.id}>
+														{category.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{fieldState.error ? (
+											<FieldError>{fieldState.error.message}</FieldError>
+										) : (
+											<p className="text-sm text-muted-foreground">
+												Only active{" "}
+												{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()}{" "}
+												categories are listed.
+											</p>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					{chosenAccount && (
-						<p className="text-sm text-muted-foreground">
-							{chosenAccount.name} balance: affected by this transaction.
-						</p>
-					)}
+							/>
+							<Controller
+								name="notes"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transaction-notes">
+											Notes (optional)
+										</FieldLabel>
+										<Input
+											id="transaction-notes"
+											placeholder="What was this for?"
+											autoComplete="off"
+											{...field}
+											value={field.value ?? ""}
+										/>
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
+								)}
+							/>
+							{chosenAccount && (
+								<p className="text-sm text-muted-foreground">
+									{chosenAccount.name} balance: affected by this transaction.
+								</p>
+							)}
+						</div>
+					</ScrollArea>
 					<DialogFooter>
 						<Button
 							type="button"

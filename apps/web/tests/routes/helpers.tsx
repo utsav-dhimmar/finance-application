@@ -1,3 +1,4 @@
+import { ThemeProvider } from "@finance-application/ui/components/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
 	createMemoryHistory,
@@ -60,9 +61,11 @@ export async function renderRoute(
 	let view!: RenderResult;
 	await act(async () => {
 		view = render(
-			<QueryClientProvider client={queryClient}>
-				<RouterProvider router={router} />
-			</QueryClientProvider>,
+			<ThemeProvider defaultTheme="light" storageKey="finance-app-theme-test">
+				<QueryClientProvider client={queryClient}>
+					<RouterProvider router={router} />
+				</QueryClientProvider>
+			</ThemeProvider>,
 		);
 	});
 	return view;
@@ -75,7 +78,9 @@ export function renderPlain(ui: ReactNode): RenderResult {
 		defaultOptions: { queries: { retry: false } },
 	});
 	return render(
-		<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+		<ThemeProvider defaultTheme="light" storageKey="finance-app-theme-test">
+			<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+		</ThemeProvider>,
 	);
 }
 

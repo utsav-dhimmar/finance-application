@@ -166,7 +166,7 @@ export function AccountsPage() {
 	return (
 		<div className="flex min-h-screen flex-col bg-background">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-6 md:p-8">
+			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 md:p-8">
 				{/* Page Header */}
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 					<div>
@@ -187,7 +187,7 @@ export function AccountsPage() {
 					</div>
 					<Button
 						onClick={() => setCreateOpen(true)}
-						className="gap-1.5 shadow-xs"
+						className="self-start sm:self-auto gap-1.5 shadow-xs"
 					>
 						<Plus aria-hidden="true" className="size-4" />
 						Add account

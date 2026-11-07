@@ -156,6 +156,21 @@ describe("/settings rendering", () => {
 			expect(screen.getByText("Currency display")).toBeTruthy(),
 		);
 	});
+
+	it("renders the appearance card and switches theme", async () => {
+		stubSettingsApi({
+			"/api/preferences": () => jsonResponse(200, preferences),
+		});
+		await renderRoute(<SettingsPage />, "/settings");
+
+		await waitFor(() => expect(screen.getByText("Appearance")).toBeTruthy());
+
+		const darkRadio = screen.getByRole("radio", { name: /dark/i });
+		expect(darkRadio).toBeTruthy();
+		fireEvent.click(darkRadio);
+		expect(darkRadio.getAttribute("aria-checked")).toBe("true");
+		expect(document.documentElement.classList.contains("dark")).toBe(true);
+	});
 });
 
 describe("/settings preference form", () => {

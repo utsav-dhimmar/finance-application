@@ -278,8 +278,8 @@ export function TransactionsPanel({ mode }: TransactionsPanelProps) {
 
 	return (
 		<>
-			<div className="overflow-hidden rounded-xl border border-border/80">
-				<Table>
+			<div className="w-full overflow-x-auto rounded-xl border border-border/80">
+				<Table className="min-w-[640px]">
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
@@ -309,7 +309,7 @@ export function TransactionsPanel({ mode }: TransactionsPanelProps) {
 					</TableBody>
 				</Table>
 			</div>
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<p className="text-sm text-muted-foreground">
 					Page {page} of {pageCount} · {total} total
 				</p>

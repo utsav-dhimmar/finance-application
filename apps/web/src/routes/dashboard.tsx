@@ -166,9 +166,9 @@ export function DashboardPage() {
 	return (
 		<div className="flex min-h-screen flex-col bg-background">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-6 md:p-8">
+			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 sm:p-6 md:p-8">
 				{/* Top greeting & status */}
-				<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
 							Dashboard
@@ -180,7 +180,7 @@ export function DashboardPage() {
 							</strong>
 						</p>
 					</div>
-					<div className="flex items-center gap-2 pt-2 sm:pt-0">
+					<div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
 						<SafeLink to="/transactions">
 							<Button size="sm" className="gap-1.5 shadow-xs">
 								<Plus aria-hidden="true" className="size-3.5" />
@@ -200,7 +200,7 @@ export function DashboardPage() {
 					aria-label="Reporting period"
 					className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
 				>
-					<div className="flex  gap-2">
+					<div className="flex flex-wrap items-center gap-2">
 						<Tabs
 							value={mode}
 							onValueChange={(next) => {

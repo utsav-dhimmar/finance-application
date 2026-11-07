@@ -24,9 +24,13 @@ import {
 	SelectValue,
 } from "@finance-application/ui/components/select";
 import { Skeleton } from "@finance-application/ui/components/skeleton";
+import {
+	type Theme,
+	useTheme,
+} from "@finance-application/ui/components/theme-provider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Monitor, Moon, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -155,6 +159,73 @@ function PreferencesCard({ preferences }: PreferencesCardProps) {
 	);
 }
 
+const THEME_OPTIONS: {
+	value: Theme;
+	label: string;
+	icon: typeof Sun;
+}[] = [
+	{
+		value: "light",
+		label: "Light theme",
+		icon: Sun,
+	},
+	{
+		value: "dark",
+		label: "Dark theme",
+		icon: Moon,
+	},
+	{
+		value: "system",
+		label: "System preference",
+		icon: Monitor,
+	},
+];
+
+function AppearanceCard() {
+	const { theme, setTheme } = useTheme();
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="text-base font-semibold tracking-tight text-foreground">
+					Appearance
+				</CardTitle>
+				<CardDescription>
+					Choose your theme: light, dark, or follow your operating system
+					settings.
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div
+					className="flex items-center gap-2"
+					role="radiogroup"
+					aria-label="Theme selection"
+				>
+					{THEME_OPTIONS.map((option) => {
+						const Icon = option.icon;
+						const isSelected = theme === option.value;
+						return (
+							<Button
+								key={option.value}
+								type="button"
+								role="radio"
+								aria-checked={isSelected}
+								variant={isSelected ? "default" : "outline"}
+								size="icon"
+								onClick={() => setTheme(option.value)}
+								aria-label={option.label}
+								title={option.label}
+							>
+								<Icon className="size-4" />
+							</Button>
+						);
+					})}
+				</div>
+			</CardContent>
+		</Card>
+	);
+}
+
 export function SettingsPage() {
 	const navigate = useNavigate();
 	const me = useMe();
@@ -188,16 +259,18 @@ export function SettingsPage() {
 	return (
 		<div className="flex min-h-screen flex-col bg-background">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-6 md:p-8">
+			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 md:p-8">
 				<div>
 					<h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
 						Settings
 					</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Application preferences, stored with your account so every device
-						sees the same choices.
+						Application preferences and appearance choices for your device and
+						account.
 					</p>
 				</div>
+
+				<AppearanceCard />
 
 				{preferences.isPending ? (
 					<Skeleton className="h-56 w-full max-w-xl rounded-xl" />

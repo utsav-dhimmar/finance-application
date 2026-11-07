@@ -18,6 +18,7 @@ import {
 	FieldLabel,
 } from "@finance-application/ui/components/field";
 import { Input } from "@finance-application/ui/components/input";
+import { ScrollArea } from "@finance-application/ui/components/scroll-area";
 import {
 	Select,
 	SelectContent,
@@ -161,74 +162,81 @@ export function CreateTransferDialog({
 							{form.formState.errors.root.message}
 						</p>
 					)}
-					<Controller
-						name="amount"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transfer-amount">Amount (₹)</FieldLabel>
-								<Input
-									id="transfer-amount"
-									inputMode="decimal"
-									placeholder="0.00"
-									className="font-mono tabular-nums"
-									{...field}
-								/>
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+					<ScrollArea className="max-h-[min(55dvh,420px)] -mx-1.5">
+						<div className="flex flex-col gap-4 py-1.5 pl-1.5 pr-4">
+							<Controller
+								name="amount"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transfer-amount">
+											Amount (₹)
+										</FieldLabel>
+										<Input
+											id="transfer-amount"
+											inputMode="decimal"
+											placeholder="0.00"
+											className="font-mono tabular-nums"
+											{...field}
+										/>
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					<Controller
-						name="date"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transfer-date">Date</FieldLabel>
-								<Input id="transfer-date" type="date" {...field} />
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+							/>
+							<Controller
+								name="date"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transfer-date">Date</FieldLabel>
+										<Input id="transfer-date" type="date" {...field} />
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					{accountSelect(
-						"transfer-source",
-						"From account (source)",
-						"sourceAccountId",
-					)}
-					{accountSelect(
-						"transfer-destination",
-						"To account (destination)",
-						"destinationAccountId",
-					)}
-					<Controller
-						name="notes"
-						control={form.control}
-						render={({ field, fieldState }) => (
-							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="transfer-notes">
-									Notes (optional)
-								</FieldLabel>
-								<Input
-									id="transfer-notes"
-									placeholder="What was this for?"
-									autoComplete="off"
-									{...field}
-									value={field.value ?? ""}
-								/>
-								{fieldState.error && (
-									<FieldError>{fieldState.error.message}</FieldError>
+							/>
+							{accountSelect(
+								"transfer-source",
+								"From account (source)",
+								"sourceAccountId",
+							)}
+							{accountSelect(
+								"transfer-destination",
+								"To account (destination)",
+								"destinationAccountId",
+							)}
+							<Controller
+								name="notes"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid || undefined}>
+										<FieldLabel htmlFor="transfer-notes">
+											Notes (optional)
+										</FieldLabel>
+										<Input
+											id="transfer-notes"
+											placeholder="What was this for?"
+											autoComplete="off"
+											{...field}
+											value={field.value ?? ""}
+										/>
+										{fieldState.error && (
+											<FieldError>{fieldState.error.message}</FieldError>
+										)}
+									</Field>
 								)}
-							</Field>
-						)}
-					/>
-					{chosenSource && chosenDestination && (
-						<p className="text-sm text-muted-foreground">
-							Money moves from {chosenSource.name} to {chosenDestination.name}.
-						</p>
-					)}
+							/>
+							{chosenSource && chosenDestination && (
+								<p className="text-sm text-muted-foreground">
+									Money moves from {chosenSource.name} to{" "}
+									{chosenDestination.name}.
+								</p>
+							)}
+						</div>
+					</ScrollArea>
 					<DialogFooter>
 						<Button
 							type="button"

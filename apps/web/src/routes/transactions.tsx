@@ -77,11 +77,11 @@ import {
 	useRestoreTransfer,
 } from "@/hooks/use-transfers";
 import { formatPaise } from "@/lib/money";
+import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import {
 	TRANSFER_DIRECTION_LABELS,
 	TRANSFER_STATUS_LABELS,
 } from "@/lib/transfer-labels";
-import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import { getTransactionsErrorMessage } from "@/services/transactions-service";
 import { getTransfersErrorMessage } from "@/services/transfers-service";
 
@@ -727,8 +727,8 @@ export function TransactionsPage() {
 				</div>
 
 				{/* Filter bar */}
-				<div className="grid grid-cols-2 gap-3 md:grid-cols-7">
-					<div className="relative col-span-2">
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+					<div className="relative sm:col-span-2">
 						<Search
 							aria-hidden="true"
 							className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -814,10 +814,7 @@ export function TransactionsPage() {
 							})
 						}
 					>
-						<SelectTrigger
-							aria-label="Category filter"
-							className="col-span-2 w-full md:col-span-1"
-						>
+						<SelectTrigger aria-label="Category filter" className="w-full">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -877,8 +874,8 @@ export function TransactionsPage() {
 					</div>
 				) : (
 					<>
-						<div className="overflow-hidden rounded-xl border border-border/80">
-							<Table>
+						<div className="w-full overflow-x-auto rounded-xl border border-border/80">
+							<Table className="min-w-160">
 								<TableHeader>
 									{table.getHeaderGroups().map((headerGroup) => (
 										<TableRow key={headerGroup.id}>
@@ -914,7 +911,7 @@ export function TransactionsPage() {
 							</Table>
 						</div>
 						{/* Pagination */}
-						<div className="flex items-center justify-between">
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<p className="text-sm text-muted-foreground">
 								Page {filterState.page} of {pageCount} · {total} total
 							</p>

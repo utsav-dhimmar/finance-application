@@ -1,14 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { AppHeader } from "@/components/app-header";
 import { AccountsPanel } from "@/components/archive-trash/accounts-panel";
 import { CategoriesPanel } from "@/components/archive-trash/categories-panel";
 import {
-	RecordTypeTabs,
 	type RecordType,
+	RecordTypeTabs,
 } from "@/components/archive-trash/record-type-tabs";
 import { TransactionsPanel } from "@/components/archive-trash/transactions-panel";
 import { TransfersPanel } from "@/components/archive-trash/transfers-panel";
-import { AppHeader } from "@/components/app-header";
 import { useMe } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/archive")({ component: ArchivePage });
@@ -50,7 +50,7 @@ export function ArchivePage() {
 	return (
 		<div className="flex min-h-screen flex-col bg-background">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-6 md:p-8">
+			<main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 md:p-8">
 				<div>
 					<h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
 						Archive

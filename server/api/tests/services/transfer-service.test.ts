@@ -138,7 +138,37 @@ function createFakes() {
 				return updated;
 			},
 		),
-		delete: vi.fn(async (id: string) => transferRows.delete(id)),
+		deleteIfDeleted: vi.fn(async (id: string) => {
+			const transfer = transferRows.get(id);
+			if (!transfer || transfer.status !== 'deleted') {
+				return false;
+			}
+			return transferRows.delete(id);
+		}),
+		updateStatusAndDetails: vi.fn(
+			async (
+				id: string,
+				status: string,
+				timestamps: { archivedAt: string | null; deletedAt: string | null },
+				patch: Partial<Transfer>,
+				updatedAt: string,
+			) => {
+				const transfer = transferRows.get(id);
+				if (!transfer) {
+					return undefined;
+				}
+				const updated: Transfer = {
+					...transfer,
+					status,
+					archivedAt: timestamps.archivedAt,
+					deletedAt: timestamps.deletedAt,
+					...patch,
+					updatedAt,
+				};
+				transferRows.set(id, updated);
+				return updated;
+			},
+		),
 	};
 
 	const accounts = {
@@ -493,7 +523,7 @@ describe("createTransferService lifecycle", () => {
 			userId: "user-1",
 			transferId: UUID_V7,
 		});
-		expect(outcome).toEqual({ ok: false, code: "RESTORE_CONFLICT" });
+		expect(outcome).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
 		expect(fakes.transfers.rows.get(UUID_V7)?.status).toBe("deleted");
 	});
 
@@ -508,7 +538,7 @@ describe("createTransferService lifecycle", () => {
 			transferId: UUID_V7,
 			destinationAccountId: "acc-c",
 		});
-		expect(outcome).toEqual({ ok: false, code: "RESTORE_CONFLICT" });
+		expect(outcome).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
 		expect(fakes.transfers.rows.get(UUID_V7)?.destinationAccountId).toBe(
 			"acc-b",
 		);

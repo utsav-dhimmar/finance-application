@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { app } from "@/app";
 
-describe("GET /api/openapi", () => {
-	it("serves an OpenAPI 3.1 document listing both endpoints", async () => {
-		const res = await app.request("/api/openapi");
+// Documentation is configuration-gated: enabled with DOCS_ENABLED=true
+// (local development), disabled by default (production).
+const DOCS_ENV = { DOCS_ENABLED: "true" };
+
+describe("GET /api/openapi (enabled)", () => {
+	it("serves an OpenAPI 3.1 document listing the endpoints", async () => {
+		const res = await app.request("/api/openapi", undefined, DOCS_ENV);
 		expect(res.status).toBe(200);
 		const doc: unknown = await res.json();
 		expect(doc).toMatchObject({ openapi: "3.1.0" });
@@ -24,7 +28,7 @@ describe("GET /api/openapi", () => {
 	});
 
 	it("registers the permanent-delete operations for accounts and categories", async () => {
-		const res = await app.request("/api/openapi");
+		const res = await app.request("/api/openapi", undefined, DOCS_ENV);
 		expect(res.status).toBe(200);
 		const doc = (await res.json()) as {
 			paths: Record<string, Record<string, unknown>>;
@@ -34,10 +38,35 @@ describe("GET /api/openapi", () => {
 	});
 });
 
-describe("GET /api/docs", () => {
+describe("GET /api/docs (enabled)", () => {
 	it("serves the interactive documentation viewer as HTML", async () => {
-		const res = await app.request("/api/docs");
+		const res = await app.request("/api/docs", undefined, DOCS_ENV);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("text/html");
+	});
+});
+
+describe("documentation disabled (default)", () => {
+	it.each(["/api/openapi", "/api/docs"])(
+		"answers the standard 404 envelope for %s",
+		async (path) => {
+			const res = await app.request(path);
+			expect(res.status).toBe(404);
+			expect(res.headers.get("content-type")).toContain("application/json");
+			await expect(res.json()).resolves.toEqual({
+				error: {
+					code: "NOT_FOUND",
+					message: "Resource not found",
+					details: [],
+				},
+			});
+		},
+	);
+
+	it("answers 404 for both paths even when explicitly disabled", async () => {
+		const res = await app.request("/api/openapi", undefined, {
+			DOCS_ENABLED: "false",
+		});
+		expect(res.status).toBe(404);
 	});
 });

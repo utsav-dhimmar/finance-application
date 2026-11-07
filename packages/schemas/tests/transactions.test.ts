@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_AMOUNT_MINOR } from "../src/accounts";
 import {
 	createTransactionBodySchema,
 	listTransactionsQuerySchema,
@@ -20,8 +21,29 @@ describe("transactionAmountSchema", () => {
 		expect(transactionAmountSchema.parse(1)).toBe(1);
 	});
 
+	it("accepts the supported maximum amount", () => {
+		expect(transactionAmountSchema.parse(MAX_AMOUNT_MINOR)).toBe(
+			MAX_AMOUNT_MINOR,
+		);
+	});
+
+	it("rejects amounts above the supported maximum", () => {
+		expect(() => transactionAmountSchema.parse(MAX_AMOUNT_MINOR + 1)).toThrow();
+	});
+
 	it.each([0, -1, -125050, 12.5])("rejects %i", (input) => {
 		expect(() => transactionAmountSchema.parse(input)).toThrow();
+	});
+});
+
+describe("listTransactionsQuerySchema pagination bounds", () => {
+	it("accepts the highest supported page", () => {
+		const parsed = listTransactionsQuerySchema.parse({ page: 10_000 });
+		expect(parsed.page).toBe(10_000);
+	});
+
+	it("rejects a page number above the supported maximum", () => {
+		expect(() => listTransactionsQuerySchema.parse({ page: 10_001 })).toThrow();
 	});
 });
 

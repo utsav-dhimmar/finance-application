@@ -45,6 +45,8 @@ const TRANSITION_INVALID_MESSAGE =
 const NOT_EDITABLE_MESSAGE = "Archived or deleted transfers cannot be edited";
 const RESTORE_CONFLICT_MESSAGE =
 	"The transfer's account has been deleted; reassign it to restore";
+const RESTORE_INACTIVE_MESSAGE = "The replacement account must be active";
+const ID_CONFLICT_MESSAGE = "A record with this identifier already exists";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
@@ -322,7 +324,9 @@ transfersRoutes.openapi(createTransferRoute, async (c) => {
 				outcome.code,
 				outcome.code === "SAME_ACCOUNT_TRANSFER"
 					? SAME_ACCOUNT_MESSAGE
-					: ACCOUNT_INELIGIBLE_MESSAGE,
+					: outcome.code === "ACCOUNT_INELIGIBLE"
+						? ACCOUNT_INELIGIBLE_MESSAGE
+						: ID_CONFLICT_MESSAGE,
 			),
 			409,
 		);
@@ -470,7 +474,9 @@ function transitionErrorBody(
 	return errorBody(
 		outcome.code,
 		outcome.code === "RESTORE_CONFLICT"
-			? RESTORE_CONFLICT_MESSAGE
+			? outcome.reason === "inactive_replacement"
+				? RESTORE_INACTIVE_MESSAGE
+				: RESTORE_CONFLICT_MESSAGE
 			: outcome.code === "SAME_ACCOUNT_TRANSFER"
 				? SAME_ACCOUNT_MESSAGE
 				: TRANSITION_INVALID_MESSAGE,

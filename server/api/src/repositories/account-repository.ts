@@ -148,11 +148,13 @@ export function createAccountRepository(db: Db) {
 
 		// Physical removal — permanent deletion from trash, always user-requested
 		// and gate-checked by the service so no referencing transaction or
-		// transfer of any status remains to trip the enforced RESTRICT FKs.
-		async delete(id: string): Promise<boolean> {
+		// transfer of any status remains to trip the enforced RESTRICT FKs. The
+		// status guard closes the check-then-act window against a concurrent
+		// restore: only a row still in the deleted state is physically removed.
+		async deleteIfDeleted(id: string): Promise<boolean> {
 			const removed = await db
 				.delete(accounts)
-				.where(eq(accounts.id, id))
+				.where(and(eq(accounts.id, id), eq(accounts.status, "deleted")))
 				.returning();
 			return removed.length > 0;
 		},

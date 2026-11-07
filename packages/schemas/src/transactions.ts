@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { amountInputSchema } from "./accounts";
+import { MAX_AMOUNT_MINOR, amountInputSchema } from "./accounts";
 
 // Single source of truth for transaction validation rules, shared by the API,
 // the web app, and the future mobile client. OpenAPI metadata for the API's
@@ -19,7 +19,8 @@ export type TransactionStatus = z.infer<typeof transactionStatusSchema>;
 export const transactionAmountSchema = z
 	.number()
 	.int("Amount must be a whole number of paise")
-	.positive("Amount must be greater than zero");
+	.positive("Amount must be greater than zero")
+	.max(MAX_AMOUNT_MINOR, "Amount exceeds the supported maximum");
 
 // Transaction dates are calendar dates (YYYY-MM-DD), independent of creation
 // timestamps, so date-based reports never shift with timezones.
@@ -83,7 +84,7 @@ export const listTransactionsQuerySchema = z.object({
 	accountId: z.string().min(1).optional(),
 	categoryId: z.string().min(1).optional(),
 	q: z.string().trim().max(200).optional(),
-	page: z.coerce.number().int().min(1).default(1),
+	page: z.coerce.number().int().min(1).max(10_000).default(1),
 	pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 

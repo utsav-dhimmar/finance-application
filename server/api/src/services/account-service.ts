@@ -133,6 +133,9 @@ export interface TransferEffectLookup {
 	forAccount: (accountId: string) => Promise<number>;
 	// Signed sums for every account of one user, in grouped queries.
 	byUser: (userId: string) => Promise<Map<string, number>>;
+	// Non-deleted transfer count for the account (either side) — the
+	// field-lock predicate: transfers move balance just like transactions.
+	countForAccount: (accountId: string) => Promise<number>;
 }
 
 // Referencing-row counts across every lifecycle status — the strict
@@ -165,6 +168,7 @@ export function createAccountService(deps: AccountServiceDeps) {
 	const transferEffects: TransferEffectLookup = deps.transferSums ?? {
 		forAccount: async () => 0,
 		byUser: async () => new Map(),
+		countForAccount: async () => 0,
 	};
 	const referenceCounts: AccountReferenceCounts = deps.referenceCounts ?? {
 		transactions: async () => 0,
@@ -337,11 +341,16 @@ export function createAccountService(deps: AccountServiceDeps) {
 			}
 			const touchesLockedField =
 				input.type !== undefined || input.openingBalanceMinor !== undefined;
-			if (
-				touchesLockedField &&
-				(await posted.countForAccount(input.accountId)) > 0
-			) {
-				return { ok: false, code: "ACCOUNT_FIELD_LOCKED" };
+			if (touchesLockedField) {
+				// Transfers move balance just like transactions, so either kind of
+				// non-deleted ledger history locks the account's recorded history.
+				const [transactionCount, transferCount] = await Promise.all([
+					posted.countForAccount(input.accountId),
+					transferEffects.countForAccount(input.accountId),
+				]);
+				if (transactionCount + transferCount > 0) {
+					return { ok: false, code: "ACCOUNT_FIELD_LOCKED" };
+				}
 			}
 			if (input.name !== undefined) {
 				const conflict = await findNameConflict(input.userId, input.name);
@@ -421,9 +430,11 @@ export function createAccountService(deps: AccountServiceDeps) {
 			if (transactionCount + transferCount > 0) {
 				return { ok: false, code: "PERMANENT_DELETE_BLOCKED" };
 			}
-			const removed = await accounts.delete(accountId);
+			// The status guard closes the race against a concurrent restore: only
+			// a row still in the deleted state is physically removed.
+			const removed = await accounts.deleteIfDeleted(accountId);
 			if (!removed) {
-				return { ok: false, code: "NOT_FOUND" };
+				return { ok: false, code: "ACCOUNT_TRANSITION_INVALID" };
 			}
 			return { ok: true, value: undefined };
 		},

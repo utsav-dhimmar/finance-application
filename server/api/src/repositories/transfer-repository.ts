@@ -13,6 +13,7 @@ import {
 import { alias } from "drizzle-orm/sqlite-core";
 import type { Db } from "@/db";
 import { accounts, type Transfer, transfers } from "@/db/schema";
+import { LIKE_ESCAPE, escapeLike } from "@/lib/like";
 
 // One row per transfer with both referenced account names resolved. Names may
 // be null when a referenced account was permanently deleted from trash — the
@@ -87,14 +88,16 @@ function buildFilterConditions(
 		}
 	}
 	if (filters.q) {
-		const needle = `%${filters.q}%`;
+		// Search text is literal: `%` and `_` are escaped so they match
+		// themselves instead of acting as wildcard patterns.
+		const needle = `%${escapeLike(filters.q)}%`;
 		// SQLite LIKE is case-insensitive for ASCII, matching the app's other
 		// case-insensitive text rules. Notes are searched directly, account
 		// names through the joins.
 		const searchCondition = or(
-			sql`${transfers.notes} LIKE ${needle}`,
-			sql`${sourceAccounts.name} LIKE ${needle}`,
-			sql`${destinationAccounts.name} LIKE ${needle}`,
+			sql`${transfers.notes} LIKE ${needle} ESCAPE ${LIKE_ESCAPE}`,
+			sql`${sourceAccounts.name} LIKE ${needle} ESCAPE ${LIKE_ESCAPE}`,
+			sql`${destinationAccounts.name} LIKE ${needle} ESCAPE ${LIKE_ESCAPE}`,
 		);
 		if (searchCondition) {
 			conditions.push(searchCondition);
@@ -167,7 +170,13 @@ export function createTransferRepository(db: Db) {
 					eq(destinationAccounts.id, transfers.destinationAccountId),
 				)
 				.where(and(...conditions))
-				.orderBy(desc(transfers.date), desc(transfers.createdAt))
+				// The trailing unique id keeps pagination stable: rows tied on
+				// (date, createdAt) cannot repeat or disappear across pages.
+				.orderBy(
+					desc(transfers.date),
+					desc(transfers.createdAt),
+					desc(transfers.id),
+				)
 				.limit(filters.pageSize)
 				.offset((filters.page - 1) * filters.pageSize);
 			const totals = await db
@@ -275,6 +284,25 @@ export function createTransferRepository(db: Db) {
 			return rows[0]?.value ?? 0;
 		},
 
+		// Non-deleted transfer count for an account (either side) — the
+		// opening-balance/type field-lock predicate: transfers move balance just
+		// like transactions, so they lock the account's editable history too.
+		async countNonDeletedByAccount(accountId: string): Promise<number> {
+			const rows = await db
+				.select({ value: count() })
+				.from(transfers)
+				.where(
+					and(
+						or(
+							eq(transfers.sourceAccountId, accountId),
+							eq(transfers.destinationAccountId, accountId),
+						),
+						inArray(transfers.status, [...NON_DELETED_STATUSES]),
+					),
+				);
+			return rows[0]?.value ?? 0;
+		},
+
 		async updateDetails(
 			id: string,
 			patch: TransferDetailsPatch,
@@ -307,11 +335,43 @@ export function createTransferRepository(db: Db) {
 			return updated[0];
 		},
 
+		// Restore-with-reassignment commits the lifecycle flip and the new
+		// account references as one atomic D1 batch — same invariant as the
+		// transaction repository's identically named method.
+		async updateStatusAndDetails(
+			id: string,
+			status: string,
+			timestamps: { archivedAt: string | null; deletedAt: string | null },
+			patch: TransferDetailsPatch,
+			updatedAt: string,
+		): Promise<Transfer | undefined> {
+			const [statusRows] = await db.batch([
+				db
+					.update(transfers)
+					.set({
+						status,
+						archivedAt: timestamps.archivedAt,
+						deletedAt: timestamps.deletedAt,
+						updatedAt,
+					})
+					.where(eq(transfers.id, id))
+					.returning(),
+				db
+					.update(transfers)
+					.set({ ...patch, updatedAt })
+					.where(eq(transfers.id, id))
+					.returning(),
+			]);
+			return statusRows?.[0];
+		},
+
 		// Physical removal — permanent deletion from trash, always user-requested.
-		async delete(id: string): Promise<boolean> {
+		// The status guard closes the check-then-act window against a concurrent
+		// restore: only a row still in the deleted state is physically removed.
+		async deleteIfDeleted(id: string): Promise<boolean> {
 			const removed = await db
 				.delete(transfers)
-				.where(eq(transfers.id, id))
+				.where(and(eq(transfers.id, id), eq(transfers.status, "deleted")))
 				.returning();
 			return removed.length > 0;
 		},

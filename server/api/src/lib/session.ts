@@ -1,8 +1,11 @@
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
-export const ACCESS_COOKIE = "access_token";
-export const REFRESH_COOKIE = "refresh_token";
+// The __Host-/__Secure- prefixes are browser-enforced: __Host- requires the
+// Secure flag, no Domain attribute, and path /; __Secure- requires Secure.
+// They are set in addition to HttpOnly and SameSite=Lax.
+export const ACCESS_COOKIE = "__Host-access_token";
+export const REFRESH_COOKIE = "__Secure-refresh_token";
 
 const ACCESS_TTL_SECONDS = 15 * 60;
 const REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -31,8 +34,10 @@ export function issueSession(
 }
 
 export function clearSession(c: Context): void {
-	deleteCookie(c, ACCESS_COOKIE, { path: "/" });
-	deleteCookie(c, REFRESH_COOKIE, { path: "/api/auth" });
+	// Deletion Set-Cookie headers must repeat the Secure attribute: workerd
+	// rejects clearing a __Host-/__Secure- cookie without it.
+	deleteCookie(c, ACCESS_COOKIE, { path: "/", secure: true });
+	deleteCookie(c, REFRESH_COOKIE, { path: "/api/auth", secure: true });
 }
 
 export function getAccessToken(c: Context): string | undefined {

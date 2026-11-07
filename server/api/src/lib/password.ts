@@ -65,6 +65,14 @@ export function hashPassword(password: string): string {
 	return `$argon2id$v=19$m=${ARGON2ID_MEMORY_KIB},t=${ARGON2ID_ITERATIONS},p=${ARGON2ID_PARALLELISM}$${bytesToBase64(salt)}$${bytesToBase64(hash)}`;
 }
 
+// Fixed hash of a throwaway password, generated once with the same Argon2id
+// parameters. Verifying login attempts for unknown emails against it costs the
+// same as a real verification, so response work does not reveal whether an
+// email is registered. The embedded password is not a credential: its hash is
+// compared only to prove the work was done, and always fails the login.
+export const DUMMY_PASSWORD_HASH =
+	"$argon2id$v=19$m=19456,t=2,p=1$z6oWm1enOFbPL8o8ly50dg==$VqYD/IKFoi7E1LsC0dYik6onpO/GFJBcBbQH5V5sCqY=";
+
 export function verifyPassword(password: string, hash: string): boolean {
 	const parts = hash.split("$");
 	// ["", "argon2id", "v=19", "m=..,t=..,p=..", salt, hash]

@@ -18,6 +18,7 @@ import {
 	type Transaction,
 	transactions,
 } from "@/db/schema";
+import { LIKE_ESCAPE, escapeLike } from "@/lib/like";
 
 // One row per transaction with its referenced account and category names
 // resolved. Names may be null when a referenced record was permanently
@@ -92,14 +93,16 @@ function buildFilterConditions(
 		conditions.push(eq(transactions.categoryId, filters.categoryId));
 	}
 	if (filters.q) {
-		const needle = `%${filters.q}%`;
+		// Search text is literal: `%` and `_` are escaped so they match
+		// themselves instead of acting as wildcard patterns.
+		const needle = `%${escapeLike(filters.q)}%`;
 		// SQLite LIKE is case-insensitive for ASCII, matching the app's other
 		// case-insensitive text rules. Notes are searched directly, category and
 		// account names through the joins.
 		const searchCondition = or(
-			sql`${transactions.notes} LIKE ${needle}`,
-			sql`${accounts.name} LIKE ${needle}`,
-			sql`${categories.name} LIKE ${needle}`,
+			sql`${transactions.notes} LIKE ${needle} ESCAPE ${LIKE_ESCAPE}`,
+			sql`${accounts.name} LIKE ${needle} ESCAPE ${LIKE_ESCAPE}`,
+			sql`${categories.name} LIKE ${needle} ESCAPE ${LIKE_ESCAPE}`,
 		);
 		if (searchCondition) {
 			conditions.push(searchCondition);
@@ -160,7 +163,13 @@ export function createTransactionRepository(db: Db) {
 				.leftJoin(accounts, eq(accounts.id, transactions.accountId))
 				.leftJoin(categories, eq(categories.id, transactions.categoryId))
 				.where(and(...conditions))
-				.orderBy(desc(transactions.date), desc(transactions.createdAt))
+				// The trailing unique id keeps pagination stable: rows tied on
+				// (date, createdAt) cannot repeat or disappear across pages.
+				.orderBy(
+					desc(transactions.date),
+					desc(transactions.createdAt),
+					desc(transactions.id),
+				)
 				.limit(filters.pageSize)
 				.offset((filters.page - 1) * filters.pageSize);
 			const totals = await db
@@ -218,21 +227,6 @@ export function createTransactionRepository(db: Db) {
 				.where(
 					and(
 						eq(transactions.accountId, accountId),
-						inArray(transactions.status, ["active", "archived"]),
-					),
-				);
-			return rows[0]?.value ?? 0;
-		},
-
-		// Non-deleted transaction count for a category — the category type-lock
-		// predicate.
-		async countNonDeletedByCategory(categoryId: string): Promise<number> {
-			const rows = await db
-				.select({ value: count() })
-				.from(transactions)
-				.where(
-					and(
-						eq(transactions.categoryId, categoryId),
 						inArray(transactions.status, ["active", "archived"]),
 					),
 				);
@@ -403,11 +397,44 @@ export function createTransactionRepository(db: Db) {
 			return updated[0];
 		},
 
+		// Restore-with-reassignment commits the lifecycle flip and the new
+		// references as one atomic D1 batch: a failure between two independent
+		// writes would leave an active row referencing deleted records — the
+		// exact state the restore validation exists to prevent.
+		async updateStatusAndDetails(
+			id: string,
+			status: string,
+			timestamps: { archivedAt: string | null; deletedAt: string | null },
+			patch: TransactionDetailsPatch,
+			updatedAt: string,
+		): Promise<Transaction | undefined> {
+			const [statusRows] = await db.batch([
+				db
+					.update(transactions)
+					.set({
+						status,
+						archivedAt: timestamps.archivedAt,
+						deletedAt: timestamps.deletedAt,
+						updatedAt,
+					})
+					.where(eq(transactions.id, id))
+					.returning(),
+				db
+					.update(transactions)
+					.set({ ...patch, updatedAt })
+					.where(eq(transactions.id, id))
+					.returning(),
+			]);
+			return statusRows?.[0];
+		},
+
 		// Physical removal — permanent deletion from trash, always user-requested.
-		async delete(id: string): Promise<boolean> {
+		// The status guard closes the check-then-act window against a concurrent
+		// restore: only a row still in the deleted state is physically removed.
+		async deleteIfDeleted(id: string): Promise<boolean> {
 			const removed = await db
 				.delete(transactions)
-				.where(eq(transactions.id, id))
+				.where(and(eq(transactions.id, id), eq(transactions.status, "deleted")))
 				.returning();
 			return removed.length > 0;
 		},

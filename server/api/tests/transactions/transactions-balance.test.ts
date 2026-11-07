@@ -1,25 +1,13 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { env, exports } from "cloudflare:workers";
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE } from "@/lib/session";
 import { uuidV7 } from "@/lib/uuid";
-
-// The main worker's default export, invoked with real bindings so requests
-// carry env (D1 + JWT_SECRET) like production traffic does.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
+import { cookieHeader, fetchApp, seedUserAndLogin } from "../helpers";
 
 const BASE = "https://test.local/api/transactions";
 const ACCOUNTS_URL = "https://test.local/api/accounts";
 const CATEGORIES_URL = "https://test.local/api/categories";
-const REGISTER_URL = "https://test.local/api/auth/register";
 
 function jsonResponseInit(
 	method: string,
@@ -36,30 +24,9 @@ function jsonResponseInit(
 	};
 }
 
-async function registerAndGetCookie(email: string): Promise<string> {
-	const res = await worker.fetch(
-		new Request(REGISTER_URL, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email, password: "s3cret-pw" }),
-		}),
-		env,
-	);
-	const access = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${ACCESS_COOKIE}=`))
-		?.split(";")[0];
-	if (!access) {
-		throw new Error("registration did not yield an access cookie");
-	}
-	return access;
-}
-
-let userCounter = 0;
-
 async function freshCookie(): Promise<string> {
-	userCounter += 1;
-	return registerAndGetCookie(`txn-balance-${userCounter}@example.com`);
+	const session = await seedUserAndLogin();
+	return cookieHeader({ [ACCESS_COOKIE]: session.access });
 }
 
 async function createAccount(

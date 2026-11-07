@@ -60,7 +60,7 @@ export const transferListQuerySchema = z.object({
 	to: transferDateSchema.optional(),
 	accountId: z.string().min(1).optional(),
 	q: z.string().trim().max(200).optional(),
-	page: z.coerce.number().int().min(1).default(1),
+	page: z.coerce.number().int().min(1).max(10_000).default(1),
 	pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
@@ -72,6 +72,6 @@ export const activityListQuerySchema = z.object({
 	accountId: z.string().min(1).optional(),
 	categoryId: z.string().min(1).optional(),
 	q: z.string().trim().max(200).optional(),
-	page: z.coerce.number().int().min(1).default(1),
+	page: z.coerce.number().int().min(1).max(10_000).default(1),
 	pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

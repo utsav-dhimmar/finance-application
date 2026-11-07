@@ -17,6 +17,9 @@ export const users = sqliteTable(
 		id: text("id").primaryKey(),
 		email: text("email").notNull(),
 		passwordHash: text("password_hash").notNull(),
+		// Bumped on logout; embedded as the `ver` claim of every access token so
+		// an issued token stops verifying the moment its session is revoked.
+		tokenVersion: integer("token_version").notNull().default(0),
 		createdAt: text("created_at").notNull(),
 		updatedAt: text("updated_at").notNull(),
 	},

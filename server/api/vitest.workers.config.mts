@@ -30,6 +30,10 @@ export default defineConfig({
 			"tests/lifecycle/**/*.test.ts",
 			"tests/preferences/**/*.test.ts",
 		],
+		// Auth flows run real Argon2id (0.5–1.5 s per hash, several hashes per
+		// test); the default 5 s timeout flakes when the full turbo pipeline
+		// saturates the CPU.
+		testTimeout: 30_000,
 		globalSetup: ["./tests/auth/globalSetup.mts"],
 		setupFiles: ["./tests/auth/setup.ts"],
 	},

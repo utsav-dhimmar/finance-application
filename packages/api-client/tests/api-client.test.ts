@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { login, logout, me, refresh, register } from "../src/auth";
+import { login, logout, me, refresh } from "../src/auth";
 import { ApiError, apiFetch } from "../src/client";
 
 const user = { id: "uuid-1", email: "user@example.com" };
@@ -45,10 +45,10 @@ describe("apiFetch", () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () =>
-				jsonResponse(409, {
+				jsonResponse(403, {
 					error: {
-						code: "EMAIL_TAKEN",
-						message: "Email is already registered",
+						code: "REGISTRATION_DISABLED",
+						message: "Registration is closed",
 						details: [],
 					},
 				}),
@@ -59,9 +59,9 @@ describe("apiFetch", () => {
 		}).catch((caught: unknown) => caught);
 		expect(error).toBeInstanceOf(ApiError);
 		if (error instanceof ApiError) {
-			expect(error.status).toBe(409);
-			expect(error.code).toBe("EMAIL_TAKEN");
-			expect(error.message).toBe("Email is already registered");
+			expect(error.status).toBe(403);
+			expect(error.code).toBe("REGISTRATION_DISABLED");
+			expect(error.message).toBe("Registration is closed");
 		}
 	});
 
@@ -89,16 +89,6 @@ describe("apiFetch", () => {
 });
 
 describe("auth endpoints", () => {
-	it("register posts the credentials body and returns the user", async () => {
-		await expect(
-			register({ email: user.email, password: "long-enough" }),
-		).resolves.toEqual(user);
-		expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-			"/api/auth/register",
-			expect.objectContaining({ method: "POST" }),
-		);
-	});
-
 	it("login posts the credentials body and returns the user", async () => {
 		await expect(
 			login({ email: user.email, password: "long-enough" }),

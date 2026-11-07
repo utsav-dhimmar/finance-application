@@ -8,6 +8,9 @@ export default defineConfig({
 		},
 	},
 	test: {
+		// Argon2id-heavy auth tests flake at the 5 s default when the full
+		// turbo pipeline saturates the CPU.
+		testTimeout: 30_000,
 		environment: "node",
 		include: ["tests/**/*.test.ts"],
 		exclude: [

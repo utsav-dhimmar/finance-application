@@ -64,9 +64,17 @@ export type TransactionOutcome<T, E extends ErrorCode> =
 
 // Creation carries a `replayed` flag on success so the route can answer
 // 201 (fresh) or 200 (idempotent replay) without re-inspecting the row.
+// ID_CONFLICT covers a client-generated id that already exists on any row:
+// the response is identical whichever user owns it.
 export type CreateTransactionOutcome =
 	| { ok: true; value: TransactionView; replayed: boolean }
-	| { ok: false; code: "ACCOUNT_INELIGIBLE" | "CATEGORY_INELIGIBLE" };
+	| {
+			ok: false;
+			code:
+				| "ACCOUNT_INELIGIBLE"
+				| "CATEGORY_INELIGIBLE"
+				| "ID_CONFLICT";
+	  };
 export type GetTransactionOutcome = TransactionOutcome<
 	TransactionView,
 	"NOT_FOUND"
@@ -78,10 +86,22 @@ export type UpdateTransactionOutcome = TransactionOutcome<
 	| "CATEGORY_INELIGIBLE"
 	| "TRANSACTION_TRANSITION_INVALID"
 >;
-export type TransitionTransactionOutcome = TransactionOutcome<
-	TransactionView,
-	"NOT_FOUND" | "TRANSACTION_TRANSITION_INVALID" | "RESTORE_CONFLICT"
->;
+// Lifecycle outcomes. RESTORE_CONFLICT carries a `reason` so the route can
+// name the cause (deleted reference, inactive replacement, or type mismatch)
+// instead of a single misleading message.
+export type TransitionTransactionOutcome =
+	| { ok: true; value: TransactionView }
+	| {
+			ok: false;
+			code:
+				| "NOT_FOUND"
+				| "TRANSACTION_TRANSITION_INVALID"
+				| "RESTORE_CONFLICT";
+			reason?:
+				| "deleted_reference"
+				| "inactive_replacement"
+				| "category_type_mismatch";
+	  };
 
 export interface TransactionList {
 	transactions: TransactionView[];
@@ -215,19 +235,54 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 				account.userId !== userId ||
 				account.status === "deleted"
 			) {
-				return { ok: false, code: "RESTORE_CONFLICT" };
+				return {
+					ok: false,
+					code: "RESTORE_CONFLICT",
+					reason: "deleted_reference",
+				};
+			}
+			// A reassignment target must be an active replacement; the
+			// transaction's own archived references restore as-is.
+			if (
+				reassignment?.accountId !== undefined &&
+				account.status !== "active"
+			) {
+				return {
+					ok: false,
+					code: "RESTORE_CONFLICT",
+					reason: "inactive_replacement",
+				};
 			}
 			const category = await categories.findById(resolveCategoryId);
-			const categoryType = reassignment?.categoryId
-				? transaction.type
-				: category?.type;
 			if (
 				!category ||
 				category.userId !== userId ||
-				category.status === "deleted" ||
-				categoryType !== transaction.type
+				category.status === "deleted"
 			) {
-				return { ok: false, code: "RESTORE_CONFLICT" };
+				return {
+					ok: false,
+					code: "RESTORE_CONFLICT",
+					reason: "deleted_reference",
+				};
+			}
+			if (
+				reassignment?.categoryId !== undefined &&
+				category.status !== "active"
+			) {
+				return {
+					ok: false,
+					code: "RESTORE_CONFLICT",
+					reason: "inactive_replacement",
+				};
+			}
+			// The replacement category's actual type is what must match the
+			// transaction — create/update rules re-apply to the restored state.
+			if (category.type !== transaction.type) {
+				return {
+					ok: false,
+					code: "RESTORE_CONFLICT",
+					reason: "category_type_mismatch",
+				};
 			}
 		}
 		const timestamps =
@@ -236,34 +291,38 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 				: target === "deleted"
 					? { archivedAt: null, deletedAt: nowIso }
 					: { archivedAt: null, deletedAt: null };
-		const updated = await transactions.updateStatus(
-			transactionId,
-			target,
-			timestamps,
-			nowIso,
-		);
-		if (!updated) {
-			return { ok: false, code: "NOT_FOUND" };
-		}
-		if (
+		const detailsPatch =
 			reassignment?.accountId !== undefined ||
 			reassignment?.categoryId !== undefined
-		) {
-			const withRefs = await transactions.updateDetails(
-				transactionId,
-				{
-					...(reassignment.accountId !== undefined
-						? { accountId: reassignment.accountId }
-						: {}),
-					...(reassignment.categoryId !== undefined
-						? { categoryId: reassignment.categoryId }
-						: {}),
-				},
-				nowIso,
-			);
-			if (!withRefs) {
-				return { ok: false, code: "NOT_FOUND" };
-			}
+				? {
+						...(reassignment.accountId !== undefined
+							? { accountId: reassignment.accountId }
+							: {}),
+						...(reassignment.categoryId !== undefined
+							? { categoryId: reassignment.categoryId }
+							: {}),
+					}
+				: undefined;
+		// The lifecycle flip and the reference reassignment commit atomically:
+		// a failure between two independent writes would leave an active row
+		// referencing deleted records.
+		const updated =
+			detailsPatch !== undefined
+				? await transactions.updateStatusAndDetails(
+						transactionId,
+						target,
+						timestamps,
+						detailsPatch,
+						nowIso,
+					)
+				: await transactions.updateStatus(
+						transactionId,
+						target,
+						timestamps,
+						nowIso,
+					);
+		if (!updated) {
+			return { ok: false, code: "NOT_FOUND" };
 		}
 		const finalRow = await transactions.findByIdWithRefs(transactionId);
 		if (!finalRow) {
@@ -329,7 +388,9 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 				});
 			} catch {
 				// Lost a create race to the same id: the winner's row is the
-				// idempotent answer, not an error.
+				// idempotent answer when it belongs to this user. Any other
+				// collision is a neutral conflict — the response is identical
+				// whichever user owns the colliding row.
 				const row = await transactions.findByIdWithRefs(input.id);
 				if (row && row.transaction.userId === input.userId) {
 					return {
@@ -342,7 +403,7 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 						replayed: true,
 					};
 				}
-				throw new Error("transaction insert failed without a replay row");
+				return { ok: false, code: "ID_CONFLICT" };
 			}
 			const row = await transactions.findByIdWithRefs(input.id);
 			if (!row) {
@@ -504,9 +565,11 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 			if (transaction.status !== "deleted") {
 				return { ok: false, code: "TRANSACTION_TRANSITION_INVALID" };
 			}
-			const removed = await transactions.delete(transactionId);
+			// The status guard closes the race against a concurrent restore: only
+			// a row still in the deleted state is physically removed.
+			const removed = await transactions.deleteIfDeleted(transactionId);
 			if (!removed) {
-				return { ok: false, code: "NOT_FOUND" };
+				return { ok: false, code: "TRANSACTION_TRANSITION_INVALID" };
 			}
 			return {
 				ok: true,

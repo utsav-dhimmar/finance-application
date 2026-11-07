@@ -1,5 +1,6 @@
 import type { ErrorCode } from "@/lib/error";
-import type { hashPassword, verifyPassword } from "@/lib/password";
+import type { verifyPassword } from "@/lib/password";
+import { DUMMY_PASSWORD_HASH } from "@/lib/password";
 import type {
 	generateRefreshToken,
 	hashToken,
@@ -24,12 +25,8 @@ export type AuthOutcome<T, E extends ErrorCode> =
 	| { ok: true; value: T }
 	| { ok: false; code: E };
 
-// Each method fails with exactly one code so controllers can map it to a
-// literal response status.
-export type RegisterOutcome = AuthOutcome<
-	PublicUser & SessionTokens,
-	"EMAIL_TAKEN"
->;
+// Registration is disabled at the route layer (single-user product); the
+// service exposes no register method to call.
 export type LoginOutcome = AuthOutcome<
 	PublicUser & SessionTokens,
 	"AUTH_INVALID_CREDENTIALS"
@@ -44,7 +41,6 @@ export interface AuthServiceDeps {
 	users: UserRepository;
 	refreshTokens: RefreshTokenRepository;
 	jwtSecret: string;
-	hashPassword: typeof hashPassword;
 	verifyPassword: typeof verifyPassword;
 	signAccessToken: typeof signAccessToken;
 	generateRefreshToken: typeof generateRefreshToken;
@@ -59,9 +55,12 @@ export interface CredentialsInput {
 export function createAuthService(deps: AuthServiceDeps) {
 	const { users, refreshTokens, jwtSecret } = deps;
 
-	async function startSession(userId: string): Promise<SessionTokens> {
+	async function startSession(
+		userId: string,
+		tokenVersion: number,
+	): Promise<SessionTokens> {
 		const [accessToken, refreshToken] = await Promise.all([
-			deps.signAccessToken(userId, jwtSecret),
+			deps.signAccessToken(userId, tokenVersion, jwtSecret),
 			createRefreshTokenRecord(userId),
 		]);
 		return { accessToken, refreshToken };
@@ -81,34 +80,28 @@ export function createAuthService(deps: AuthServiceDeps) {
 	}
 
 	return {
-		async register(input: CredentialsInput): Promise<RegisterOutcome> {
-			const existing = await users.findByEmail(input.email);
-			if (existing) {
-				return { ok: false, code: "EMAIL_TAKEN" };
-			}
-
-			const user = await users.insert({
-				id: uuidV7(),
-				email: input.email,
-				passwordHash: deps.hashPassword(input.password),
-				createdAt: isoNow(),
-				updatedAt: isoNow(),
-			});
-
-			const session = await startSession(user.id);
-			return { ok: true, value: { ...user, ...session } };
-		},
-
 		async login(input: CredentialsInput): Promise<LoginOutcome> {
 			const user = await users.findByEmail(input.email);
-			const passwordMatches =
-				user !== undefined &&
-				deps.verifyPassword(input.password, user.passwordHash);
-			if (user === undefined || !passwordMatches) {
+			// Unknown emails verify against a fixed dummy hash so the request
+			// performs the same Argon2id work as a real check and response cost
+			// does not reveal whether the account exists.
+			if (user === undefined) {
+				deps.verifyPassword(input.password, DUMMY_PASSWORD_HASH);
+				return { ok: false, code: "AUTH_INVALID_CREDENTIALS" };
+			}
+			if (!deps.verifyPassword(input.password, user.passwordHash)) {
 				return { ok: false, code: "AUTH_INVALID_CREDENTIALS" };
 			}
 
-			const session = await startSession(user.id);
+			// Bound refresh-token storage growth as part of the request that
+			// would otherwise add a row; a purge failure must not fail the login.
+			try {
+				await refreshTokens.purgeStale(user.id, isoNow());
+			} catch {
+				// Retention is best-effort; the next successful login retries.
+			}
+
+			const session = await startSession(user.id, user.tokenVersion);
 			return {
 				ok: true,
 				value: { id: user.id, email: user.email, ...session },
@@ -139,7 +132,7 @@ export function createAuthService(deps: AuthServiceDeps) {
 			}
 
 			const replacementToken = deps.generateRefreshToken();
-			await refreshTokens.revokeAndReplace(record.id, nowIso, {
+			const rotated = await refreshTokens.revokeAndReplace(record.id, nowIso, {
 				id: uuidV7(),
 				userId: record.userId,
 				tokenHash: await deps.hashToken(replacementToken),
@@ -147,13 +140,28 @@ export function createAuthService(deps: AuthServiceDeps) {
 				revokedAt: null,
 				createdAt: nowIso,
 			});
+			// Lost the single-use rotation race: the token was already rotated
+			// (or replayed), so no second session is issued.
+			if (!rotated) {
+				return { ok: false, code: "INVALID_REFRESH_TOKEN" };
+			}
 
 			const user = await users.findById(record.userId);
 			if (!user) {
 				return { ok: false, code: "INVALID_REFRESH_TOKEN" };
 			}
 
-			const accessToken = await deps.signAccessToken(user.id, jwtSecret);
+			try {
+				await refreshTokens.purgeStale(user.id, isoNow());
+			} catch {
+				// Retention is best-effort; the next successful login retries.
+			}
+
+			const accessToken = await deps.signAccessToken(
+				user.id,
+				user.tokenVersion,
+				jwtSecret,
+			);
 			return {
 				ok: true,
 				value: {
@@ -166,13 +174,21 @@ export function createAuthService(deps: AuthServiceDeps) {
 		},
 
 		// Logout is idempotent: no cookie or an unknown token still ends in a
-		// cleared session.
+		// cleared session, and no token version changes.
 		async logout(presentedToken: string | undefined): Promise<void> {
 			if (!presentedToken) {
 				return;
 			}
-			await refreshTokens.revokeByTokenHash(
-				await deps.hashToken(presentedToken),
+			const tokenHash = await deps.hashToken(presentedToken);
+			const record = await refreshTokens.findByTokenHash(tokenHash);
+			if (!record) {
+				return;
+			}
+			// Bumping the user's token version revokes every outstanding access
+			// token immediately instead of letting it ride out its TTL.
+			await refreshTokens.revokeAndBumpVersion(
+				record.userId,
+				record.id,
 				isoNow(),
 			);
 		},

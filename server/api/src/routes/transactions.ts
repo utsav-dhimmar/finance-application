@@ -43,6 +43,11 @@ const NOT_EDITABLE_MESSAGE =
 	"Archived or deleted transactions cannot be edited";
 const RESTORE_CONFLICT_MESSAGE =
 	"The transaction's account or category has been deleted; reassign it to restore";
+const RESTORE_INACTIVE_MESSAGE =
+	"The replacement account or category must be active";
+const RESTORE_TYPE_MESSAGE =
+	"The replacement category's type must match the transaction's type";
+const ID_CONFLICT_MESSAGE = "A record with this identifier already exists";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
@@ -297,7 +302,9 @@ transactionsRoutes.openapi(createTransactionRoute, async (c) => {
 				outcome.code,
 				outcome.code === "ACCOUNT_INELIGIBLE"
 					? ACCOUNT_INELIGIBLE_MESSAGE
-					: CATEGORY_INELIGIBLE_MESSAGE,
+					: outcome.code === "CATEGORY_INELIGIBLE"
+						? CATEGORY_INELIGIBLE_MESSAGE
+						: ID_CONFLICT_MESSAGE,
 			),
 			409,
 		);
@@ -416,7 +423,11 @@ function transitionErrorBody(
 	return errorBody(
 		outcome.code,
 		outcome.code === "RESTORE_CONFLICT"
-			? RESTORE_CONFLICT_MESSAGE
+			? outcome.reason === "category_type_mismatch"
+				? RESTORE_TYPE_MESSAGE
+				: outcome.reason === "inactive_replacement"
+					? RESTORE_INACTIVE_MESSAGE
+					: RESTORE_CONFLICT_MESSAGE
 			: TRANSITION_INVALID_MESSAGE,
 	);
 }

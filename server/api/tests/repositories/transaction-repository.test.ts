@@ -167,15 +167,13 @@ describe("TransactionRepository.signed sums", () => {
 });
 
 describe("TransactionRepository count seams", () => {
-	it("counts non-deleted transactions per account and category", async () => {
+	it("counts non-deleted transactions per account", async () => {
 		await insertTransaction({});
 		await insertTransaction({ status: "archived" });
 		await insertTransaction({ status: "deleted" });
 
 		expect(await repo.countNonDeletedByAccount(accountId)).toBe(2);
-		expect(await repo.countNonDeletedByCategory(categoryId)).toBe(2);
 		expect(await repo.countNonDeletedByAccount(otherAccountId)).toBe(0);
-		expect(await repo.countNonDeletedByCategory(otherCategoryId)).toBe(0);
 	});
 });
 
@@ -354,12 +352,15 @@ describe("TransactionRepository.update and lifecycle", () => {
 	});
 
 	it("physically deletes only the targeted row", async () => {
-		const inserted = await insertTransaction({});
+		const inserted = await insertTransaction({ status: "deleted" });
 		const other = await insertTransaction({});
-		expect(await repo.delete(inserted.id)).toBe(true);
+		expect(await repo.deleteIfDeleted(inserted.id)).toBe(true);
 		expect(await repo.findById(inserted.id)).toBeUndefined();
 		expect(await repo.findById(other.id)).toBeDefined();
-		expect(await repo.delete(inserted.id)).toBe(false);
+		// The status guard: an active row is never physically removed, and a
+		// removed row cannot be removed twice.
+		expect(await repo.deleteIfDeleted(other.id)).toBe(false);
+		expect(await repo.deleteIfDeleted(inserted.id)).toBe(false);
 	});
 });
 

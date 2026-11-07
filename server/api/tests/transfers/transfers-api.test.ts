@@ -1,27 +1,21 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { env, exports } from "cloudflare:workers";
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { getDb } from "@/db";
+import { hashPassword } from "@/lib/password";
 import { ACCESS_COOKIE } from "@/lib/session";
 import { uuidV7 } from "@/lib/uuid";
-
-// The main worker's default export, invoked with real bindings so requests
-// carry env (D1 + JWT_SECRET) like production traffic does.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
+import { createAccountRepository } from "@/repositories/account-repository";
+import { createTransferRepository } from "@/repositories/transfer-repository";
+import { createUserRepository } from "@/repositories/user-repository";
+import { isoNow } from "@/utils/datetime";
+import { cookieHeader, fetchApp, seedUserAndLogin } from "../helpers";
 
 const BASE = "https://test.local/api/transfers";
 const ACCOUNTS_URL = "https://test.local/api/accounts";
 const ACTIVITY_URL = "https://test.local/api/activity";
 const CATEGORIES_URL = "https://test.local/api/categories";
 const TRANSACTIONS_URL = "https://test.local/api/transactions";
-const REGISTER_URL = "https://test.local/api/auth/register";
 
 function jsonResponseInit(
 	method: string,
@@ -38,30 +32,9 @@ function jsonResponseInit(
 	};
 }
 
-async function registerAndGetCookie(email: string): Promise<string> {
-	const res = await worker.fetch(
-		new Request(REGISTER_URL, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email, password: "s3cret-pw" }),
-		}),
-		env,
-	);
-	const access = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${ACCESS_COOKIE}=`))
-		?.split(";")[0];
-	if (!access) {
-		throw new Error("registration did not yield an access cookie");
-	}
-	return access;
-}
-
-let userCounter = 0;
-
 async function freshCookie(): Promise<string> {
-	userCounter += 1;
-	return registerAndGetCookie(`transfers-api-${userCounter}@example.com`);
+	const session = await seedUserAndLogin();
+	return cookieHeader({ [ACCESS_COOKIE]: session.access });
 }
 
 async function createAccount(
@@ -284,6 +257,70 @@ describe("create transfer", () => {
 		);
 		expect(res.status).toBe(201);
 		expect(await balanceOf(cookie, source.id)).toBe(-400);
+	});
+
+	it("answers 409 ID_CONFLICT for a client id already owned by another user", async () => {
+		const session = await seedUserAndLogin();
+		const cookie = cookieHeader({ [ACCESS_COOKIE]: session.access });
+		const source = await createAccount(cookie, { name: "A", type: "bank" });
+		const destination = await createAccount(cookie, {
+			name: "B",
+			type: "cash",
+		});
+
+		// A second user, seeded directly (no session): two accounts of their own
+		// and a transfer already holding the colliding id.
+		const db = getDb(env);
+		const otherUserId = uuidV7();
+		const now = isoNow();
+		await createUserRepository(db).insert({
+			id: otherUserId,
+			email: "transfer-conflict-peer@test.local",
+			passwordHash: hashPassword("s3cret-pw"),
+			createdAt: now,
+			updatedAt: now,
+		});
+		const otherSourceId = uuidV7();
+		const otherDestinationId = uuidV7();
+		const accountRepo = createAccountRepository(db);
+		for (const [accountId, name] of [
+			[otherSourceId, "Peer Source"],
+			[otherDestinationId, "Peer Destination"],
+		] as const) {
+			await accountRepo.insert({
+				id: accountId,
+				userId: otherUserId,
+				name,
+				type: "bank",
+				openingBalanceMinor: 0,
+				createdAt: now,
+				updatedAt: now,
+			});
+		}
+		const collidingId = uuidV7();
+		await createTransferRepository(db).insert({
+			id: collidingId,
+			userId: otherUserId,
+			sourceAccountId: otherSourceId,
+			destinationAccountId: otherDestinationId,
+			amountMinor: 999,
+			date: "2026-01-10",
+			notes: null,
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		const res = await postTransfer(
+			cookie,
+			validTransferBody(source.id, destination.id, { id: collidingId }),
+		);
+		expect(res.status).toBe(409);
+		const body: unknown = await res.json();
+		expect(body).toMatchObject({ error: { code: "ID_CONFLICT" } });
+		// The neutral conflict response must not leak the other user's row.
+		const bodyText = JSON.stringify(body);
+		expect(bodyText).not.toContain("Peer Source");
+		expect(bodyText).not.toContain(otherSourceId);
 	});
 });
 

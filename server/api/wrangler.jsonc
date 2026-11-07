@@ -16,6 +16,20 @@
 			"migrations_dir": "migrations"
 		}
 	],
+	// Fixed-window rate limiting for the auth endpoints: 100 requests per 60
+	// seconds per key — tight enough to bound pre-auth Argon2id CPU, loose
+	// enough for retries. Login keys include the submitted email; register and
+	// refresh key on the client IP. Keys are separated in lib/rate-limit.ts.
+	"ratelimits": [
+		{
+			"name": "RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 100,
+				"period": 60
+			}
+		}
+	],
 	// Serve the built SPA (apps/web) as static assets from this same worker:
 	// matching files are served by the assets layer without invoking the
 	// worker; /api/* goes to Hono first; anything else falls back to the

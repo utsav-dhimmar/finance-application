@@ -137,7 +137,37 @@ function createFakes() {
 				return updated;
 			},
 		),
-		delete: vi.fn(async (id: string) => txnRows.delete(id)),
+		deleteIfDeleted: vi.fn(async (id: string) => {
+			const transaction = txnRows.get(id);
+			if (!transaction || transaction.status !== 'deleted') {
+				return false;
+			}
+			return txnRows.delete(id);
+		}),
+		updateStatusAndDetails: vi.fn(
+			async (
+				id: string,
+				status: string,
+				timestamps: { archivedAt: string | null; deletedAt: string | null },
+				patch: Partial<Transaction>,
+				updatedAt: string,
+			) => {
+				const transaction = txnRows.get(id);
+				if (!transaction) {
+					return undefined;
+				}
+				const updated: Transaction = {
+					...transaction,
+					status,
+					archivedAt: timestamps.archivedAt,
+					deletedAt: timestamps.deletedAt,
+					...patch,
+					updatedAt,
+				};
+				txnRows.set(id, updated);
+				return updated;
+			},
+		),
 	};
 
 	const accounts = {
@@ -538,7 +568,7 @@ describe("createTransactionService lifecycle transitions", () => {
 		});
 		expect(
 			await service.restore({ userId: "user-1", transactionId: id }),
-		).toEqual({ ok: false, code: "RESTORE_CONFLICT" });
+		).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
 	});
 
 	it("blocks restore when the category was deleted", async () => {
@@ -556,7 +586,7 @@ describe("createTransactionService lifecycle transitions", () => {
 		});
 		expect(
 			await service.restore({ userId: "user-1", transactionId: id }),
-		).toEqual({ ok: false, code: "RESTORE_CONFLICT" });
+		).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
 	});
 
 	it("restores with reassignment onto eligible replacements", async () => {
@@ -592,6 +622,67 @@ describe("createTransactionService lifecycle transitions", () => {
 			expect(outcome.value.categoryName).toBe("Food");
 			expect(outcome.value.status).toBe("active");
 		}
+	});
+
+	it("rejects restore onto a replacement category of the wrong type", async () => {
+		const fakes = createFakes();
+		fakes.seedAccount({ id: "acc-1", name: "HDFC Bank" });
+		fakes.seedCategory({ id: "cat-1", name: "Groceries" });
+		// An income category: ownership holds, but the type is incompatible
+		// with the expense transaction being restored.
+		fakes.seedCategory({ id: "cat-income", name: "Salary", type: "income" });
+		const service = createTransactionService(asDeps(fakes));
+		const id = createdId(await service.create(validCreateInput()));
+		await service.remove("user-1", id);
+		fakes.seedCategory({
+			id: "cat-1",
+			name: "Groceries",
+			status: "deleted",
+			deletedAt: "2026-01-02T00:00:00.000Z",
+		});
+
+		const outcome = await service.restore({
+			userId: "user-1",
+			transactionId: id,
+			categoryId: "cat-income",
+		});
+		expect(outcome).toEqual({
+			ok: false,
+			code: "RESTORE_CONFLICT",
+			reason: "category_type_mismatch",
+		});
+	});
+
+	it("rejects restore onto an inactive replacement category", async () => {
+		const fakes = createFakes();
+		fakes.seedAccount({ id: "acc-1", name: "HDFC Bank" });
+		fakes.seedCategory({ id: "cat-1", name: "Groceries" });
+		fakes.seedCategory({
+			id: "cat-archived",
+			name: "Old Groceries",
+			status: "archived",
+			archivedAt: "2026-01-02T00:00:00.000Z",
+		});
+		const service = createTransactionService(asDeps(fakes));
+		const id = createdId(await service.create(validCreateInput()));
+		await service.remove("user-1", id);
+		fakes.seedCategory({
+			id: "cat-1",
+			name: "Groceries",
+			status: "deleted",
+			deletedAt: "2026-01-02T00:00:00.000Z",
+		});
+
+		const outcome = await service.restore({
+			userId: "user-1",
+			transactionId: id,
+			categoryId: "cat-archived",
+		});
+		expect(outcome).toEqual({
+			ok: false,
+			code: "RESTORE_CONFLICT",
+			reason: "inactive_replacement",
+		});
 	});
 });
 

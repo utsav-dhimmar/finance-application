@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { User } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import {
+	DUMMY_PASSWORD_HASH,
+	hashPassword,
+	verifyPassword,
+} from "@/lib/password";
 import { generateRefreshToken, hashToken, signAccessToken } from "@/lib/tokens";
 import type {
 	NewRefreshTokenRow,
@@ -88,9 +92,10 @@ function createFakeRefreshTokenRepository(
 }
 
 // Seeds a user directly (registration is disabled at the API): the fake user
-// repository keeps the row so login can run against real Argon2id hashing.
+// repository keeps the row so login can run against real PBKDF2 hashing.
 function createService() {
 	const userStore = new Map<string, User>();
+	const verifyCalls: { password: string; hash: string }[] = [];
 	const seedUser = (overrides: Partial<User> & { id: string }): User => {
 		const user: User = {
 			email: "user@example.com",
@@ -107,29 +112,37 @@ function createService() {
 		users: createFakeUserRepository(userStore),
 		refreshTokens: createFakeRefreshTokenRepository(userStore),
 		jwtSecret: "test-secret",
-		verifyPassword,
+		// Wraps the real verifier to observe that verification work happened
+		// (the uniform-login-work guarantee) without depending on wall-clock
+		// timings of the derivation itself.
+		verifyPassword: async (password, hash) => {
+			verifyCalls.push({ password, hash });
+			return verifyPassword(password, hash);
+		},
 		signAccessToken,
 		generateRefreshToken,
 		hashToken,
 	});
-	return { service, seedUser };
+	return { service, seedUser, verifyCalls };
 }
 
 const credentials = { email: "user@example.com", password: "s3cret-pw" };
 
 let service: ReturnType<typeof createService>["service"];
 let seedUser: ReturnType<typeof createService>["seedUser"];
+let verifyCalls: ReturnType<typeof createService>["verifyCalls"];
 
 beforeEach(() => {
 	const created = createService();
 	service = created.service;
 	seedUser = created.seedUser;
+	verifyCalls = created.verifyCalls;
 });
 
 describe("login", () => {
 	it("succeeds with correct credentials and returns tokens", async () => {
 		const user = seedUser({ id: "user-1", email: credentials.email });
-		user.passwordHash = hashPassword(credentials.password);
+		user.passwordHash = await hashPassword(credentials.password);
 		const outcome = await service.login(credentials);
 		expect(outcome.ok).toBe(true);
 		if (outcome.ok) {
@@ -139,9 +152,9 @@ describe("login", () => {
 		}
 	});
 
-	it("returns the identical generic error for unknown email and wrong password", { timeout: 20_000 }, async () => {
+	it("returns the identical generic error for unknown email and wrong password", async () => {
 		seedUser({ id: "user-1", email: credentials.email }).passwordHash =
-			hashPassword(credentials.password);
+			await hashPassword(credentials.password);
 		const unknownEmail = await service.login({
 			email: "nobody@example.com",
 			password: credentials.password,
@@ -160,19 +173,22 @@ describe("login", () => {
 		});
 	});
 
-	it("performs hashing work for an unknown email before failing", { timeout: 20_000 }, async () => {
-		// The dummy hash embedded in lib/password verifies at full Argon2id
-		// cost (it simply never matches), so unknown-email attempts cannot be
-		// distinguished from wrong-password attempts by their work.
-		const started = Date.now();
+	it("performs hashing work for an unknown email before failing", async () => {
+		// The dummy hash embedded in lib/password verifies at full cost (it
+		// simply never matches — its throwaway password was discarded at
+		// generation), so unknown-email attempts cannot be distinguished from
+		// wrong-password attempts by their work.
 		const outcome = await service.login({
 			email: "nobody@example.com",
 			password: credentials.password,
 		});
 		expect(outcome).toEqual({ ok: false, code: "AUTH_INVALID_CREDENTIALS" });
-		// Real Argon2id derivation is far above 100 ms; a skipped verify would
-		// return near-instantly.
-		expect(Date.now() - started).toBeGreaterThan(100);
+		// The uniform-work guarantee, observed directly: the submitted password
+		// was really verified against the dummy hash, not skipped.
+		expect(verifyCalls).toContainEqual({
+			password: credentials.password,
+			hash: DUMMY_PASSWORD_HASH,
+		});
 	});
 });
 
@@ -197,7 +213,7 @@ describe("me", () => {
 describe("refresh", () => {
 	async function seedAndGetRefreshToken(): Promise<string> {
 		seedUser({ id: "user-1", email: credentials.email }).passwordHash =
-			hashPassword(credentials.password);
+			await hashPassword(credentials.password);
 		const outcome = await service.login(credentials);
 		if (!outcome.ok) {
 			throw new Error("login failed");
@@ -240,7 +256,7 @@ describe("refresh", () => {
 describe("logout", () => {
 	it("revokes the presented refresh token and bumps the token version", async () => {
 		const user = seedUser({ id: "user-1", email: credentials.email });
-		user.passwordHash = hashPassword(credentials.password);
+		user.passwordHash = await hashPassword(credentials.password);
 		const loginOutcome = await service.login(credentials);
 		if (!loginOutcome.ok) {
 			throw new Error("login failed");

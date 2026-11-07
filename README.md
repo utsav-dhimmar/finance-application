@@ -109,15 +109,16 @@ pnpm exec wrangler d1 migrations apply finance-application --local
 
 ### Authentication
 
-The API owns sessions with Argon2id password hashes (pure-TS implementation —
-the Workers runtime disallows dynamic WASM compilation) and JWT access tokens
-(15 min, HS256, carrying the user's token version) plus rotating refresh
-tokens (30 days, SHA-256-hashed at rest, single-use under concurrency). Both
-tokens are HttpOnly, Secure, SameSite=Lax cookies with `__Host-`/`__Secure-`
-prefixes — no tokens in JavaScript-readable storage. Logout revokes the
-refresh token and bumps the token version, so outstanding access tokens stop
-working immediately. The secret lives in `server/api/.dev.vars`
-(copy `.dev.vars.example`); in production use `wrangler secret put JWT_SECRET`.
+The API owns sessions with PBKDF2-HMAC-SHA256 password hashes (native WebCrypto
+— see [Password hashing](#password-hashing-pbkdf2-and-the-one-time-migration)
+below) and JWT access tokens (15 min, HS256, carrying the user's token version)
+plus rotating refresh tokens (30 days, SHA-256-hashed at rest, single-use under
+concurrency). Both tokens are HttpOnly, Secure, SameSite=Lax cookies with
+`__Host-`/`__Secure-` prefixes — no tokens in JavaScript-readable storage.
+Logout revokes the refresh token and bumps the token version, so outstanding
+access tokens stop working immediately. The secret lives in
+`server/api/.dev.vars` (copy `.dev.vars.example`); in production use
+`wrangler secret put JWT_SECRET`.
 
 - `POST /api/auth/register` — **closed** (single-user application); always
   responds `403 REGISTRATION_DISABLED`
@@ -129,6 +130,46 @@ working immediately. The secret lives in `server/api/.dev.vars`
 The web app provides `/register` (a closed-registration notice), `/login`, and
 a protected `/dashboard` (unauthenticated visitors are redirected to
 `/login`).
+
+#### Password hashing (PBKDF2) and the one-time migration
+
+Passwords are hashed with PBKDF2-HMAC-SHA256 through the Web Crypto API, which
+is natively implemented in workerd, Node, and miniflare. The previous
+pure-TypeScript Argon2id implementation cost 0.5–1.5 s of CPU per verification
+and exceeded the Workers free plan's hard **10 ms CPU** cap, so every
+production login failed with `Worker exceeded CPU time limit`. The default is
+10,000 iterations (≈6 ms per derivation measured under workerd; 25,000
+measured 13–15 ms there and was rejected as over budget), and every stored
+hash records its own algorithm, iteration count, salt, and key — verification
+honors the recorded parameters, so the default can change without invalidating
+existing hashes. Login attempts for unknown emails verify against an embedded
+dummy hash (its throwaway password was discarded at generation time), keeping
+unknown-email attempts indistinguishable from wrong-password attempts.
+
+**Migrating the production account (one-time — run before deploying this
+change; until the stored hash is migrated, login cannot succeed):**
+
+```sh
+cd server/api
+# 1. Save the current hash for rollback:
+npx wrangler d1 execute finance-application --remote --command "SELECT id, email, password_hash FROM users"
+# 2. Hash the password locally. Interactive: type it and press Ctrl+D
+#    (input is never echoed, logged, or sent anywhere):
+node scripts/hash-password.mts --email your-login@example.org
+#    ...or pass it directly (convenient, but the value lands in your shell
+#    history and process list — the script warns):
+node scripts/hash-password.mts --email your-login@example.org --password 'your-password'
+# 3. Run the UPDATE command the script prints (applies to the remote D1):
+npx wrangler d1 execute finance-application --remote --command "UPDATE users SET password_hash = '...' WHERE email = '...'"
+# 4. Deploy the new worker, then verify login works.
+```
+
+On the Workers **free** plan, keep the 10,000-iteration default — it keeps a
+login within the 10 ms CPU budget. After moving to **Workers Paid** (30 s CPU
+limit), re-hash at a higher iteration count (e.g. 600,000, OWASP's
+PBKDF2-SHA256 baseline) by passing `--iterations`; the script then also prints
+the matching dummy constant to re-embed in `src/lib/password.ts`, so
+unknown-email login work stays uniform.
 
 #### Deployment checklist (security)
 
@@ -144,6 +185,10 @@ a protected `/dashboard` (unauthenticated visitors are redirected to
   migrations match the repository with
   `wrangler d1 migrations list finance-application --remote` (optionally diff
   `sqlite_master` against `server/api/migrations/`).
+- **Password-hashing CPU budget**: the PBKDF2 default (10,000 iterations)
+  keeps a login within the Workers free plan's 10 ms CPU cap; raise the
+  iteration count (re-hash with `scripts/hash-password.mts`) only after
+  moving to Workers Paid.
 
 ## API
 

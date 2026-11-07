@@ -276,7 +276,7 @@ describe("create transfer", () => {
 		await createUserRepository(db).insert({
 			id: otherUserId,
 			email: "transfer-conflict-peer@test.local",
-			passwordHash: hashPassword("s3cret-pw"),
+			passwordHash: await hashPassword("s3cret-pw"),
 			createdAt: now,
 			updatedAt: now,
 		});

@@ -370,11 +370,14 @@ describe("TransferRepository.update and lifecycle", () => {
 	});
 
 	it("physically deletes only the targeted row", async () => {
-		const inserted = await insertTransfer({});
+		const inserted = await insertTransfer({ status: "deleted" });
 		const other = await insertTransfer({});
-		expect(await repo.delete(inserted.id)).toBe(true);
+		expect(await repo.deleteIfDeleted(inserted.id)).toBe(true);
 		expect(await repo.findById(inserted.id)).toBeUndefined();
 		expect(await repo.findById(other.id)).toBeDefined();
-		expect(await repo.delete(inserted.id)).toBe(false);
+		// The status guard: an active row is never physically removed, and a
+		// removed row cannot be removed twice.
+		expect(await repo.deleteIfDeleted(other.id)).toBe(false);
+		expect(await repo.deleteIfDeleted(inserted.id)).toBe(false);
 	});
 });

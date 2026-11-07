@@ -39,6 +39,8 @@ function createReportServiceForEnv(env: AppBindings) {
 					transferRepository.sumNonDeletedEffects(accountId),
 				byUser: (userId) =>
 					transferRepository.sumNonDeletedEffectsByAccount(userId),
+				countForAccount: (accountId) =>
+					transferRepository.countNonDeletedByAccount(accountId),
 			},
 		}),
 	});

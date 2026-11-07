@@ -111,19 +111,39 @@ pnpm exec wrangler d1 migrations apply finance-application --local
 
 The API owns sessions with Argon2id password hashes (pure-TS implementation —
 the Workers runtime disallows dynamic WASM compilation) and JWT access tokens
-(15 min, HS256) plus rotating refresh tokens (30 days, SHA-256-hashed at rest).
-Both tokens are HttpOnly, Secure, SameSite=Lax cookies — no tokens in
-JavaScript-readable storage. The secret lives in `server/api/.dev.vars`
+(15 min, HS256, carrying the user's token version) plus rotating refresh
+tokens (30 days, SHA-256-hashed at rest, single-use under concurrency). Both
+tokens are HttpOnly, Secure, SameSite=Lax cookies with `__Host-`/`__Secure-`
+prefixes — no tokens in JavaScript-readable storage. Logout revokes the
+refresh token and bumps the token version, so outstanding access tokens stop
+working immediately. The secret lives in `server/api/.dev.vars`
 (copy `.dev.vars.example`); in production use `wrangler secret put JWT_SECRET`.
 
-- `POST /api/auth/register` — create an account, sets session cookies
+- `POST /api/auth/register` — **closed** (single-user application); always
+  responds `403 REGISTRATION_DISABLED`
 - `POST /api/auth/login` — verify credentials, sets session cookies
 - `GET /api/auth/me` — the authenticated user's id and email
 - `POST /api/auth/refresh` — rotate the refresh token
-- `POST /api/auth/logout` — revoke and clear cookies
+- `POST /api/auth/logout` — revoke, bump the token version, clear cookies
 
-The web app provides `/register`, `/login`, and a protected `/dashboard`
-(unauthenticated visitors are redirected to `/login`).
+The web app provides `/register` (a closed-registration notice), `/login`, and
+a protected `/dashboard` (unauthenticated visitors are redirected to
+`/login`).
+
+#### Deployment checklist (security)
+
+- **Cloudflare WAF rate-limit rule** covering `/api/auth/*`: the worker also
+  enforces an in-app fixed-window limiter (Workers rate-limit binding,
+  100 req/60 s per key — login keys include the submitted email); the WAF
+  rule is the outer layer. Configure once in the Cloudflare dashboard.
+- **`DOCS_ENABLED`**: the API self-documentation (`/api/openapi`,
+  `/api/docs`) is served only when this variable is `"true"`. Local
+  development sets it in `.dev.vars`; production leaves it unset, and both
+  paths answer a plain `404`.
+- **Remote migration state**: after each deploy, confirm the applied
+  migrations match the repository with
+  `wrangler d1 migrations list finance-application --remote` (optionally diff
+  `sqlite_master` against `server/api/migrations/`).
 
 ## API
 
@@ -136,8 +156,9 @@ no Cloudflare account is needed for local development.
   `greeting` (text, default `Hello`) and `times` (1–10, default `1`) are
   validated; invalid input returns a `400` error envelope
 - `/api/auth/*` — see Authentication above
-- `GET /api/openapi` — OpenAPI 3.1 document
-- `GET /api/docs` — interactive Scalar documentation
+- `GET /api/openapi` — OpenAPI 3.1 document (only when `DOCS_ENABLED=true`)
+- `GET /api/docs` — interactive Scalar documentation (only when
+  `DOCS_ENABLED=true`)
 
 Errors use a shared envelope: `{"error":{"code":...,"message":...,"details":[...]}}`.
 

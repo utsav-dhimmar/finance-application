@@ -10,6 +10,7 @@ dist-ssr/
 coverage/
 .dev.vars
 .env
+.env.*
 *.local
 __unconfig*
 todos.json

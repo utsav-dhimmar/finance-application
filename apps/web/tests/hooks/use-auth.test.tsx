@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useLogin, useLogout, useMe, useRegister } from "@/hooks/use-auth";
+import { useLogin, useLogout, useMe } from "@/hooks/use-auth";
 
 function jsonResponse(status: number, body: unknown): Response {
 	return new Response(JSON.stringify(body), {
@@ -93,34 +93,59 @@ describe("useMe", () => {
 	});
 });
 
-describe("useLogin / useRegister", () => {
-	it.each([
-		["useLogin", useLogin, "/api/auth/login"],
-		["useRegister", useRegister, "/api/auth/register"],
-	] as const)(
-		"%s posts credentials and seeds the me cache",
-		async (_name, useHook, endpoint) => {
-			const fetchMock = vi.fn(async (input: RequestInfo | string) => {
-				const url = typeof input === "string" ? input : input.url;
-				expect(url).toBe(endpoint);
-				return jsonResponse(200, { id: "u3", email: "seeded@example.com" });
-			});
-			vi.stubGlobal("fetch", fetchMock);
+describe("useLogin", () => {
+	it("posts credentials and seeds the me cache", async () => {
+		const fetchMock = vi.fn(async (input: RequestInfo | string) => {
+			const url = typeof input === "string" ? input : input.url;
+			expect(url).toBe("/api/auth/login");
+			return jsonResponse(200, { id: "u3", email: "seeded@example.com" });
+		});
+		vi.stubGlobal("fetch", fetchMock);
 
-			const { view, queryClient } = renderWithProvider(useHook);
-			act(() => {
-				view.result.current.mutate({
-					email: "seeded@example.com",
-					password: "s3cret-pw",
-				});
-			});
-			await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
-			expect(queryClient.getQueryData(["me"])).toEqual({
-				id: "u3",
+		const { view, queryClient } = renderWithProvider(useLogin);
+		act(() => {
+			view.result.current.mutate({
 				email: "seeded@example.com",
+				password: "s3cret-pw",
 			});
-		},
-	);
+		});
+		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+		expect(queryClient.getQueryData(["me"])).toEqual({
+			id: "u3",
+			email: "seeded@example.com",
+		});
+	});
+
+	it("clears the previous principal's cached data on login", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				jsonResponse(200, { id: "u3", email: "seeded@example.com" }),
+			),
+		);
+		const { view, queryClient } = renderWithProvider(useLogin);
+		// Cached rows belonging to a previously signed-in principal.
+		queryClient.setQueryData(["accounts", "active"], {
+			accounts: [{ id: "acc-1", name: "A's account" }],
+		});
+		queryClient.setQueryData(["reports", "month"], { total: 125000 });
+
+		act(() => {
+			view.result.current.mutate({
+				email: "seeded@example.com",
+				password: "s3cret-pw",
+			});
+		});
+		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+		// The new principal must not inherit any of it.
+		expect(queryClient.getQueryData(["accounts", "active"])).toBeUndefined();
+		expect(queryClient.getQueryData(["reports", "month"])).toBeUndefined();
+		// Only the new principal's identity is seeded.
+		expect(queryClient.getQueryData(["me"])).toEqual({
+			id: "u3",
+			email: "seeded@example.com",
+		});
+	});
 
 	it("surfaces the server error envelope for invalid credentials", async () => {
 		vi.stubGlobal(
@@ -150,7 +175,7 @@ describe("useLogin / useRegister", () => {
 });
 
 describe("useLogout", () => {
-	it("posts to the logout endpoint and clears the me cache", async () => {
+	it("posts to the logout endpoint and clears all cached data", async () => {
 		const fetchMock = vi.fn(async (input: RequestInfo | string) => {
 			const url = typeof input === "string" ? input : input.url;
 			if (url === "/api/auth/logout") {
@@ -168,10 +193,15 @@ describe("useLogout", () => {
 
 		const { view, queryClient } = renderWithProvider(useLogout);
 		queryClient.setQueryData(["me"], { id: "u4", email: "out@example.com" });
+		queryClient.setQueryData(["accounts", "active"], {
+			accounts: [{ id: "acc-9", name: "Leaving account" }],
+		});
 		act(() => {
 			view.result.current.mutate();
 		});
 		await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
 		expect(queryClient.getQueryData(["me"])).toBeNull();
+		// Cached financial rows do not outlive the session they belonged to.
+		expect(queryClient.getQueryData(["accounts", "active"])).toBeUndefined();
 	});
 });

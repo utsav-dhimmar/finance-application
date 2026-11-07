@@ -2,3 +2,6 @@
 #   node -e "console.log('JWT_SECRET='+require('crypto').randomBytes(48).toString('base64url'))"
 # In production, set it with: wrangler secret put JWT_SECRET
 JWT_SECRET=replace-me-with-a-long-random-secret
+# Local development only: serves /api/openapi and /api/docs (production
+# leaves this unset so both paths answer 404).
+DOCS_ENABLED=true

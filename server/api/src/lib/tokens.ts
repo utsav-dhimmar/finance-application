@@ -4,17 +4,22 @@ const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 
 export interface AccessTokenPayload {
 	sub: string;
+	// The user's token version at issue time (0 for pre-upgrade tokens that
+	// predate the claim); requireAuth rejects a mismatch, so a logout that
+	// bumps the version revokes every outstanding access token immediately.
+	ver: number;
 	iat: number;
 	exp: number;
 }
 
 export async function signAccessToken(
 	userId: string,
+	tokenVersion: number,
 	secret: string,
 ): Promise<string> {
 	const now = Math.floor(Date.now() / 1000);
 	return sign(
-		{ sub: userId, iat: now, exp: now + ACCESS_TOKEN_TTL_SECONDS },
+		{ sub: userId, ver: tokenVersion, iat: now, exp: now + ACCESS_TOKEN_TTL_SECONDS },
 		secret,
 		"HS256",
 	);
@@ -26,10 +31,18 @@ export async function verifyAccessToken(
 ): Promise<AccessTokenPayload | null> {
 	try {
 		const payload = await verify(token, secret, "HS256");
-		if (typeof payload.sub !== "string") {
+		// Narrow the decoded payload explicitly: every claim the middleware
+		// relies on is checked, so no unsafe cast is needed. Tokens issued
+		// before the ver claim existed read as version 0, the database default.
+		const version = typeof payload.ver === "number" ? payload.ver : 0;
+		if (
+			typeof payload.sub !== "string" ||
+			typeof payload.iat !== "number" ||
+			typeof payload.exp !== "number"
+		) {
 			return null;
 		}
-		return payload as unknown as AccessTokenPayload;
+		return { sub: payload.sub, ver: version, iat: payload.iat, exp: payload.exp };
 	} catch {
 		return null;
 	}

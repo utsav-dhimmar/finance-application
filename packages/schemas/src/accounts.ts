@@ -26,7 +26,17 @@ export const accountNameSchema = z
 
 // Money crosses the wire as integer minor units (paise) only; binary floats
 // are never an authoritative amount (AGENTS.md rule).
-export const amountMinorSchema = z.number().int();
+//
+// Maximum supported magnitude: 13 whole rupee digits (the web form's cap)
+// expressed in paise. Stays far below 2^53, so no integer paise value can lose
+// precision at JSON parse time or overflow an integer SUM in the database.
+export const MAX_AMOUNT_MINOR = 999_999_999_999_900;
+
+export const amountMinorSchema = z
+	.number()
+	.int()
+	.min(-MAX_AMOUNT_MINOR)
+	.max(MAX_AMOUNT_MINOR);
 
 // Rupee-decimal string (form input) → integer paise, parsed digit-by-digit so
 // no binary floating-point arithmetic ever touches the value. An empty string

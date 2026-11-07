@@ -1,23 +1,10 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { env, exports } from "cloudflare:workers";
-
-// The main worker's default export, invoked with real bindings so requests
-// carry env (D1 + JWT_SECRET) like production traffic does.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
-
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE } from "@/lib/session";
+import { cookieHeader, fetchApp, seedUserAndLogin } from "../helpers";
 
 const BASE = "https://test.local/api/accounts";
-const REGISTER_URL = "https://test.local/api/auth/register";
 
 function jsonResponseInit(
 	method: string,
@@ -39,24 +26,10 @@ function jsonResponseInit(
 
 // Sessions must be established inside the test body: the workers test pool's
 // isolated storage does not carry rows written in beforeEach into the test.
-// Returns the full `access_token=<jwt>` pair, ready for a Cookie header.
-async function registerAndGetCookie(email: string): Promise<string> {
-	const res = await worker.fetch(
-		new Request(REGISTER_URL, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email, password: "s3cret-pw" }),
-		}),
-		env,
-	);
-	const access = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${ACCESS_COOKIE}=`))
-		?.split(";")[0];
-	if (!access) {
-		throw new Error("registration did not yield an access cookie");
-	}
-	return access;
+// Returns the full `<cookie-name>=<jwt>` pair, ready for a Cookie header.
+async function freshCookie(): Promise<string> {
+	const session = await seedUserAndLogin();
+	return cookieHeader({ [ACCESS_COOKIE]: session.access });
 }
 
 function postJson(
@@ -73,13 +46,6 @@ function patchJson(
 	cookie: string,
 ): Promise<Response> {
 	return fetchApp(url, jsonResponseInit("PATCH", body, cookie));
-}
-
-let userCounter = 0;
-
-async function freshCookie(): Promise<string> {
-	userCounter += 1;
-	return registerAndGetCookie(`accounts-${userCounter}@example.com`);
 }
 
 async function createAccount(
@@ -111,7 +77,13 @@ describe("authentication", () => {
 		expect((await fetchApp(BASE)).status).toBe(401);
 		expect((await fetchApp(`${BASE}/some-id`)).status).toBe(401);
 		expect(
-			(await postJson(BASE, accountBody("X"), "access_token=invalid")).status,
+			(
+				await postJson(
+					BASE,
+					accountBody("X"),
+					cookieHeader({ [ACCESS_COOKIE]: "invalid" }),
+				)
+			).status,
 		).toBe(401);
 	});
 });

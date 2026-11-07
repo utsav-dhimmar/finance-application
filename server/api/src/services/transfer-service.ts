@@ -55,9 +55,14 @@ export type TransferOutcome<T, E extends ErrorCode> =
 
 // Creation carries a `replayed` flag on success so the route can answer
 // 201 (fresh) or 200 (idempotent replay) without re-inspecting the row.
+// ID_CONFLICT covers a client-generated id that already exists on any row:
+// the response is identical whichever user owns it.
 export type CreateTransferOutcome =
 	| { ok: true; value: TransferView; replayed: boolean }
-	| { ok: false; code: "ACCOUNT_INELIGIBLE" | "SAME_ACCOUNT_TRANSFER" };
+	| {
+			ok: false;
+			code: "ACCOUNT_INELIGIBLE" | "SAME_ACCOUNT_TRANSFER" | "ID_CONFLICT";
+	  };
 export type GetTransferOutcome = TransferOutcome<TransferView, "NOT_FOUND">;
 export type UpdateTransferOutcome = TransferOutcome<
 	TransferView,
@@ -66,13 +71,19 @@ export type UpdateTransferOutcome = TransferOutcome<
 	| "SAME_ACCOUNT_TRANSFER"
 	| "TRANSFER_TRANSITION_INVALID"
 >;
-export type TransitionTransferOutcome = TransferOutcome<
-	TransferView,
-	| "NOT_FOUND"
-	| "TRANSFER_TRANSITION_INVALID"
-	| "SAME_ACCOUNT_TRANSFER"
-	| "RESTORE_CONFLICT"
->;
+// Lifecycle outcomes. RESTORE_CONFLICT carries a `reason` so the route can
+// name the cause instead of a single misleading message.
+export type TransitionTransferOutcome =
+	| { ok: true; value: TransferView }
+	| {
+			ok: false;
+			code:
+				| "NOT_FOUND"
+				| "TRANSFER_TRANSITION_INVALID"
+				| "SAME_ACCOUNT_TRANSFER"
+				| "RESTORE_CONFLICT";
+			reason?: "deleted_reference" | "inactive_replacement";
+	  };
 
 export interface TransferList {
 	transfers: TransferView[];
@@ -193,7 +204,25 @@ export function createTransferService(deps: TransferServiceDeps) {
 					account.userId !== userId ||
 					account.status === "deleted"
 				) {
-					return { ok: false, code: "RESTORE_CONFLICT" };
+					return {
+						ok: false,
+						code: "RESTORE_CONFLICT",
+						reason: "deleted_reference",
+					};
+				}
+				// A reassignment target must be an active replacement; the
+				// transfer's own archived references restore as-is.
+				const isReassigned =
+					(reassignment?.sourceAccountId !== undefined &&
+						accountId === reassignment.sourceAccountId) ||
+					(reassignment?.destinationAccountId !== undefined &&
+						accountId === reassignment.destinationAccountId);
+				if (isReassigned && account.status !== "active") {
+					return {
+						ok: false,
+						code: "RESTORE_CONFLICT",
+						reason: "inactive_replacement",
+					};
 				}
 			}
 		}
@@ -203,34 +232,33 @@ export function createTransferService(deps: TransferServiceDeps) {
 				: target === "deleted"
 					? { archivedAt: null, deletedAt: nowIso }
 					: { archivedAt: null, deletedAt: null };
-		const updated = await transfers.updateStatus(
-			transferId,
-			target,
-			timestamps,
-			nowIso,
-		);
-		if (!updated) {
-			return { ok: false, code: "NOT_FOUND" };
-		}
-		if (
+		const detailsPatch =
 			reassignment?.sourceAccountId !== undefined ||
 			reassignment?.destinationAccountId !== undefined
-		) {
-			const withRefs = await transfers.updateDetails(
-				transferId,
-				{
-					...(reassignment.sourceAccountId !== undefined
-						? { sourceAccountId: reassignment.sourceAccountId }
-						: {}),
-					...(reassignment.destinationAccountId !== undefined
-						? { destinationAccountId: reassignment.destinationAccountId }
-						: {}),
-				},
-				nowIso,
-			);
-			if (!withRefs) {
-				return { ok: false, code: "NOT_FOUND" };
-			}
+				? {
+						...(reassignment.sourceAccountId !== undefined
+							? { sourceAccountId: reassignment.sourceAccountId }
+							: {}),
+						...(reassignment.destinationAccountId !== undefined
+							? { destinationAccountId: reassignment.destinationAccountId }
+							: {}),
+					}
+				: undefined;
+		// The lifecycle flip and the reference reassignment commit atomically:
+		// a failure between two independent writes would leave an active row
+		// referencing deleted records.
+		const updated =
+			detailsPatch !== undefined
+				? await transfers.updateStatusAndDetails(
+						transferId,
+						target,
+						timestamps,
+						detailsPatch,
+						nowIso,
+					)
+				: await transfers.updateStatus(transferId, target, timestamps, nowIso);
+		if (!updated) {
+			return { ok: false, code: "NOT_FOUND" };
 		}
 		const finalRow = await transfers.findByIdWithRefs(transferId);
 		if (!finalRow) {
@@ -297,7 +325,9 @@ export function createTransferService(deps: TransferServiceDeps) {
 				});
 			} catch {
 				// Lost a create race to the same id: the winner's row is the
-				// idempotent answer, not an error.
+				// idempotent answer when it belongs to this user. Any other
+				// collision is a neutral conflict — the response is identical
+				// whichever user owns the colliding row.
 				const row = await transfers.findByIdWithRefs(input.id);
 				if (row && row.transfer.userId === input.userId) {
 					return {
@@ -310,7 +340,7 @@ export function createTransferService(deps: TransferServiceDeps) {
 						replayed: true,
 					};
 				}
-				throw new Error("transfer insert failed without a replay row");
+				return { ok: false, code: "ID_CONFLICT" };
 			}
 			const row = await transfers.findByIdWithRefs(input.id);
 			if (!row) {
@@ -474,9 +504,11 @@ export function createTransferService(deps: TransferServiceDeps) {
 			if (transfer.status !== "deleted") {
 				return { ok: false, code: "TRANSFER_TRANSITION_INVALID" };
 			}
-			const removed = await transfers.delete(transferId);
+			// The status guard closes the race against a concurrent restore: only
+			// a row still in the deleted state is physically removed.
+			const removed = await transfers.deleteIfDeleted(transferId);
 			if (!removed) {
-				return { ok: false, code: "NOT_FOUND" };
+				return { ok: false, code: "TRANSFER_TRANSITION_INVALID" };
 			}
 			return {
 				ok: true,

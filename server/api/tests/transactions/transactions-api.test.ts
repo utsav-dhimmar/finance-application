@@ -1,25 +1,20 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { env, exports } from "cloudflare:workers";
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { getDb } from "@/db";
+import { hashPassword } from "@/lib/password";
 import { ACCESS_COOKIE } from "@/lib/session";
 import { uuidV7 } from "@/lib/uuid";
-
-// The main worker's default export, invoked with real bindings so requests
-// carry env (D1 + JWT_SECRET) like production traffic does.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
+import { createAccountRepository } from "@/repositories/account-repository";
+import { createCategoryRepository } from "@/repositories/category-repository";
+import { createTransactionRepository } from "@/repositories/transaction-repository";
+import { createUserRepository } from "@/repositories/user-repository";
+import { isoNow } from "@/utils/datetime";
+import { cookieHeader, fetchApp, seedUserAndLogin } from "../helpers";
 
 const BASE = "https://test.local/api/transactions";
 const ACCOUNTS_URL = "https://test.local/api/accounts";
 const CATEGORIES_URL = "https://test.local/api/categories";
-const REGISTER_URL = "https://test.local/api/auth/register";
 
 function jsonResponseInit(
 	method: string,
@@ -36,30 +31,9 @@ function jsonResponseInit(
 	};
 }
 
-async function registerAndGetCookie(email: string): Promise<string> {
-	const res = await worker.fetch(
-		new Request(REGISTER_URL, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email, password: "s3cret-pw" }),
-		}),
-		env,
-	);
-	const access = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${ACCESS_COOKIE}=`))
-		?.split(";")[0];
-	if (!access) {
-		throw new Error("registration did not yield an access cookie");
-	}
-	return access;
-}
-
-let userCounter = 0;
-
 async function freshCookie(): Promise<string> {
-	userCounter += 1;
-	return registerAndGetCookie(`txn-api-${userCounter}@example.com`);
+	const session = await seedUserAndLogin();
+	return cookieHeader({ [ACCESS_COOKIE]: session.access });
 }
 
 async function createAccount(
@@ -122,6 +96,20 @@ async function postTransaction(
 	return fetchApp(BASE, jsonResponseInit("POST", body, cookie));
 }
 
+interface TransactionListBody {
+	total: number;
+	transactions: Array<{ id: string; notes: string | null }>;
+}
+
+async function listTransactions(
+	cookie: string,
+	query: string,
+): Promise<TransactionListBody> {
+	const res = await fetchApp(`${BASE}${query}`, { headers: { cookie } });
+	expect(res.status).toBe(200);
+	return (await res.json()) as TransactionListBody;
+}
+
 beforeEach(async () => {
 	await env.finance_application.exec(
 		"DELETE FROM transactions; DELETE FROM categories; DELETE FROM accounts; DELETE FROM refresh_tokens; DELETE FROM users;",
@@ -133,13 +121,22 @@ describe("authentication", () => {
 		expect((await fetchApp(BASE)).status).toBe(401);
 		expect((await fetchApp(`${BASE}/some-id`)).status).toBe(401);
 		expect(
-			(await postTransaction("access_token=invalid", transactionBody())).status,
+			(
+				await postTransaction(
+					cookieHeader({ [ACCESS_COOKIE]: "invalid" }),
+					transactionBody(),
+				)
+			).status,
 		).toBe(401);
 		expect(
 			(
 				await fetchApp(
 					`${BASE}/some-id/archive`,
-					jsonResponseInit("POST", undefined, "access_token=invalid"),
+					jsonResponseInit(
+						"POST",
+						undefined,
+						cookieHeader({ [ACCESS_COOKIE]: "invalid" }),
+					),
 				)
 			).status,
 		).toBe(401);
@@ -258,6 +255,71 @@ describe("POST /api/transactions", () => {
 		await expect(wrongType.json()).resolves.toMatchObject({
 			error: { code: "CATEGORY_INELIGIBLE" },
 		});
+	});
+
+	it("answers 409 ID_CONFLICT for a client id already owned by another user", async () => {
+		const session = await seedUserAndLogin();
+		const cookie = cookieHeader({ [ACCESS_COOKIE]: session.access });
+		const { accountId, categoryId } = await seedBaseline(cookie);
+
+		// A second user, seeded directly (no session): their own account,
+		// category, and a transaction already holding the colliding id.
+		const db = getDb(env);
+		const otherUserId = uuidV7();
+		const now = isoNow();
+		await createUserRepository(db).insert({
+			id: otherUserId,
+			email: "conflict-peer@test.local",
+			passwordHash: hashPassword("s3cret-pw"),
+			createdAt: now,
+			updatedAt: now,
+		});
+		const otherAccountId = uuidV7();
+		await createAccountRepository(db).insert({
+			id: otherAccountId,
+			userId: otherUserId,
+			name: "Peer Bank",
+			type: "bank",
+			openingBalanceMinor: 0,
+			createdAt: now,
+			updatedAt: now,
+		});
+		const otherCategoryId = uuidV7();
+		await createCategoryRepository(db).insert({
+			id: otherCategoryId,
+			userId: otherUserId,
+			name: "Peer Groceries",
+			type: "expense",
+			color: null,
+			icon: null,
+			createdAt: now,
+			updatedAt: now,
+		});
+		const collidingId = uuidV7();
+		await createTransactionRepository(db).insert({
+			id: collidingId,
+			userId: otherUserId,
+			type: "expense",
+			amountMinor: 123,
+			date: "2026-01-10",
+			accountId: otherAccountId,
+			categoryId: otherCategoryId,
+			notes: "peer private note",
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		const res = await postTransaction(
+			cookie,
+			transactionBody({ id: collidingId, accountId, categoryId }),
+		);
+		expect(res.status).toBe(409);
+		const body: unknown = await res.json();
+		expect(body).toMatchObject({ error: { code: "ID_CONFLICT" } });
+		// The neutral conflict response must not leak the other user's row.
+		const bodyText = JSON.stringify(body);
+		expect(bodyText).not.toContain("peer private note");
+		expect(bodyText).not.toContain(otherAccountId);
 	});
 });
 
@@ -482,6 +544,99 @@ describe("GET /api/transactions", () => {
 			)
 		).json()) as { total: number };
 		expect(ranged.total).toBe(2);
+	});
+
+	it("matches % and _ in search text literally instead of as wildcards", async () => {
+		const cookie = await freshCookie();
+		const { accountId, categoryId } = await seedBaseline(cookie);
+		const discountId = (
+			(await (
+				await postTransaction(
+					cookie,
+					transactionBody({
+						accountId,
+						categoryId,
+						date: "2026-01-05",
+						notes: "50%_off",
+					}),
+				)
+			).json()) as { id: string }
+		).id;
+		await postTransaction(
+			cookie,
+			transactionBody({
+				accountId,
+				categoryId,
+				date: "2026-01-06",
+				notes: "50xoff",
+			}),
+		);
+
+		// URLSearchParams percent-encodes `%` and `_` exactly like the app's
+		// api-client, so the search text arrives as the literal characters.
+		const fullNeedle = await listTransactions(
+			cookie,
+			`?${new URLSearchParams({ q: "50%_off" })}`,
+		);
+		expect(fullNeedle.total).toBe(1);
+		expect(fullNeedle.transactions[0]?.id).toBe(discountId);
+
+		// As a wildcard pattern "%50%%" would also match "50xoff"; the literal
+		// `%` does not.
+		const percentOnly = await listTransactions(
+			cookie,
+			`?${new URLSearchParams({ q: "50%" })}`,
+		);
+		expect(percentOnly.total).toBe(1);
+		expect(percentOnly.transactions[0]?.id).toBe(discountId);
+
+		// An underscore wildcard would turn "50_off" into "50?off" and match
+		// "50xoff"; the literal underscore matches nothing here.
+		const underscoreNeedle = await listTransactions(
+			cookie,
+			`?${new URLSearchParams({ q: "50_off" })}`,
+		);
+		expect(underscoreNeedle.total).toBe(0);
+	});
+
+	it("paginates stably when date and createdAt tie across rows", async () => {
+		const session = await seedUserAndLogin();
+		const cookie = cookieHeader({ [ACCESS_COOKIE]: session.access });
+		const { accountId, categoryId } = await seedBaseline(cookie);
+
+		// Identical date AND createdAt: ordering ties must fall through to the
+		// unique trailing id so pages never repeat or skip a row.
+		const tiedTimestamp = "2026-01-15T10:00:00.000Z";
+		const insertedIds = new Set<string>();
+		const db = getDb(env);
+		for (const amountMinor of [111, 222, 333]) {
+			const row = await createTransactionRepository(db).insert({
+				id: uuidV7(),
+				userId: session.userId,
+				type: "expense",
+				amountMinor,
+				date: "2026-01-15",
+				accountId,
+				categoryId,
+				notes: null,
+				createdAt: tiedTimestamp,
+				updatedAt: tiedTimestamp,
+			});
+			insertedIds.add(row.id);
+		}
+
+		const seenIds: string[] = [];
+		for (const page of [1, 2, 3]) {
+			const list = await listTransactions(cookie, `?page=${page}&pageSize=1`);
+			expect(list.total).toBe(3);
+			const id = list.transactions[0]?.id;
+			if (!id) {
+				throw new Error(`page ${page} returned no transaction`);
+			}
+			seenIds.push(id);
+		}
+		expect(new Set(seenIds).size).toBe(3);
+		expect(new Set(seenIds)).toEqual(insertedIds);
 	});
 });
 

@@ -9,15 +9,24 @@ import {
 const SECRET = "test-secret-for-unit-tests";
 
 describe("access tokens", () => {
-	it("roundtrips the user id through sign and verify", async () => {
-		const token = await signAccessToken("user-1", SECRET);
+	it("roundtrips the user id and token version through sign and verify", async () => {
+		const token = await signAccessToken("user-1", 3, SECRET);
 		const payload = await verifyAccessToken(token, SECRET);
 		expect(payload?.sub).toBe("user-1");
+		expect(payload?.ver).toBe(3);
 		expect(payload?.exp).toBeGreaterThan(payload?.iat ?? 0);
 	});
 
+	it("reads tokens without a ver claim as version 0", async () => {
+		// Pre-upgrade tokens carry no ver; they verify as version 0 so they
+		// survive until their natural expiry unless a logout bumped the version.
+		const token = await signAccessToken("user-1", 0, SECRET);
+		const payload = await verifyAccessToken(token, SECRET);
+		expect(payload?.ver).toBe(0);
+	});
+
 	it("rejects a token signed with a different secret", async () => {
-		const token = await signAccessToken("user-1", SECRET);
+		const token = await signAccessToken("user-1", 0, SECRET);
 		await expect(verifyAccessToken(token, "other-secret")).resolves.toBeNull();
 	});
 

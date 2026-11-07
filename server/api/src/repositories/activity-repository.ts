@@ -1,5 +1,6 @@
 import { type SQL, sql } from "drizzle-orm";
 import type { Db } from "@/db";
+import { LIKE_ESCAPE, escapeLike } from "@/lib/like";
 
 // The unified account-history query: account-scoped transactions UNION ALL
 // transfer sides, every row written from one account's perspective (a transfer
@@ -96,9 +97,11 @@ function transactionLeg(
 		conditions.push(sql`t.date <= ${filters.to}`);
 	}
 	if (filters.q) {
-		const needle = `%${filters.q}%`;
+		// Search text is literal: `%` and `_` are escaped so they match
+		// themselves instead of acting as wildcard patterns.
+		const needle = `%${escapeLike(filters.q)}%`;
 		conditions.push(
-			sql`(t.notes LIKE ${needle} OR a.name LIKE ${needle} OR c.name LIKE ${needle})`,
+			sql`(t.notes LIKE ${needle} ESCAPE ${LIKE_ESCAPE} OR a.name LIKE ${needle} ESCAPE ${LIKE_ESCAPE} OR c.name LIKE ${needle} ESCAPE ${LIKE_ESCAPE})`,
 		);
 	}
 	const where = sql.join(conditions, sql` AND `);
@@ -153,9 +156,11 @@ function transferLeg(
 		baseConditions.push(sql`f.date <= ${filters.to}`);
 	}
 	if (filters.q) {
-		const needle = `%${filters.q}%`;
+		// Search text is literal: `%` and `_` are escaped so they match
+		// themselves instead of acting as wildcard patterns.
+		const needle = `%${escapeLike(filters.q)}%`;
 		baseConditions.push(
-			sql`(f.notes LIKE ${needle} OR src.name LIKE ${needle} OR dst.name LIKE ${needle})`,
+			sql`(f.notes LIKE ${needle} ESCAPE ${LIKE_ESCAPE} OR src.name LIKE ${needle} ESCAPE ${LIKE_ESCAPE} OR dst.name LIKE ${needle} ESCAPE ${LIKE_ESCAPE})`,
 		);
 	}
 
@@ -242,7 +247,7 @@ export function createActivityRepository(db: Db) {
 			const { page, pageSize, ...rest } = filters;
 			const union = buildUnion(userId, rest);
 			const rowsResult = await db.all<RawActivityRow>(
-				sql`SELECT * FROM (${union}) ORDER BY "date" DESC, "createdAt" DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
+				sql`SELECT * FROM (${union}) ORDER BY "date" DESC, "createdAt" DESC, "id" DESC LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
 			);
 			const totals = await db.all<{ total: number | string }>(
 				sql`SELECT COUNT(*) AS "total" FROM (${union})`,

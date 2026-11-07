@@ -4,11 +4,9 @@ import {
 	logout as apiLogout,
 	me as apiMe,
 	refresh as apiRefresh,
-	register as apiRegister,
 } from "@finance-application/api-client";
 import type {
 	LoginBody,
-	RegisterBody,
 	UserResponse,
 } from "@finance-application/schemas";
 
@@ -48,10 +46,6 @@ export function loginWithCredentials(body: LoginBody): Promise<UserResponse> {
 	return apiLogin(body);
 }
 
-export function registerAccount(body: RegisterBody): Promise<UserResponse> {
-	return apiRegister(body);
-}
-
 export function logoutCurrentSession(): Promise<null> {
 	return apiLogout();
 }
@@ -60,8 +54,8 @@ export function logoutCurrentSession(): Promise<null> {
 // name the action that failed when the API is unreachable.
 export function getAuthErrorMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiError) {
-		if (error.code === "EMAIL_TAKEN") {
-			return "That email is already registered. Try logging in instead.";
+		if (error.code === "REGISTRATION_DISABLED") {
+			return "Registration is closed for this application.";
 		}
 		return error.message;
 	}

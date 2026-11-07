@@ -36,6 +36,11 @@ export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
 	if (!user) {
 		return c.json(UNAUTHENTICATED_ERROR, 401);
 	}
+	// A token minted before a logout bumps the user's token version stops
+	// verifying here, so logout revokes outstanding access tokens immediately.
+	if (user.tokenVersion !== payload.ver) {
+		return c.json(UNAUTHENTICATED_ERROR, 401);
+	}
 	c.set("user", user);
 	await next();
 });

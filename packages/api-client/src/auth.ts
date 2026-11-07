@@ -1,27 +1,9 @@
-import type {
-	LoginBody,
-	RegisterBody,
-	UserResponse,
-} from "@finance-application/schemas";
+import type { LoginBody, UserResponse } from "@finance-application/schemas";
 import { apiFetch } from "./client";
 
 export interface ApiClientOptions {
 	/** Prefix for all requests, e.g. "https://api.example.com". Defaults to same-origin relative paths. */
 	baseUrl?: string;
-}
-
-export function register(
-	body: RegisterBody,
-	options?: ApiClientOptions,
-): Promise<UserResponse> {
-	return apiFetch<UserResponse>(
-		"/api/auth/register",
-		{
-			method: "POST",
-			body: JSON.stringify(body),
-		},
-		options,
-	);
 }
 
 export function login(

@@ -322,9 +322,11 @@ export function createCategoryService(deps: CategoryServiceDeps) {
 			if (transactionCount > 0) {
 				return { ok: false, code: "PERMANENT_DELETE_BLOCKED" };
 			}
-			const removed = await categories.delete(categoryId);
+			// The status guard closes the race against a concurrent restore: only
+			// a row still in the deleted state is physically removed.
+			const removed = await categories.deleteIfDeleted(categoryId);
 			if (!removed) {
-				return { ok: false, code: "NOT_FOUND" };
+				return { ok: false, code: "CATEGORY_TRANSITION_INVALID" };
 			}
 			return { ok: true, value: undefined };
 		},

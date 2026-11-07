@@ -1,21 +1,14 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { env, exports } from "cloudflare:workers";
-
-// The main worker's default export, invoked with real bindings so requests
-// carry env (D1 + JWT_SECRET) like production traffic does.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
-
+import { env } from "cloudflare:workers";
 import { sign } from "hono/jwt";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/session";
+import {
+	cookieHeader,
+	cookieValue,
+	fetchApp,
+	seedUserAndLogin,
+} from "../helpers";
 
 const REGISTER_URL = "https://test.local/api/auth/register";
 const LOGIN_URL = "https://test.local/api/auth/login";
@@ -36,17 +29,11 @@ function postJson(
 	});
 }
 
-function cookieValue(res: Response, name: string): string | undefined {
-	const header = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${name}=`));
-	return header?.split(";")[0]?.slice(name.length + 1);
-}
-
-function cookieHeader(pairs: Record<string, string>): string {
-	return Object.entries(pairs)
-		.map(([key, value]) => `${key}=${value}`)
-		.join("; ");
+async function userCount(): Promise<number> {
+	const row = await env.finance_application
+		.prepare("SELECT COUNT(*) AS n FROM users")
+		.first<{ n: number }>();
+	return row?.n ?? 0;
 }
 
 beforeEach(async () => {
@@ -55,107 +42,83 @@ beforeEach(async () => {
 	);
 });
 
-describe("POST /api/auth/register", () => {
-	it("creates an account, returns 201, and sets HttpOnly session cookies", async () => {
+describe("POST /api/auth/register (disabled)", () => {
+	it("answers 403 REGISTRATION_DISABLED for a well-formed body and sets no cookies", async () => {
 		const res = await postJson(REGISTER_URL, {
 			email: "User@Example.com",
 			password: "s3cret-pw",
 		});
-		expect(res.status).toBe(201);
+		expect(res.status).toBe(403);
 		await expect(res.json()).resolves.toMatchObject({
-			email: "user@example.com",
+			error: { code: "REGISTRATION_DISABLED" },
 		});
-
-		const cookies = res.headers.getSetCookie();
-		const access = cookies.find((entry) =>
-			entry.startsWith(`${ACCESS_COOKIE}=`),
-		);
-		const refresh = cookies.find((entry) =>
-			entry.startsWith(`${REFRESH_COOKIE}=`),
-		);
-		expect(access).toContain("HttpOnly");
-		expect(access).toContain("Secure");
-		expect(access).toContain("SameSite=Lax");
-		expect(access).toContain("Path=/");
-		expect(refresh).toContain("HttpOnly");
-		expect(refresh).toContain("Path=/api/auth");
+		expect(res.headers.getSetCookie()).toEqual([]);
 	});
 
-	it("stores the password as a PHC Argon2id hash", async () => {
+	it("answers with the byte-identical 403 for a malformed body", async () => {
+		const wellFormed = await postJson(REGISTER_URL, {
+			email: "User@Example.com",
+			password: "s3cret-pw",
+		});
+		const malformed = await postJson(REGISTER_URL, { email: "not-an-email" });
+		expect(malformed.status).toBe(wellFormed.status);
+		const wellFormedBody: unknown = await wellFormed.json();
+		const malformedBody: unknown = await malformed.json();
+		expect(malformedBody).toEqual(wellFormedBody);
+	});
+
+	it("leaks nothing about existing accounts: known and unknown emails answer identically", async () => {
+		const { email: existingEmail } = await seedUserAndLogin();
+
+		const known = await postJson(REGISTER_URL, {
+			email: existingEmail,
+			password: "s3cret-pw",
+		});
+		const unknown = await postJson(REGISTER_URL, {
+			email: "ghost@example.com",
+			password: "s3cret-pw",
+		});
+		expect(known.status).toBe(unknown.status);
+		const knownBody: unknown = await known.json();
+		const unknownBody: unknown = await unknown.json();
+		expect(knownBody).toEqual(unknownBody);
+	});
+
+	it("creates no users row: the count is unchanged across every register shape", async () => {
+		const { email: existingEmail } = await seedUserAndLogin();
+		const before = await userCount();
+		expect(before).toBe(1);
+
 		await postJson(REGISTER_URL, {
-			email: "hash@example.com",
+			email: existingEmail,
 			password: "s3cret-pw",
 		});
-		const result = await env.finance_application
-			.prepare(
-				"SELECT password_hash FROM users WHERE email = 'hash@example.com'",
-			)
-			.first<{ password_hash: string }>();
-		expect(result?.password_hash).toMatch(/^\$argon2id\$/);
-	});
-
-	it("rejects duplicate emails case-insensitively with 409 EMAIL_TAKEN", async () => {
 		await postJson(REGISTER_URL, {
-			email: "taken@example.com",
+			email: "brand-new@example.com",
 			password: "s3cret-pw",
 		});
-		const same = await postJson(REGISTER_URL, {
-			email: "taken@example.com",
-			password: "other-pw-1",
-		});
-		expect(same.status).toBe(409);
-		expect(await same.json()).toMatchObject({ error: { code: "EMAIL_TAKEN" } });
+		await postJson(REGISTER_URL, { email: "malformed" });
 
-		const differentCase = await postJson(REGISTER_URL, {
-			email: "TAKEN@example.com",
-			password: "other-pw-1",
-		});
-		expect(differentCase.status).toBe(409);
-	});
-
-	it("rejects invalid input with 400 VALIDATION_ERROR", async () => {
-		const shortPassword = await postJson(REGISTER_URL, {
-			email: "a@example.com",
-			password: "short",
-		});
-		expect(shortPassword.status).toBe(400);
-		const body: unknown = await shortPassword.json();
-		expect(body).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
-
-		const badEmail = await postJson(REGISTER_URL, {
-			email: "not-an-email",
-			password: "s3cret-pw",
-		});
-		expect(badEmail.status).toBe(400);
+		expect(await userCount()).toBe(before);
 	});
 });
 
 describe("POST /api/auth/login", () => {
 	it("returns the user and sets cookies for correct credentials", async () => {
-		await postJson(REGISTER_URL, {
-			email: "login@example.com",
-			password: "s3cret-pw",
-		});
-		const res = await postJson(LOGIN_URL, {
-			email: "login@example.com",
-			password: "s3cret-pw",
-		});
+		const { email } = await seedUserAndLogin();
+		// A second login for the same seeded user.
+		const res = await postJson(LOGIN_URL, { email, password: "s3cret-pw" });
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toMatchObject({
-			email: "login@example.com",
-		});
+		await expect(res.json()).resolves.toMatchObject({ email });
 		expect(cookieValue(res, ACCESS_COOKIE)).toBeDefined();
 		expect(cookieValue(res, REFRESH_COOKIE)).toBeDefined();
 	});
 
 	it("responds with the identical generic 401 for wrong password and unknown email", async () => {
-		await postJson(REGISTER_URL, {
-			email: "known@example.com",
-			password: "s3cret-pw",
-		});
+		const { email } = await seedUserAndLogin();
 
 		const wrongPassword = await postJson(LOGIN_URL, {
-			email: "known@example.com",
+			email,
 			password: "wrong-pw-1",
 		});
 		const unknownEmail = await postJson(LOGIN_URL, {
@@ -175,23 +138,14 @@ describe("POST /api/auth/login", () => {
 });
 
 describe("GET /api/auth/me", () => {
-	it("returns the authenticated user for a valid access token", async () => {
-		const registered = await postJson(REGISTER_URL, {
-			email: "me@example.com",
-			password: "s3cret-pw",
-		});
-		const access = cookieValue(registered, ACCESS_COOKIE);
-		if (!access) {
-			throw new Error("register did not set an access cookie");
-		}
+	it("returns the authenticated user for a seeded session", async () => {
+		const { access, email } = await seedUserAndLogin();
 
 		const res = await fetchApp(ME_URL, {
 			headers: { cookie: cookieHeader({ [ACCESS_COOKIE]: access }) },
 		});
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toMatchObject({
-			email: "me@example.com",
-		});
+		await expect(res.json()).resolves.toMatchObject({ email });
 	});
 
 	it("responds 401 UNAUTHENTICATED without or with a malformed access token", async () => {
@@ -208,17 +162,7 @@ describe("GET /api/auth/me", () => {
 	});
 
 	it("responds 401 for an expired access token", async () => {
-		await postJson(REGISTER_URL, {
-			email: "expired@example.com",
-			password: "s3cret-pw",
-		});
-		const row = await env.finance_application
-			.prepare("SELECT id FROM users WHERE email = 'expired@example.com'")
-			.first<{ id: string }>();
-		const userId = row?.id;
-		if (!userId) {
-			throw new Error("registered user not found");
-		}
+		const { userId } = await seedUserAndLogin();
 		const now = Math.floor(Date.now() / 1000);
 		const expired = await sign(
 			{ sub: userId, iat: now - 3600, exp: now - 1800 },

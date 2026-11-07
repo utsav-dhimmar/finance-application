@@ -1,64 +1,23 @@
-import { env, exports } from "cloudflare:workers";
-
-// The main worker's default export, invoked with real bindings so requests
-// carry env (D1 + JWT_SECRET) like production traffic does.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
-
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/session";
 import { generateRefreshToken, hashToken } from "@/lib/tokens";
 import { uuidV7 } from "@/lib/uuid";
+import {
+	cookieHeader,
+	cookieValue,
+	fetchApp,
+	type SessionCookies,
+	seedUserAndLogin,
+	workerWithEnv,
+} from "../helpers";
 
-const REGISTER_URL = "https://test.local/api/auth/register";
 const REFRESH_URL = "https://test.local/api/auth/refresh";
 const LOGOUT_URL = "https://test.local/api/auth/logout";
+const LOGIN_URL = "https://test.local/api/auth/login";
 
 function post(url: string, cookie?: string): Promise<Response> {
 	return fetchApp(url, { method: "POST", headers: cookie ? { cookie } : {} });
-}
-
-function cookieValue(res: Response, name: string): string | undefined {
-	const header = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${name}=`));
-	return header?.split(";")[0]?.slice(name.length + 1);
-}
-
-function cookieHeader(pairs: Record<string, string>): string {
-	return Object.entries(pairs)
-		.map(([key, value]) => `${key}=${value}`)
-		.join("; ");
-}
-
-interface SessionCookies {
-	access: string;
-	refresh: string;
-}
-
-async function registerAndGrabCookies(): Promise<SessionCookies> {
-	const res = await fetchApp(REGISTER_URL, {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({
-			email: "session@example.com",
-			password: "s3cret-pw",
-		}),
-	});
-	expect(res.status).toBe(201);
-	const access = cookieValue(res, ACCESS_COOKIE);
-	const refresh = cookieValue(res, REFRESH_COOKIE);
-	if (!access || !refresh) {
-		throw new Error("register did not set session cookies");
-	}
-	return { access, refresh };
 }
 
 function sessionCookieHeader(session: SessionCookies): string {
@@ -76,13 +35,11 @@ beforeEach(async () => {
 
 describe("POST /api/auth/refresh", () => {
 	it("rotates the session: new cookies, presented token revoked", async () => {
-		const session = await registerAndGrabCookies();
+		const session = await seedUserAndLogin();
 
 		const res = await post(REFRESH_URL, sessionCookieHeader(session));
 		expect(res.status).toBe(200);
-		await expect(res.json()).resolves.toMatchObject({
-			email: "session@example.com",
-		});
+		await expect(res.json()).resolves.toMatchObject({ email: session.email });
 		const newRefresh = cookieValue(res, REFRESH_COOKIE);
 		expect(newRefresh).toBeDefined();
 		expect(newRefresh).not.toBe(session.refresh);
@@ -95,7 +52,7 @@ describe("POST /api/auth/refresh", () => {
 	});
 
 	it("rejects reuse of a revoked refresh token with 401 INVALID_REFRESH_TOKEN", async () => {
-		const session = await registerAndGrabCookies();
+		const session = await seedUserAndLogin();
 		await post(REFRESH_URL, sessionCookieHeader(session));
 
 		const reuse = await post(REFRESH_URL, sessionCookieHeader(session));
@@ -117,14 +74,7 @@ describe("POST /api/auth/refresh", () => {
 	});
 
 	it("responds 401 for an expired refresh token", async () => {
-		await registerAndGrabCookies();
-		const userRow = await env.finance_application
-			.prepare("SELECT id FROM users WHERE email = 'session@example.com'")
-			.first<{ id: string }>();
-		const userId = userRow?.id;
-		if (!userId) {
-			throw new Error("registered user not found");
-		}
+		const { userId } = await seedUserAndLogin();
 
 		const token = generateRefreshToken();
 		const past = new Date(Date.now() - 60_000).toISOString();
@@ -144,11 +94,100 @@ describe("POST /api/auth/refresh", () => {
 			error: { code: "INVALID_REFRESH_TOKEN" },
 		});
 	});
+
+	it("rotates single-use under concurrency: two racing refreshes never both succeed", {
+		timeout: 120_000,
+	}, async () => {
+		// The rotation is single-use, so of two refreshes racing with the same
+		// valid cookie exactly one wins (200) and the loser gets 401. If workerd
+		// serializes the pair the outcome is identical; two 200s would be a
+		// double rotation and two 401s a rejected valid session — both bugs.
+		// Attempts are re-seeded: a first-attempt miss of the interleaving says
+		// nothing, so the contract is asserted per attempt up to 20 tries.
+		const MAX_ATTEMPTS = 20;
+
+		for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+			const session = await seedUserAndLogin();
+			const header = sessionCookieHeader(session);
+			const [first, second] = await Promise.all([
+				post(REFRESH_URL, header),
+				post(REFRESH_URL, header),
+			]);
+			const statuses = [first.status, second.status];
+			const successes = statuses.filter((status) => status === 200).length;
+
+			expect(successes).toBeLessThanOrEqual(1);
+			for (const res of [first, second]) {
+				if (res.status === 401) {
+					await expect(res.json()).resolves.toMatchObject({
+						error: { code: "INVALID_REFRESH_TOKEN" },
+					});
+				}
+			}
+
+			// Exactly one live (non-revoked) token must remain for the user: the
+			// rotated replacement after a success, or the untouched original.
+			const live = await env.finance_application
+				.prepare(
+					"SELECT COUNT(*) AS n FROM refresh_tokens WHERE user_id = ?1 AND revoked_at IS NULL",
+				)
+				.bind(session.userId)
+				.first<{ n: number }>();
+			expect(live?.n).toBe(1);
+		}
+	});
+});
+
+describe("auth rate limiting", () => {
+	const rejectingLimiter = workerWithEnv({
+		RATE_LIMITER: { limit: async () => ({ success: false }) },
+	});
+	const allowingLimiter = workerWithEnv({
+		RATE_LIMITER: { limit: async () => ({ success: true }) },
+	});
+
+	it("responds 429 RATE_LIMITED on refresh when the limiter rejects", async () => {
+		const session = await seedUserAndLogin();
+
+		const res = await rejectingLimiter.fetch(REFRESH_URL, {
+			method: "POST",
+			headers: { cookie: sessionCookieHeader(session) },
+		});
+		expect(res.status).toBe(429);
+		await expect(res.json()).resolves.toMatchObject({
+			error: { code: "RATE_LIMITED" },
+		});
+	});
+
+	it("allows refresh when the limiter accepts", async () => {
+		const session = await seedUserAndLogin();
+
+		const res = await allowingLimiter.fetch(REFRESH_URL, {
+			method: "POST",
+			headers: { cookie: sessionCookieHeader(session) },
+		});
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toMatchObject({ email: session.email });
+	});
+
+	it("responds 429 RATE_LIMITED on login when the limiter rejects", async () => {
+		const session = await seedUserAndLogin();
+
+		const res = await rejectingLimiter.fetch(LOGIN_URL, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: session.email, password: "s3cret-pw" }),
+		});
+		expect(res.status).toBe(429);
+		await expect(res.json()).resolves.toMatchObject({
+			error: { code: "RATE_LIMITED" },
+		});
+	});
 });
 
 describe("POST /api/auth/logout", () => {
 	it("revokes the refresh token, clears cookies, and always responds 204", async () => {
-		const session = await registerAndGrabCookies();
+		const session = await seedUserAndLogin();
 
 		const res = await post(LOGOUT_URL, sessionCookieHeader(session));
 		expect(res.status).toBe(204);
@@ -170,5 +209,66 @@ describe("POST /api/auth/logout", () => {
 	it("responds 204 even without a session", async () => {
 		const res = await post(LOGOUT_URL);
 		expect(res.status).toBe(204);
+	});
+});
+
+describe("refresh token retention bound", () => {
+	async function insertTokenRow(options: {
+		userId: string;
+		tokenHash: string;
+		expiresAt: string;
+		revokedAt: string | null;
+	}): Promise<void> {
+		await env.finance_application
+			.prepare(
+				"INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+			)
+			.bind(
+				uuidV7(),
+				options.userId,
+				options.tokenHash,
+				options.expiresAt,
+				options.revokedAt,
+				new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
+			)
+			.run();
+	}
+
+	it("purges expired and long-revoked rows on login while valid rows remain", async () => {
+		const session = await seedUserAndLogin();
+		// Seed an extra login so the just-created token row is not the one
+		// being purged: it is valid and must survive.
+		await insertTokenRow({
+			userId: session.userId,
+			tokenHash: await hashToken(generateRefreshToken()),
+			expiresAt: new Date(Date.now() - 1000).toISOString(), // expired
+			revokedAt: null,
+		});
+		await insertTokenRow({
+			userId: session.userId,
+			tokenHash: await hashToken(generateRefreshToken()),
+			expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+			revokedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // revoked 8 days ago
+		});
+
+		// A fresh login triggers the opportunistic purge.
+		const relogin = await fetchApp(LOGIN_URL, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email: session.email, password: "s3cret-pw" }),
+		});
+		expect(relogin.status).toBe(200);
+
+		const rows = await env.finance_application
+			.prepare(
+				"SELECT token_hash FROM refresh_tokens WHERE user_id = ? AND revoked_at IS NULL",
+			)
+			.bind(session.userId)
+			.all<{ token_hash: string }>();
+		const hashes = rows.results.map((row) => row.token_hash);
+		// Exactly the still-valid rows remain: the seeded login's token plus the
+		// relogin's new token; the expired and long-revoked rows are gone.
+		expect(hashes).toHaveLength(2);
+		expect(hashes).toContain(await hashToken(session.refresh));
 	});
 });

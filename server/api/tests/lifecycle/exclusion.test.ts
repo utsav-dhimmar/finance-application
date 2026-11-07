@@ -1,8 +1,9 @@
 /// <reference types="@cloudflare/vitest-plugin/types" />
-import { env, exports } from "cloudflare:workers";
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ACCESS_COOKIE } from "@/lib/session";
 import { uuidV7 } from "@/lib/uuid";
+import { cookieHeader, fetchApp, seedUserAndLogin } from "../helpers";
 
 // Cross-cutting exclusion guarantee (archive-trash capability): after
 // archiving and soft-deleting one record of each type, ordinary active lists
@@ -10,22 +11,11 @@ import { uuidV7 } from "@/lib/uuid";
 // them, and the report summary follows the reporting capability's inclusion
 // rules — archived transactions keep counting, soft-deleted ones do not, and
 // hidden accounts never contribute to balances.
-const worker = (
-	exports as {
-		default: { fetch: (req: Request, envVal: unknown) => Promise<Response> };
-	}
-).default;
-
-function fetchApp(url: string, init?: RequestInit): Promise<Response> {
-	return worker.fetch(new Request(url, init), env);
-}
-
 const ACCOUNTS_URL = "https://test.local/api/accounts";
 const CATEGORIES_URL = "https://test.local/api/categories";
 const TRANSACTIONS_URL = "https://test.local/api/transactions";
 const TRANSFERS_URL = "https://test.local/api/transfers";
 const SUMMARY_URL = "https://test.local/api/reports/summary";
-const REGISTER_URL = "https://test.local/api/auth/register";
 
 function jsonResponseInit(
 	method: string,
@@ -42,30 +32,9 @@ function jsonResponseInit(
 	};
 }
 
-async function registerAndGetCookie(email: string): Promise<string> {
-	const res = await worker.fetch(
-		new Request(REGISTER_URL, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ email, password: "s3cret-pw" }),
-		}),
-		env,
-	);
-	const access = res.headers
-		.getSetCookie()
-		.find((entry) => entry.startsWith(`${ACCESS_COOKIE}=`))
-		?.split(";")[0];
-	if (!access) {
-		throw new Error("registration did not yield an access cookie");
-	}
-	return access;
-}
-
-let userCounter = 0;
-
 async function freshCookie(): Promise<string> {
-	userCounter += 1;
-	return registerAndGetCookie(`exclusion-${userCounter}@example.com`);
+	const session = await seedUserAndLogin();
+	return cookieHeader({ [ACCESS_COOKIE]: session.access });
 }
 
 async function createAccount(

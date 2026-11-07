@@ -342,6 +342,43 @@ describe("createAccountService.update", () => {
 		});
 	});
 
+	it("rejects type and opening-balance changes when only transfers exist", async () => {
+		// Transfers move balance just like transactions, so a transfers-only
+		// history locks the account's recorded history too.
+		const fake = createFakeAccountRepo();
+		const service = createAccountService({
+			accounts: asRepo(fake),
+			postedSums: {
+				forAccount: vi.fn().mockResolvedValue(0),
+				byUser: vi.fn().mockResolvedValue(new Map()),
+				countForAccount: vi.fn().mockResolvedValue(0),
+			},
+			transferSums: {
+				forAccount: vi.fn().mockResolvedValue(100),
+				byUser: vi.fn().mockResolvedValue(new Map()),
+				countForAccount: vi.fn().mockResolvedValue(1),
+			},
+		});
+		const created = (await service.create({
+			userId: "user-1",
+			name: "Cash",
+			type: "cash",
+			openingBalanceMinor: 0,
+		})) as { value: { id: string } };
+		const typeOutcome = await service.update({
+			userId: "user-1",
+			accountId: created.value.id,
+			type: "bank",
+		});
+		expect(typeOutcome).toEqual({ ok: false, code: "ACCOUNT_FIELD_LOCKED" });
+		const balanceOutcome = await service.update({
+			userId: "user-1",
+			accountId: created.value.id,
+			openingBalanceMinor: 100,
+		});
+		expect(balanceOutcome).toEqual({ ok: false, code: "ACCOUNT_FIELD_LOCKED" });
+	});
+
 	it("allows type and opening-balance changes while no transactions exist", async () => {
 		const fake = createFakeAccountRepo();
 		const service = createAccountService({ accounts: asRepo(fake) });

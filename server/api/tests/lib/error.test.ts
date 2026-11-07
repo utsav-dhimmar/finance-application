@@ -51,7 +51,8 @@ describe("internalErrorBody", () => {
 
 describe("errorBody", () => {
 	it.each([
-		"EMAIL_TAKEN",
+		"REGISTRATION_DISABLED",
+		"RATE_LIMITED",
 		"AUTH_INVALID_CREDENTIALS",
 		"UNAUTHENTICATED",
 		"INVALID_REFRESH_TOKEN",

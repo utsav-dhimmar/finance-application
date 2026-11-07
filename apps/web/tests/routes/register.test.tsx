@@ -1,84 +1,49 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RegisterPage } from "@/routes/register";
 import { renderRoute } from "./helpers";
-
-function jsonResponse(status: number, body: unknown): Response {
-	return new Response(JSON.stringify(body), {
-		status,
-		headers: { "content-type": "application/json" },
-	});
-}
-
-// 401s every session probe so the visitor is treated as signed out; tests
-// override the endpoint they exercise via `overrides`.
-function stubSessionApi(
-	overrides: Record<string, () => Response> = {},
-): ReturnType<typeof vi.fn> {
-	const fetchMock = vi.fn(async (input: RequestInfo | string) => {
-		const url = typeof input === "string" ? input : input.url;
-		const override = overrides[url];
-		if (override) {
-			return override();
-		}
-		return jsonResponse(401, {
-			error: {
-				code: "UNAUTHENTICATED",
-				message: "Authentication required",
-				details: [],
-			},
-		});
-	});
-	vi.stubGlobal("fetch", fetchMock);
-	return fetchMock;
-}
-
-function fillForm(email: string, password: string): void {
-	fireEvent.change(screen.getByLabelText("Email"), {
-		target: { value: email },
-	});
-	fireEvent.change(screen.getByLabelText("Password"), {
-		target: { value: password },
-	});
-}
 
 afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
-describe("/register", () => {
-	it("shows the duplicate-email server error without navigating away", async () => {
-		stubSessionApi({
-			"/api/auth/register": () =>
-				jsonResponse(409, {
-					error: {
-						code: "EMAIL_TAKEN",
-						message: "Email is already registered",
-						details: [],
-					},
-				}),
-		});
+// Registration is permanently closed: the page offers no form, only the
+// closed notice and the way back to /login.
+describe("/register (closed)", () => {
+	it("shows the closed notice without any registration form", async () => {
 		await renderRoute(<RegisterPage />, "/register");
-		fillForm("taken@example.com", "s3cret-pw");
-		fireEvent.click(screen.getByRole("button", { name: "Register" }));
-		await waitFor(() =>
-			expect(screen.getByRole("alert").textContent).toMatch(
-				/already registered/i,
-			),
-		);
-		expect(screen.getByText(/create your account/i)).toBeTruthy();
+		expect(screen.getByText(/registration is closed/i)).toBeTruthy();
+		expect(
+			screen.getByText(/single-user and new registrations are not accepted/i),
+		).toBeTruthy();
+		expect(screen.queryByLabelText("Email")).toBeNull();
+		expect(screen.queryByLabelText("Password")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
 	});
 
-	it("navigates to /dashboard on successful registration", async () => {
-		stubSessionApi({
-			"/api/auth/register": () =>
-				jsonResponse(201, { id: "u1", email: "new@example.com" }),
-		});
+	it("links the visitor to /login", async () => {
 		await renderRoute(<RegisterPage />, "/register");
-		fillForm("new@example.com", "s3cret-pw");
-		fireEvent.click(screen.getByRole("button", { name: "Register" }));
-		await waitFor(() =>
-			expect(screen.getByText("Dashboard page")).toBeTruthy(),
+		expect(screen.getByText(/go to log in/i)).toBeTruthy();
+	});
+
+	it("renders without any registration request", async () => {
+		const fetchMock = vi.fn(async (_input: RequestInfo | string) =>
+			new Response(JSON.stringify({
+				error: {
+					code: "UNAUTHENTICATED",
+					message: "Authentication required",
+					details: [],
+				},
+			}), { status: 401, headers: { "content-type": "application/json" } }),
 		);
+		vi.stubGlobal("fetch", fetchMock);
+		await renderRoute(<RegisterPage />, "/register");
+		// The session probe may run against the stubbed fetch; the page itself
+		// must never POST a registration.
+		const registerCalls = fetchMock.mock.calls.filter(
+			([input]) =>
+				typeof input === "string" && input.includes("/api/auth/register"),
+		);
+		expect(registerCalls).toHaveLength(0);
 	});
 });

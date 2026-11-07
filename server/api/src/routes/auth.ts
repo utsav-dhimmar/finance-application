@@ -2,7 +2,12 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { getDb } from "@/db";
 import type { User } from "@/db/schema";
 import { errorBody, validationHook } from "@/lib/error";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { verifyPassword } from "@/lib/password";
+import {
+	allowAuthRequest,
+	authClientIp,
+	type RateLimitEnv,
+} from "@/lib/rate-limit";
 import { clearSession, getRefreshToken, issueSession } from "@/lib/session";
 import { generateRefreshToken, hashToken, signAccessToken } from "@/lib/tokens";
 import { requireAuth } from "@/middleware/auth";
@@ -11,21 +16,21 @@ import { createUserRepository } from "@/repositories/user-repository";
 import {
 	errorEnvelopeSchema,
 	loginBodySchema,
-	registerBodySchema,
 	userResponseSchema,
 } from "@/schemas/auth";
 import { createAuthService } from "@/services/auth-service";
 
-function createAuthServiceForEnv(env: {
+type AuthBindings = {
 	JWT_SECRET: string;
 	finance_application: D1Database;
-}) {
+} & RateLimitEnv;
+
+function createAuthServiceForEnv(env: AuthBindings) {
 	const db = getDb(env);
 	return createAuthService({
 		users: createUserRepository(db),
 		refreshTokens: createRefreshTokenRepository(db),
 		jwtSecret: env.JWT_SECRET,
-		hashPassword,
 		verifyPassword,
 		signAccessToken,
 		generateRefreshToken,
@@ -33,30 +38,16 @@ function createAuthServiceForEnv(env: {
 	});
 }
 
-const registerRoute = createRoute({
-	method: "post",
-	path: "/api/auth/register",
-	request: {
-		body: {
-			content: { "application/json": { schema: registerBodySchema } },
-			required: true,
-		},
-	},
-	responses: {
-		201: {
-			content: { "application/json": { schema: userResponseSchema } },
-			description: "Account created; session cookies set",
-		},
-		409: {
-			content: { "application/json": { schema: errorEnvelopeSchema } },
-			description: "Email already registered",
-		},
-	},
-});
+const RATE_LIMITED_ERROR = errorBody(
+	"RATE_LIMITED",
+	"Too many requests; try again shortly",
+);
+const TAGS = ["Auth"];
 
 const loginRoute = createRoute({
 	method: "post",
-	path: "/api/auth/login",
+  path: "/api/auth/login",
+	tags:TAGS,
 	request: {
 		body: {
 			content: { "application/json": { schema: loginBodySchema } },
@@ -72,12 +63,17 @@ const loginRoute = createRoute({
 			content: { "application/json": { schema: errorEnvelopeSchema } },
 			description: "Invalid credentials",
 		},
+		429: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Too many login attempts",
+		},
 	},
 });
 
 const meRoute = createRoute({
 	method: "get",
-	path: "/api/auth/me",
+  path: "/api/auth/me",
+	tags:TAGS,
 	responses: {
 		200: {
 			content: { "application/json": { schema: userResponseSchema } },
@@ -92,7 +88,8 @@ const meRoute = createRoute({
 
 const refreshRoute = createRoute({
 	method: "post",
-	path: "/api/auth/refresh",
+  path: "/api/auth/refresh",
+	tags:TAGS,
 	responses: {
 		200: {
 			content: { "application/json": { schema: userResponseSchema } },
@@ -102,39 +99,47 @@ const refreshRoute = createRoute({
 			content: { "application/json": { schema: errorEnvelopeSchema } },
 			description: "Absent, unknown, expired, or revoked refresh token",
 		},
+		429: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Too many refresh attempts",
+		},
 	},
 });
 
 const logoutRoute = createRoute({
 	method: "post",
-	path: "/api/auth/logout",
+  path: "/api/auth/logout",
+	tags:TAGS,
 	responses: {
 		204: { description: "Session revoked and cookies cleared" },
 	},
 });
 
 export const authRoutes = new OpenAPIHono<{
-	Bindings: { JWT_SECRET: string; finance_application: D1Database };
+	Bindings: AuthBindings;
 	Variables: { user: User };
 }>({
-	defaultHook: validationHook,
+  defaultHook: validationHook
 });
 
-authRoutes.openapi(registerRoute, async (c) => {
-	const { email, password } = c.req.valid("json");
-	const outcome = await createAuthServiceForEnv(c.env).register({
-		email,
-		password,
-	});
-	if (!outcome.ok) {
-		return c.json(errorBody(outcome.code, "Email is already registered"), 409);
-	}
-	issueSession(c, outcome.value.accessToken, outcome.value.refreshToken);
-	return c.json({ id: outcome.value.id, email: outcome.value.email }, 201);
-});
+// Registration is permanently closed (single-user product). The middleware
+// answers before body validation runs, so every request — well-formed or not
+// — receives the identical response and nothing about existing accounts leaks.
+const REGISTRATION_DISABLED_ERROR = errorBody(
+	"REGISTRATION_DISABLED",
+	"Registration is closed for this application",
+);
+authRoutes.use("/api/auth/register", async (c) => c.json(REGISTRATION_DISABLED_ERROR, 403));
 
 authRoutes.openapi(loginRoute, async (c) => {
 	const { email, password } = c.req.valid("json");
+	const allowed = await allowAuthRequest(
+		c.env,
+		`login:${authClientIp(c.req.raw.headers)}:${email}`,
+	);
+	if (!allowed) {
+		return c.json(RATE_LIMITED_ERROR, 429);
+	}
 	const outcome = await createAuthServiceForEnv(c.env).login({
 		email,
 		password,
@@ -154,6 +159,13 @@ authRoutes.openapi(meRoute, (c) => {
 });
 
 authRoutes.openapi(refreshRoute, async (c) => {
+	const allowed = await allowAuthRequest(
+		c.env,
+		`refresh:${authClientIp(c.req.raw.headers)}`,
+	);
+	if (!allowed) {
+		return c.json(RATE_LIMITED_ERROR, 429);
+	}
 	const outcome = await createAuthServiceForEnv(c.env).refresh(
 		getRefreshToken(c),
 	);

@@ -3,9 +3,12 @@ import { validationHook } from "@/lib/error";
 
 const helloResponseSchema = z.object({ message: z.string() });
 
+const TAGS = ["Hello"];
+
 const helloRoute = createRoute({
 	method: "get",
-	path: "/api/hello",
+  path: "/api/hello",
+	tags: TAGS,
 	responses: {
 		200: {
 			content: { "application/json": { schema: helloResponseSchema } },

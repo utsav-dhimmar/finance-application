@@ -11,3 +11,16 @@ describe("unknown routes", () => {
 		});
 	});
 });
+
+describe("api cache directives", () => {
+	it("mark every api response as no-store, including errors", async () => {
+		const responses = await Promise.all([
+			app.request("/api/does-not-exist"),
+			app.request("/api/hello"),
+			app.request("/api/greet/Utsav?times=abc"),
+		]);
+		for (const res of responses) {
+			expect(res.headers.get("cache-control")).toBe("no-store");
+		}
+	});
+});

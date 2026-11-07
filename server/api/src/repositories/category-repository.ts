@@ -167,11 +167,13 @@ export function createCategoryRepository(db: Db) {
 
 		// Physical removal — permanent deletion from trash, always user-requested
 		// and gate-checked by the service so no referencing transaction of any
-		// status remains to trip the enforced RESTRICT FKs.
-		async delete(id: string): Promise<boolean> {
+		// status remains to trip the enforced RESTRICT FKs. The status guard
+		// closes the check-then-act window against a concurrent restore: only a
+		// row still in the deleted state is physically removed.
+		async deleteIfDeleted(id: string): Promise<boolean> {
 			const removed = await db
 				.delete(categories)
-				.where(eq(categories.id, id))
+				.where(and(eq(categories.id, id), eq(categories.status, "deleted")))
 				.returning();
 			return removed.length > 0;
 		},

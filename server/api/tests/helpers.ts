@@ -89,7 +89,7 @@ export async function seedUserAndLogin(
 	await createUserRepository(db).insert({
 		id: userId,
 		email,
-		passwordHash: hashPassword(password),
+		passwordHash: await hashPassword(password),
 		createdAt: isoNow(),
 		updatedAt: isoNow(),
 	});

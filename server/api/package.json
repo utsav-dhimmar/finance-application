@@ -2,6 +2,7 @@
 	"name": "@finance-application/api",
 	"version": "0.1.0",
 	"private": true,
+	"type": "module",
 	"scripts": {
 		"dev": "wrangler dev",
 		"build": "wrangler deploy --dry-run --outdir=dist",
@@ -13,7 +14,6 @@
 	"dependencies": {
 		"@finance-application/schemas": "workspace:*",
 		"@hono/zod-openapi": "^1.6.3",
-		"@noble/hashes": "^2.4.0",
 		"@scalar/hono-api-reference": "^0.12.14",
 		"drizzle-orm": "^0.45.4",
 		"hono": "^4.13.13",

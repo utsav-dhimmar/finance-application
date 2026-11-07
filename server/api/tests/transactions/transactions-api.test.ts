@@ -270,7 +270,7 @@ describe("POST /api/transactions", () => {
 		await createUserRepository(db).insert({
 			id: otherUserId,
 			email: "conflict-peer@test.local",
-			passwordHash: hashPassword("s3cret-pw"),
+			passwordHash: await hashPassword("s3cret-pw"),
 			createdAt: now,
 			updatedAt: now,
 		});

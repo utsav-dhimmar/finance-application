@@ -83,13 +83,13 @@ export function createAuthService(deps: AuthServiceDeps) {
 		async login(input: CredentialsInput): Promise<LoginOutcome> {
 			const user = await users.findByEmail(input.email);
 			// Unknown emails verify against a fixed dummy hash so the request
-			// performs the same Argon2id work as a real check and response cost
-			// does not reveal whether the account exists.
+			// performs the same password-hashing work as a real check and
+			// response cost does not reveal whether the account exists.
 			if (user === undefined) {
-				deps.verifyPassword(input.password, DUMMY_PASSWORD_HASH);
+				await deps.verifyPassword(input.password, DUMMY_PASSWORD_HASH);
 				return { ok: false, code: "AUTH_INVALID_CREDENTIALS" };
 			}
-			if (!deps.verifyPassword(input.password, user.passwordHash)) {
+			if (!(await deps.verifyPassword(input.password, user.passwordHash))) {
 				return { ok: false, code: "AUTH_INVALID_CREDENTIALS" };
 			}
 

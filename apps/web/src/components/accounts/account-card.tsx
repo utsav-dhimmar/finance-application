@@ -1,13 +1,10 @@
 import type { AccountResponse } from "@finance-application/schemas";
-import { Badge } from "@finance-application/ui/components/badge";
-import { Button } from "@finance-application/ui/components/button";
+import { Card, CardHeader } from "@finance-application/ui/components/card";
+import { Coins, Landmark, Wallet } from "lucide-react";
 import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@finance-application/ui/components/card";
-import { Coins, Landmark, RotateCcw, Trash2, Wallet } from "lucide-react";
+	EntityCardActions,
+	EntityCardTitle,
+} from "@/components/shared/entity-card";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
 import { formatPaise } from "@/lib/money";
 
@@ -46,25 +43,19 @@ export function AccountCard({
 	const Icon = getAccountTypeIcon(account.type);
 
 	return (
-		<Card className="flex flex-col justify-between transition-all hover:border-border hover:shadow-xs">
+		<Card className="flex flex-col justify-between transition-[border-color,box-shadow] hover:border-border hover:shadow-xs">
 			<CardHeader className="space-y-3 pb-2">
 				<div className="flex items-start justify-between gap-2">
 					<div className="flex items-center gap-2.5">
 						<div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-muted/50 text-foreground">
 							<Icon aria-hidden="true" className="size-4" />
 						</div>
-						<div>
-							<CardTitle className="text-base font-semibold tracking-tight text-foreground">
-								{account.name}
-							</CardTitle>
-							<div className="mt-1 flex flex-wrap items-center gap-1.5">
-								<Badge variant="secondary">
-									{ACCOUNT_TYPE_LABELS[account.type]}
-								</Badge>
-								{isArchived && <Badge variant="outline">Archived</Badge>}
-								{isDeleted && <Badge variant="outline">Deleted</Badge>}
-							</div>
-						</div>
+						<EntityCardTitle
+							title={account.name}
+							typeLabel={ACCOUNT_TYPE_LABELS[account.type]}
+							isArchived={isArchived}
+							isDeleted={isDeleted}
+						/>
 					</div>
 				</div>
 
@@ -80,60 +71,16 @@ export function AccountCard({
 				</div>
 			</CardHeader>
 
-			<CardContent className="flex flex-wrap items-center gap-2 pt-2">
-				{account.status === "active" && (
-					<>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => onEdit(account)}
-							className="h-7 text-xs"
-						>
-							Edit
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => onArchive(account)}
-							className="h-7 text-xs"
-						>
-							Archive
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-							onClick={() => onDelete(account)}
-						>
-							Delete
-						</Button>
-					</>
-				)}
-				{(isArchived || isDeleted) && (
-					<>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => onRestore(account)}
-							className="h-7 gap-1.5 text-xs"
-						>
-							<RotateCcw aria-hidden="true" className="size-3" />
-							Restore
-						</Button>
-						{isDeleted && onPermanentDelete && (
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={() => onPermanentDelete(account)}
-								className="h-7 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-							>
-								<Trash2 aria-hidden="true" className="size-3" />
-								Delete forever
-							</Button>
-						)}
-					</>
-				)}
-			</CardContent>
+			<EntityCardActions
+				status={account.status}
+				onEdit={() => onEdit(account)}
+				onArchive={() => onArchive(account)}
+				onDelete={() => onDelete(account)}
+				onRestore={() => onRestore(account)}
+				onPermanentDelete={
+					onPermanentDelete ? () => onPermanentDelete(account) : undefined
+				}
+			/>
 		</Card>
 	);
 }

@@ -19,7 +19,12 @@ export async function signAccessToken(
 ): Promise<string> {
 	const now = Math.floor(Date.now() / 1000);
 	return sign(
-		{ sub: userId, ver: tokenVersion, iat: now, exp: now + ACCESS_TOKEN_TTL_SECONDS },
+		{
+			sub: userId,
+			ver: tokenVersion,
+			iat: now,
+			exp: now + ACCESS_TOKEN_TTL_SECONDS,
+		},
 		secret,
 		"HS256",
 	);
@@ -42,7 +47,12 @@ export async function verifyAccessToken(
 		) {
 			return null;
 		}
-		return { sub: payload.sub, ver: version, iat: payload.iat, exp: payload.exp };
+		return {
+			sub: payload.sub,
+			ver: version,
+			iat: payload.iat,
+			exp: payload.exp,
+		};
 	} catch {
 		return null;
 	}

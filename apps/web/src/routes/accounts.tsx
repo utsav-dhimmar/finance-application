@@ -12,9 +12,8 @@ import { Plus, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/account-card";
+import { AccountFormDialog } from "@/components/accounts/account-form-dialog";
 import { ConfirmLifecycleDialog } from "@/components/accounts/confirm-lifecycle-dialog";
-import { CreateAccountDialog } from "@/components/accounts/create-account-dialog";
-import { EditAccountDialog } from "@/components/accounts/edit-account-dialog";
 import { RestoreNameDialog } from "@/components/accounts/restore-name-dialog";
 import { AppHeader } from "@/components/app-header";
 import {
@@ -291,9 +290,10 @@ export function AccountsPage() {
 				)}
 			</main>
 
-			<CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
+			<AccountFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 			{editing && (
-				<EditAccountDialog
+				<AccountFormDialog
+					open={Boolean(editing)}
 					account={editing}
 					onOpenChange={(open) => {
 						if (!open) {

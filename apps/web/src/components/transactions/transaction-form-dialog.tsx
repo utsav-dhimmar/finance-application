@@ -3,6 +3,8 @@ import type {
 	CategoryResponse,
 	TransactionFormInput,
 	TransactionFormValues,
+	TransactionResponse,
+	UpdateTransactionBody,
 } from "@finance-application/schemas";
 import { transactionFormSchema } from "@finance-application/schemas";
 import { Button } from "@finance-application/ui/components/button";
@@ -29,34 +31,49 @@ import {
 	SelectValue,
 } from "@finance-application/ui/components/select";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCategories } from "@/hooks/use-categories";
-import { useCreateTransaction } from "@/hooks/use-transactions";
-import { formatPaise } from "@/lib/money";
+import {
+	useCreateTransaction,
+	useUpdateTransaction,
+} from "@/hooks/use-transactions";
+import { formatPaise, paiseToRupeeInput } from "@/lib/money";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import { uuidV7 } from "@/lib/uuid";
 import { getTransactionsErrorMessage } from "@/services/transactions-service";
 
-export const TRANSACTION_TYPE_OPTIONS = (
+interface AccountOption {
+	id: string;
+	name: string;
+	status: string;
+}
+
+const TRANSACTION_TYPE_OPTIONS = (
 	Object.keys(TRANSACTION_TYPE_LABELS) as Array<
 		keyof typeof TRANSACTION_TYPE_LABELS
 	>
 ).map((type) => ({ value: type, label: TRANSACTION_TYPE_LABELS[type] }));
 
-interface CreateTransactionDialogProps {
+export interface TransactionFormDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	transaction?: TransactionResponse | null;
 }
 
-export function CreateTransactionDialog({
+export function TransactionFormDialog({
 	open,
 	onOpenChange,
-}: CreateTransactionDialogProps) {
+	transaction,
+}: TransactionFormDialogProps) {
+	const isEdit = Boolean(transaction);
 	const create = useCreateTransaction();
+	const update = useUpdateTransaction();
 	const accounts = useAccounts("active");
 	const categories = useCategories("active");
+
 	const form = useForm<TransactionFormInput, unknown, TransactionFormValues>({
 		resolver: zodResolver(transactionFormSchema),
 		defaultValues: {
@@ -68,65 +85,134 @@ export function CreateTransactionDialog({
 			notes: "",
 		},
 	});
+
 	const selectedType = form.watch("type");
 	const selectedAccountId = form.watch("accountId");
 
+	useEffect(() => {
+		if (open) {
+			form.reset(
+				transaction
+					? {
+							type: transaction.type,
+							amount: paiseToRupeeInput(transaction.amountMinor),
+							date: transaction.date,
+							accountId: transaction.accountId,
+							categoryId: transaction.categoryId,
+							notes: transaction.notes ?? "",
+						}
+					: {
+							type: "expense",
+							amount: "",
+							date: new Date().toISOString().slice(0, 10),
+							accountId: "",
+							categoryId: "",
+							notes: "",
+						},
+			);
+			form.clearErrors("root");
+		}
+	}, [open, transaction, form]);
+
 	function handleOpenChange(next: boolean) {
 		if (!next) {
-			form.reset();
 			form.clearErrors("root");
 		}
 		onOpenChange(next);
 	}
 
-	// Only active accounts accept postings; only active categories of the
-	// matching type are selectable (spec: write-time eligibility).
 	const accountOptions: AccountResponse[] = accounts.data?.accounts ?? [];
+	const eligibleAccounts: AccountOption[] =
+		transaction && !accountOptions.some((a) => a.id === transaction.accountId)
+			? [
+					{
+						id: transaction.accountId,
+						name: transaction.accountName ?? "Unavailable",
+						status: "archived",
+					},
+					...accountOptions,
+				]
+			: accountOptions;
+
 	const categoryOptions: CategoryResponse[] = (
 		categories.data?.categories ?? []
 	).filter((category) => category.type === selectedType);
-	const chosenAccount = accountOptions.find(
+
+	const chosenAccount = eligibleAccounts.find(
 		(account) => account.id === selectedAccountId,
 	);
 
 	const onSubmit = form.handleSubmit((values) => {
 		form.clearErrors("root");
-		create.mutate(
-			{
-				id: uuidV7(),
-				type: values.type,
+		if (transaction) {
+			const body: UpdateTransactionBody = {
 				amountMinor: values.amount,
 				date: values.date,
 				accountId: values.accountId,
 				categoryId: values.categoryId,
-				notes: values.notes ? values.notes : undefined,
-			},
-			{
-				onSuccess: (transaction) => {
-					handleOpenChange(false);
-					toast.success(
-						`${TRANSACTION_TYPE_LABELS[transaction.type]} of ${formatPaise(transaction.amountMinor)} recorded.`,
-					);
+				notes: values.notes ? values.notes : null,
+			};
+			update.mutate(
+				{ id: transaction.id, body },
+				{
+					onSuccess: () => {
+						handleOpenChange(false);
+					},
+					onError: (error) => {
+						form.setError("root", {
+							message: getTransactionsErrorMessage(
+								error,
+								"Could not save the transaction. Is the API running?",
+							),
+						});
+					},
 				},
-				onError: (error) => {
-					form.setError("root", {
-						message: getTransactionsErrorMessage(
-							error,
-							"Could not record the transaction. Is the API running?",
-						),
-					});
+			);
+		} else {
+			create.mutate(
+				{
+					id: uuidV7(),
+					type: values.type,
+					amountMinor: values.amount,
+					date: values.date,
+					accountId: values.accountId,
+					categoryId: values.categoryId,
+					notes: values.notes ? values.notes : undefined,
 				},
-			},
-		);
+				{
+					onSuccess: (createdTransaction) => {
+						handleOpenChange(false);
+						toast.success(
+							`${TRANSACTION_TYPE_LABELS[createdTransaction.type]} of ${formatPaise(createdTransaction.amountMinor)} recorded.`,
+						);
+					},
+					onError: (error) => {
+						form.setError("root", {
+							message: getTransactionsErrorMessage(
+								error,
+								"Could not record the transaction. Is the API running?",
+							),
+						});
+					},
+				},
+			);
+		}
 	});
+
+	const isPending = isEdit ? update.isPending : create.isPending;
+	const idPrefix = isEdit ? "edit-transaction" : "transaction";
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Record transaction</DialogTitle>
+					<DialogTitle>
+						{isEdit ? "Edit transaction" : "Record transaction"}
+					</DialogTitle>
 					<DialogDescription>
-						Income credits the account; expenses debit it. Amounts are in ₹.
+						{isEdit
+							? "Amounts, date, account, and category are recalculated atomically."
+							: "Track income or expenses. Amounts are in ₹."}
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -142,17 +228,16 @@ export function CreateTransactionDialog({
 								control={form.control}
 								render={({ field }) => (
 									<Field>
-										<FieldLabel htmlFor="transaction-type">Type</FieldLabel>
+										<FieldLabel htmlFor={`${idPrefix}-type`}>Type</FieldLabel>
 										<Select
 											items={TRANSACTION_TYPE_OPTIONS}
 											value={field.value}
 											onValueChange={(value) => {
 												field.onChange(value);
-												// The chosen category must match the new type.
 												form.setValue("categoryId", "");
 											}}
 										>
-											<SelectTrigger id="transaction-type">
+											<SelectTrigger id={`${idPrefix}-type`}>
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -171,13 +256,13 @@ export function CreateTransactionDialog({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid || undefined}>
-										<FieldLabel htmlFor="transaction-amount">
+										<FieldLabel htmlFor={`${idPrefix}-amount`}>
 											Amount (₹)
 										</FieldLabel>
 										<Input
-											id="transaction-amount"
+											id={`${idPrefix}-amount`}
 											inputMode="decimal"
-											placeholder="0.00"
+											placeholder={isEdit ? undefined : "0.00"}
 											className="font-mono tabular-nums"
 											{...field}
 										/>
@@ -192,8 +277,13 @@ export function CreateTransactionDialog({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid || undefined}>
-										<FieldLabel htmlFor="transaction-date">Date</FieldLabel>
-										<Input id="transaction-date" type="date" {...field} />
+										<FieldLabel htmlFor={`${idPrefix}-date`}>Date</FieldLabel>
+										<Input
+											id={`${idPrefix}-date`}
+											type="date"
+											className="font-mono"
+											{...field}
+										/>
 										{fieldState.error && (
 											<FieldError>{fieldState.error.message}</FieldError>
 										)}
@@ -205,33 +295,45 @@ export function CreateTransactionDialog({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid || undefined}>
-										<FieldLabel htmlFor="transaction-account">
-											{selectedType === "income"
-												? "To account"
-												: "From account"}
+										<FieldLabel htmlFor={`${idPrefix}-account`}>
+											Account
 										</FieldLabel>
 										<Select
-											items={accountOptions.map((account) => ({
-												value: account.id,
-												label: account.name,
+											items={eligibleAccounts.map((a) => ({
+												value: a.id,
+												label:
+													a.status === "archived"
+														? `${a.name} (archived)`
+														: a.name,
 											}))}
 											value={field.value}
 											onValueChange={(value) => field.onChange(value)}
 										>
-											<SelectTrigger id="transaction-account">
-												<SelectValue placeholder="Choose an account" />
+											<SelectTrigger id={`${idPrefix}-account`}>
+												<SelectValue placeholder="Select account" />
 											</SelectTrigger>
 											<SelectContent>
-												{accountOptions.map((account) => (
+												{eligibleAccounts.map((account) => (
 													<SelectItem key={account.id} value={account.id}>
 														{account.name}
+														{account.status === "archived" && " (archived)"}
 													</SelectItem>
 												))}
 											</SelectContent>
 										</Select>
-										{fieldState.error && (
+										{fieldState.error ? (
 											<FieldError>{fieldState.error.message}</FieldError>
-										)}
+										) : chosenAccount &&
+											"currentBalanceMinor" in chosenAccount ? (
+											<p className="text-xs text-muted-foreground">
+												Current balance:{" "}
+												<span className="font-mono tabular-nums">
+													{formatPaise(
+														chosenAccount.currentBalanceMinor as number,
+													)}
+												</span>
+											</p>
+										) : null}
 									</Field>
 								)}
 							/>
@@ -240,20 +342,19 @@ export function CreateTransactionDialog({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid || undefined}>
-										<FieldLabel htmlFor="transaction-category">
-											Category (
-											{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()})
+										<FieldLabel htmlFor={`${idPrefix}-category`}>
+											Category
 										</FieldLabel>
 										<Select
-											items={categoryOptions.map((category) => ({
-												value: category.id,
-												label: category.name,
+											items={categoryOptions.map((c) => ({
+												value: c.id,
+												label: c.name,
 											}))}
 											value={field.value}
 											onValueChange={(value) => field.onChange(value)}
 										>
-											<SelectTrigger id="transaction-category">
-												<SelectValue placeholder="Choose a category" />
+											<SelectTrigger id={`${idPrefix}-category`}>
+												<SelectValue placeholder="Select category" />
 											</SelectTrigger>
 											<SelectContent>
 												{categoryOptions.map((category) => (
@@ -263,14 +364,8 @@ export function CreateTransactionDialog({
 												))}
 											</SelectContent>
 										</Select>
-										{fieldState.error ? (
+										{fieldState.error && (
 											<FieldError>{fieldState.error.message}</FieldError>
-										) : (
-											<p className="text-sm text-muted-foreground">
-												Only active{" "}
-												{TRANSACTION_TYPE_LABELS[selectedType].toLowerCase()}{" "}
-												categories are listed.
-											</p>
 										)}
 									</Field>
 								)}
@@ -280,15 +375,16 @@ export function CreateTransactionDialog({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid || undefined}>
-										<FieldLabel htmlFor="transaction-notes">
+										<FieldLabel htmlFor={`${idPrefix}-notes`}>
 											Notes (optional)
 										</FieldLabel>
 										<Input
-											id="transaction-notes"
-											placeholder="What was this for?"
+											id={`${idPrefix}-notes`}
+											placeholder={
+												isEdit ? undefined : "Optional context or vendor name"
+											}
 											autoComplete="off"
 											{...field}
-											value={field.value ?? ""}
 										/>
 										{fieldState.error && (
 											<FieldError>{fieldState.error.message}</FieldError>
@@ -296,11 +392,6 @@ export function CreateTransactionDialog({
 									</Field>
 								)}
 							/>
-							{chosenAccount && (
-								<p className="text-sm text-muted-foreground">
-									{chosenAccount.name} balance: affected by this transaction.
-								</p>
-							)}
 						</div>
 					</ScrollArea>
 					<DialogFooter>
@@ -311,8 +402,14 @@ export function CreateTransactionDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={create.isPending}>
-							{create.isPending ? "Recording..." : "Record transaction"}
+						<Button type="submit" disabled={isPending}>
+							{isPending
+								? isEdit
+									? "Saving..."
+									: "Recording..."
+								: isEdit
+									? "Save changes"
+									: "Record transaction"}
 						</Button>
 					</DialogFooter>
 				</form>

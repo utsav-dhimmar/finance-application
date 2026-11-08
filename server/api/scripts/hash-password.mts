@@ -150,7 +150,9 @@ if (args.password !== undefined) {
 	password = (await readStdin()).replace(/\r?\n$/, "");
 }
 if (!password) {
-	console.error("No password provided (stdin was empty, or --password was empty).");
+	console.error(
+		"No password provided (stdin was empty, or --password was empty).",
+	);
 	process.exit(1);
 }
 
@@ -162,7 +164,9 @@ console.log(
 	`Password hash (PBKDF2-HMAC-SHA256, ${iterations} iterations, ${elapsedMs.toFixed(1)} ms locally; budget: 10 ms on Workers free):\n`,
 );
 console.log(hash);
-console.log("\nSave the current production hash first (rollback), then apply the new one:");
+console.log(
+	"\nSave the current production hash first (rollback), then apply the new one:",
+);
 console.log(
 	'  wrangler d1 execute finance-application --remote --command "SELECT id, email, password_hash FROM users"',
 );

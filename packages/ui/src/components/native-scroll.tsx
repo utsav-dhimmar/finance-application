@@ -9,17 +9,17 @@ import { cn } from "cn";
  * `className` / `children` / spread-props API.
  */
 const NativeScrollArea = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<"div">
+	HTMLDivElement,
+	ComponentPropsWithoutRef<"div">
 >(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    data-slot="native-scroll-area"
-    className={cn("overflow-auto custom-scrollbar", className)}
-    {...props}
-  >
-    {children}
-  </div>
+	<div
+		ref={ref}
+		data-slot="native-scroll-area"
+		className={cn("overflow-auto custom-scrollbar", className)}
+		{...props}
+	>
+		{children}
+	</div>
 ));
 
 NativeScrollArea.displayName = "NativeScrollArea";

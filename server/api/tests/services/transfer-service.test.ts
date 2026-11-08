@@ -140,7 +140,7 @@ function createFakes() {
 		),
 		deleteIfDeleted: vi.fn(async (id: string) => {
 			const transfer = transferRows.get(id);
-			if (!transfer || transfer.status !== 'deleted') {
+			if (transfer?.status !== "deleted") {
 				return false;
 			}
 			return transferRows.delete(id);
@@ -523,7 +523,11 @@ describe("createTransferService lifecycle", () => {
 			userId: "user-1",
 			transferId: UUID_V7,
 		});
-		expect(outcome).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
+		expect(outcome).toEqual({
+			ok: false,
+			code: "RESTORE_CONFLICT",
+			reason: "deleted_reference",
+		});
 		expect(fakes.transfers.rows.get(UUID_V7)?.status).toBe("deleted");
 	});
 
@@ -538,7 +542,11 @@ describe("createTransferService lifecycle", () => {
 			transferId: UUID_V7,
 			destinationAccountId: "acc-c",
 		});
-		expect(outcome).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
+		expect(outcome).toEqual({
+			ok: false,
+			code: "RESTORE_CONFLICT",
+			reason: "deleted_reference",
+		});
 		expect(fakes.transfers.rows.get(UUID_V7)?.destinationAccountId).toBe(
 			"acc-b",
 		);

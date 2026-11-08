@@ -76,7 +76,7 @@ const TAGS = ["Accounts"];
 
 const createAccountRoute = createRoute({
 	method: "post",
-  path: "/api/accounts",
+	path: "/api/accounts",
 	tags: TAGS,
 	request: {
 		body: {
@@ -106,8 +106,8 @@ const createAccountRoute = createRoute({
 
 const listAccountsRoute = createRoute({
 	method: "get",
-  path: "/api/accounts",
-		tags: TAGS,
+	path: "/api/accounts",
+	tags: TAGS,
 	request: {
 		query: listAccountsQuerySchema,
 	},
@@ -126,8 +126,8 @@ const listAccountsRoute = createRoute({
 
 const getAccountRoute = createRoute({
 	method: "get",
-  path: "/api/accounts/:id",
-		tags: TAGS,
+	path: "/api/accounts/:id",
+	tags: TAGS,
 	request: {
 		params: paramsSchema,
 	},
@@ -149,8 +149,8 @@ const getAccountRoute = createRoute({
 
 const updateAccountRoute = createRoute({
 	method: "patch",
-  path: "/api/accounts/:id",
-		tags: TAGS,
+	path: "/api/accounts/:id",
+	tags: TAGS,
 	request: {
 		params: paramsSchema,
 		body: {
@@ -184,8 +184,8 @@ const updateAccountRoute = createRoute({
 
 const archiveAccountRoute = createRoute({
 	method: "post",
-  path: "/api/accounts/:id/archive",
-		tags: TAGS,
+	path: "/api/accounts/:id/archive",
+	tags: TAGS,
 	request: {
 		params: paramsSchema,
 	},
@@ -211,8 +211,8 @@ const archiveAccountRoute = createRoute({
 
 const deleteAccountRoute = createRoute({
 	method: "post",
-  path: "/api/accounts/:id/delete",
-		tags: TAGS,
+	path: "/api/accounts/:id/delete",
+	tags: TAGS,
 	request: {
 		params: paramsSchema,
 	},
@@ -238,8 +238,8 @@ const deleteAccountRoute = createRoute({
 
 const restoreAccountRoute = createRoute({
 	method: "post",
-  path: "/api/accounts/:id/restore",
-		tags: TAGS,
+	path: "/api/accounts/:id/restore",
+	tags: TAGS,
 	request: {
 		params: paramsSchema,
 		body: {
@@ -272,8 +272,8 @@ const restoreAccountRoute = createRoute({
 
 const permanentlyDeleteAccountRoute = createRoute({
 	method: "delete",
-  path: "/api/accounts/:id",
-		tags: TAGS,
+	path: "/api/accounts/:id",
+	tags: TAGS,
 	request: {
 		params: paramsSchema,
 	},

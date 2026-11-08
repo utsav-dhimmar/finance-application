@@ -33,8 +33,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
 	createColumnHelper,
 	flexRender,
-	getCoreRowModel,
-	useReactTable,
+	useTable,
 } from "@tanstack/react-table";
 import {
 	ChevronLeft,
@@ -51,14 +50,12 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
 import { ConfirmTransactionLifecycleDialog } from "@/components/transactions/confirm-transaction-lifecycle-dialog";
-import { CreateTransactionDialog } from "@/components/transactions/create-transaction-dialog";
-import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog";
 import { RestoreTransactionDialog } from "@/components/transactions/restore-transaction-dialog";
 import { TransactionDetailDialog } from "@/components/transactions/transaction-detail-dialog";
-import { CreateTransferDialog } from "@/components/transfers/create-transfer-dialog";
-import { EditTransferDialog } from "@/components/transfers/edit-transfer-dialog";
+import { TransactionFormDialog } from "@/components/transactions/transaction-form-dialog";
 import { RestoreTransferDialog } from "@/components/transfers/restore-transfer-dialog";
 import { TransferDetailDialog } from "@/components/transfers/transfer-detail-dialog";
+import { TransferFormDialog } from "@/components/transfers/transfer-form-dialog";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useMe } from "@/hooks/use-auth";
 import { useCategories } from "@/hooks/use-categories";
@@ -77,6 +74,10 @@ import {
 	useRestoreTransfer,
 } from "@/hooks/use-transfers";
 import { formatPaise } from "@/lib/money";
+import {
+	coreTableFeatures,
+	type CoreTableFeatures,
+} from "@/lib/table-features";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import {
 	TRANSFER_DIRECTION_LABELS,
@@ -105,7 +106,7 @@ const EMPTY_MESSAGES: Record<TransactionsTab, string> = {
 
 const PAGE_SIZE = 20;
 
-const columnHelper = createColumnHelper<ActivityItem>();
+const columnHelper = createColumnHelper<CoreTableFeatures, ActivityItem>();
 
 // The activity rows carry signed amounts (the effect on the row's account);
 // transactions and transfers re-derive their unsigned API shape from them.
@@ -489,7 +490,7 @@ export function TransactionsPage() {
 		})),
 	];
 
-	const columns = [
+	const columns = columnHelper.columns([
 		columnHelper.accessor("date", { header: "Date" }),
 		columnHelper.display({
 			id: "type",
@@ -631,14 +632,14 @@ export function TransactionsPage() {
 				);
 			},
 		}),
-	];
+	]);
 
-	const table = useReactTable({
+	// Pagination is fully manual (server-side), so no table features or
+	// pagination state are registered; the table instance only renders rows.
+	const table = useTable({
+		features: coreTableFeatures,
 		data: data?.activity ?? [],
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		manualPagination: true,
-		pageCount: data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1,
 	});
 
 	if (me.isPending || me.data === undefined) {
@@ -897,7 +898,7 @@ export function TransactionsPage() {
 										<TableRow
 											key={`${row.original.kind}:${row.original.id}:${row.original.direction ?? ""}`}
 										>
-											{row.getVisibleCells().map((cell) => (
+											{row.getAllCells().map((cell) => (
 												<TableCell key={cell.id}>
 													{flexRender(
 														cell.column.columnDef.cell,
@@ -950,14 +951,15 @@ export function TransactionsPage() {
 				)}
 			</main>
 
-			<CreateTransactionDialog open={createOpen} onOpenChange={setCreateOpen} />
-			<CreateTransferDialog
+			<TransactionFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+			<TransferFormDialog
 				open={createTransferOpen}
 				onOpenChange={setCreateTransferOpen}
 			/>
 			{editing &&
 				(editing.kind === "transaction" ? (
-					<EditTransactionDialog
+					<TransactionFormDialog
+						open
 						transaction={transactionFromActivity(editing.row)}
 						onOpenChange={(open) => {
 							if (!open) {
@@ -966,7 +968,8 @@ export function TransactionsPage() {
 						}}
 					/>
 				) : (
-					<EditTransferDialog
+					<TransferFormDialog
+						open
 						transfer={transferFromActivity(editing.row)}
 						onOpenChange={(open) => {
 							if (!open) {

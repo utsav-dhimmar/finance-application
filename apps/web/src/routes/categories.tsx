@@ -13,9 +13,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
 import { CategoryCard } from "@/components/categories/category-card";
+import { CategoryFormDialog } from "@/components/categories/category-form-dialog";
 import { ConfirmCategoryLifecycleDialog } from "@/components/categories/confirm-category-lifecycle-dialog";
-import { CreateCategoryDialog } from "@/components/categories/create-category-dialog";
-import { EditCategoryDialog } from "@/components/categories/edit-category-dialog";
 import { RestoreCategoryNameDialog } from "@/components/categories/restore-category-name-dialog";
 import { useMe } from "@/hooks/use-auth";
 import {
@@ -285,9 +284,10 @@ export function CategoriesPage() {
 				)}
 			</main>
 
-			<CreateCategoryDialog open={createOpen} onOpenChange={setCreateOpen} />
+			<CategoryFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 			{editing && (
-				<EditCategoryDialog
+				<CategoryFormDialog
+					open={Boolean(editing)}
 					category={editing}
 					onOpenChange={(open) => {
 						if (!open) {

@@ -70,10 +70,7 @@ export type CreateTransactionOutcome =
 	| { ok: true; value: TransactionView; replayed: boolean }
 	| {
 			ok: false;
-			code:
-				| "ACCOUNT_INELIGIBLE"
-				| "CATEGORY_INELIGIBLE"
-				| "ID_CONFLICT";
+			code: "ACCOUNT_INELIGIBLE" | "CATEGORY_INELIGIBLE" | "ID_CONFLICT";
 	  };
 export type GetTransactionOutcome = TransactionOutcome<
 	TransactionView,
@@ -93,10 +90,7 @@ export type TransitionTransactionOutcome =
 	| { ok: true; value: TransactionView }
 	| {
 			ok: false;
-			code:
-				| "NOT_FOUND"
-				| "TRANSACTION_TRANSITION_INVALID"
-				| "RESTORE_CONFLICT";
+			code: "NOT_FOUND" | "TRANSACTION_TRANSITION_INVALID" | "RESTORE_CONFLICT";
 			reason?:
 				| "deleted_reference"
 				| "inactive_replacement"

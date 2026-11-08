@@ -1,6 +1,7 @@
 import type {
 	AccountFormInput,
 	AccountFormValues,
+	AccountResponse,
 } from "@finance-application/schemas";
 import { accountFormSchema } from "@finance-application/schemas";
 import { Button } from "@finance-application/ui/components/button";
@@ -18,42 +19,57 @@ import {
 	FieldLabel,
 } from "@finance-application/ui/components/field";
 import { Input } from "@finance-application/ui/components/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@finance-application/ui/components/select";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useCreateAccount } from "@/hooks/use-accounts";
+import { TypeSelectField } from "@/components/shared/type-select-field";
+import { useCreateAccount, useUpdateAccount } from "@/hooks/use-accounts";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
+import { paiseToRupeeInput } from "@/lib/money";
 import { getAccountsErrorMessage } from "@/services/accounts-service";
 
-export const ACCOUNT_TYPE_OPTIONS = (
+const ACCOUNT_TYPE_OPTIONS = (
 	Object.keys(ACCOUNT_TYPE_LABELS) as Array<keyof typeof ACCOUNT_TYPE_LABELS>
 ).map((type) => ({ value: type, label: ACCOUNT_TYPE_LABELS[type] }));
 
-interface CreateAccountDialogProps {
+export interface AccountFormDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	account?: AccountResponse | null;
 }
 
-export function CreateAccountDialog({
+export function AccountFormDialog({
 	open,
 	onOpenChange,
-}: CreateAccountDialogProps) {
+	account,
+}: AccountFormDialogProps) {
+	const isEdit = Boolean(account);
 	const create = useCreateAccount();
+	const update = useUpdateAccount();
+
 	const form = useForm<AccountFormInput, unknown, AccountFormValues>({
 		resolver: zodResolver(accountFormSchema),
 		defaultValues: { name: "", type: "cash", openingBalance: "" },
 	});
 
+	useEffect(() => {
+		if (open) {
+			form.reset(
+				account
+					? {
+							name: account.name,
+							type: account.type,
+							openingBalance: paiseToRupeeInput(account.openingBalanceMinor),
+						}
+					: { name: "", type: "cash", openingBalance: "" },
+			);
+			form.clearErrors("root");
+		}
+	}, [open, account, form]);
+
 	function handleOpenChange(next: boolean) {
 		if (!next) {
-			form.reset();
 			form.clearErrors("root");
 		}
 		onOpenChange(next);
@@ -61,36 +77,69 @@ export function CreateAccountDialog({
 
 	const onSubmit = form.handleSubmit((values) => {
 		form.clearErrors("root");
-		create.mutate(
-			{
-				name: values.name,
-				type: values.type,
-				openingBalanceMinor: values.openingBalance,
-			},
-			{
-				onSuccess: (account) => {
-					handleOpenChange(false);
-					toast.success(`Account "${account.name}" created.`);
+		if (account) {
+			update.mutate(
+				{
+					id: account.id,
+					body: {
+						name: values.name,
+						type: values.type,
+						openingBalanceMinor: values.openingBalance,
+					},
 				},
-				onError: (error) => {
-					form.setError("root", {
-						message: getAccountsErrorMessage(
-							error,
-							"Could not create the account. Is the API running?",
-						),
-					});
+				{
+					onSuccess: () => {
+						handleOpenChange(false);
+					},
+					onError: (error) => {
+						form.setError("root", {
+							message: getAccountsErrorMessage(
+								error,
+								"Could not save the account. Is the API running?",
+							),
+						});
+					},
 				},
-			},
-		);
+			);
+		} else {
+			create.mutate(
+				{
+					name: values.name,
+					type: values.type,
+					openingBalanceMinor: values.openingBalance,
+				},
+				{
+					onSuccess: (createdAccount) => {
+						handleOpenChange(false);
+						toast.success(`Account "${createdAccount.name}" created.`);
+					},
+					onError: (error) => {
+						form.setError("root", {
+							message: getAccountsErrorMessage(
+								error,
+								"Could not create the account. Is the API running?",
+							),
+						});
+					},
+				},
+			);
+		}
 	});
+
+	const isPending = isEdit ? update.isPending : create.isPending;
+	const idPrefix = isEdit ? "edit-account" : "account";
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Add account</DialogTitle>
+					<DialogTitle>
+						{isEdit && account ? `Edit "${account.name}"` : "Add account"}
+					</DialogTitle>
 					<DialogDescription>
-						Track money held in one place. Amounts are in ₹.
+						{isEdit
+							? "Opening balance and type lock once the account has transactions."
+							: "Track money held in one place. Amounts are in ₹."}
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -104,10 +153,10 @@ export function CreateAccountDialog({
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="account-name">Name</FieldLabel>
+								<FieldLabel htmlFor={`${idPrefix}-name`}>Name</FieldLabel>
 								<Input
-									id="account-name"
-									placeholder="HDFC Bank"
+									id={`${idPrefix}-name`}
+									placeholder={isEdit ? undefined : "HDFC Bank"}
 									autoComplete="off"
 									{...field}
 								/>
@@ -121,25 +170,12 @@ export function CreateAccountDialog({
 						name="type"
 						control={form.control}
 						render={({ field }) => (
-							<Field>
-								<FieldLabel htmlFor="account-type">Type</FieldLabel>
-								<Select
-									items={ACCOUNT_TYPE_OPTIONS}
-									value={field.value}
-									onValueChange={(value) => field.onChange(value)}
-								>
-									<SelectTrigger id="account-type">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{ACCOUNT_TYPE_OPTIONS.map((option) => (
-											<SelectItem key={option.value} value={option.value}>
-												{option.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</Field>
+							<TypeSelectField
+								idPrefix={idPrefix}
+								options={ACCOUNT_TYPE_OPTIONS}
+								value={field.value}
+								onChange={(next) => field.onChange(next)}
+							/>
 						)}
 					/>
 					<Controller
@@ -147,23 +183,23 @@ export function CreateAccountDialog({
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid || undefined}>
-								<FieldLabel htmlFor="account-opening-balance">
+								<FieldLabel htmlFor={`${idPrefix}-opening-balance`}>
 									Opening balance (₹)
 								</FieldLabel>
 								<Input
-									id="account-opening-balance"
+									id={`${idPrefix}-opening-balance`}
 									inputMode="decimal"
-									placeholder="0.00"
+									placeholder={isEdit ? undefined : "0.00"}
 									className="font-mono tabular-nums"
 									{...field}
 								/>
 								{fieldState.error ? (
 									<FieldError>{fieldState.error.message}</FieldError>
-								) : (
+								) : !isEdit ? (
 									<p className="text-sm text-muted-foreground">
 										Leave empty to start from zero.
 									</p>
-								)}
+								) : null}
 							</Field>
 						)}
 					/>
@@ -175,8 +211,14 @@ export function CreateAccountDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={create.isPending}>
-							{create.isPending ? "Creating..." : "Create account"}
+						<Button type="submit" disabled={isPending}>
+							{isPending
+								? isEdit
+									? "Saving..."
+									: "Creating..."
+								: isEdit
+									? "Save changes"
+									: "Create account"}
 						</Button>
 					</DialogFooter>
 				</form>

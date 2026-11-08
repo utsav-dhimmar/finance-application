@@ -1,14 +1,5 @@
 import type { AccountResponse } from "@finance-application/schemas";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@finance-application/ui/components/alert-dialog";
+import { ConfirmReversibleLifecycleDialog } from "@/components/shared/confirm-reversible-lifecycle-dialog";
 
 export type LifecycleAction = "archive" | "delete";
 
@@ -29,34 +20,16 @@ export function ConfirmLifecycleDialog({
 	onConfirm,
 	onOpenChange,
 }: ConfirmLifecycleDialogProps) {
-	const isArchive = action === "archive";
 	return (
-		<AlertDialog
-			open
-			onOpenChange={(next) => {
-				if (!next) {
-					onOpenChange(false);
-				}
-			}}
-		>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>
-						{isArchive ? "Archive" : "Delete"} "{account.name}"?
-					</AlertDialogTitle>
-					<AlertDialogDescription>
-						{isArchive
-							? "Archived accounts leave lists and balance summaries but keep their history. You can restore this account from the Archived tab."
-							: "Deleted accounts move to Trash and keep their history. You can restore this account from the Trash tab."}
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<AlertDialogAction onClick={onConfirm} disabled={pending}>
-						{isArchive ? "Archive account" : "Delete account"}
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
+		<ConfirmReversibleLifecycleDialog
+			action={action}
+			entityName={account.name}
+			noun="account"
+			archiveDescription="Archived accounts leave lists and balance summaries but keep their history. You can restore this account from the Archived tab."
+			deleteDescription="Deleted accounts move to Trash and keep their history. You can restore this account from the Trash tab."
+			pending={pending}
+			onConfirm={onConfirm}
+			onOpenChange={onOpenChange}
+		/>
 	);
 }

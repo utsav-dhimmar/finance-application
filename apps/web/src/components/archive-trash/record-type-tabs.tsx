@@ -11,14 +11,14 @@ export type RecordType =
 	| "transactions"
 	| "transfers";
 
-export const RECORD_TYPES: RecordType[] = [
+const RECORD_TYPES: RecordType[] = [
 	"accounts",
 	"categories",
 	"transactions",
 	"transfers",
 ];
 
-export const RECORD_TYPE_LABELS: Record<RecordType, string> = {
+const RECORD_TYPE_LABELS: Record<RecordType, string> = {
 	accounts: "Accounts",
 	categories: "Categories",
 	transactions: "Transactions",

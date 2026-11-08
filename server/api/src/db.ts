@@ -4,6 +4,9 @@ import * as schema from "./db/schema";
 
 export type Db = DrizzleD1Database<typeof schema>;
 
-export function getDb(env: Env): Db {
+export type DbEnv = {
+	finance_application: D1Database;
+};
+export function getDb(env: DbEnv): Db {
 	return drizzle(env.finance_application, { schema });
 }

@@ -7,7 +7,7 @@ const TAGS = ["Hello"];
 
 const helloRoute = createRoute({
 	method: "get",
-  path: "/api/hello",
+	path: "/api/hello",
 	tags: TAGS,
 	responses: {
 		200: {

@@ -139,7 +139,7 @@ function createFakes() {
 		),
 		deleteIfDeleted: vi.fn(async (id: string) => {
 			const transaction = txnRows.get(id);
-			if (!transaction || transaction.status !== 'deleted') {
+			if (transaction?.status !== "deleted") {
 				return false;
 			}
 			return txnRows.delete(id);
@@ -568,7 +568,11 @@ describe("createTransactionService lifecycle transitions", () => {
 		});
 		expect(
 			await service.restore({ userId: "user-1", transactionId: id }),
-		).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
+		).toEqual({
+			ok: false,
+			code: "RESTORE_CONFLICT",
+			reason: "deleted_reference",
+		});
 	});
 
 	it("blocks restore when the category was deleted", async () => {
@@ -586,7 +590,11 @@ describe("createTransactionService lifecycle transitions", () => {
 		});
 		expect(
 			await service.restore({ userId: "user-1", transactionId: id }),
-		).toEqual({ ok: false, code: "RESTORE_CONFLICT", reason: "deleted_reference" });
+		).toEqual({
+			ok: false,
+			code: "RESTORE_CONFLICT",
+			reason: "deleted_reference",
+		});
 	});
 
 	it("restores with reassignment onto eligible replacements", async () => {

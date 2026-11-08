@@ -5,10 +5,7 @@ import {
 	me as apiMe,
 	refresh as apiRefresh,
 } from "@finance-application/api-client";
-import type {
-	LoginBody,
-	UserResponse,
-} from "@finance-application/schemas";
+import type { LoginBody, UserResponse } from "@finance-application/schemas";
 
 export const ME_QUERY_KEY = ["me"] as const;
 

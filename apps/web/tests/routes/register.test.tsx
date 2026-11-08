@@ -27,14 +27,18 @@ describe("/register (closed)", () => {
 	});
 
 	it("renders without any registration request", async () => {
-		const fetchMock = vi.fn(async (_input: RequestInfo | string) =>
-			new Response(JSON.stringify({
-				error: {
-					code: "UNAUTHENTICATED",
-					message: "Authentication required",
-					details: [],
-				},
-			}), { status: 401, headers: { "content-type": "application/json" } }),
+		const fetchMock = vi.fn(
+			async (_input: RequestInfo | string) =>
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "UNAUTHENTICATED",
+							message: "Authentication required",
+							details: [],
+						},
+					}),
+					{ status: 401, headers: { "content-type": "application/json" } },
+				),
 		);
 		vi.stubGlobal("fetch", fetchMock);
 		await renderRoute(<RegisterPage />, "/register");

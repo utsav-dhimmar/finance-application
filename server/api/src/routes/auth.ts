@@ -46,8 +46,8 @@ const TAGS = ["Auth"];
 
 const loginRoute = createRoute({
 	method: "post",
-  path: "/api/auth/login",
-	tags:TAGS,
+	path: "/api/auth/login",
+	tags: TAGS,
 	request: {
 		body: {
 			content: { "application/json": { schema: loginBodySchema } },
@@ -72,8 +72,8 @@ const loginRoute = createRoute({
 
 const meRoute = createRoute({
 	method: "get",
-  path: "/api/auth/me",
-	tags:TAGS,
+	path: "/api/auth/me",
+	tags: TAGS,
 	responses: {
 		200: {
 			content: { "application/json": { schema: userResponseSchema } },
@@ -88,8 +88,8 @@ const meRoute = createRoute({
 
 const refreshRoute = createRoute({
 	method: "post",
-  path: "/api/auth/refresh",
-	tags:TAGS,
+	path: "/api/auth/refresh",
+	tags: TAGS,
 	responses: {
 		200: {
 			content: { "application/json": { schema: userResponseSchema } },
@@ -108,8 +108,8 @@ const refreshRoute = createRoute({
 
 const logoutRoute = createRoute({
 	method: "post",
-  path: "/api/auth/logout",
-	tags:TAGS,
+	path: "/api/auth/logout",
+	tags: TAGS,
 	responses: {
 		204: { description: "Session revoked and cookies cleared" },
 	},
@@ -119,7 +119,7 @@ export const authRoutes = new OpenAPIHono<{
 	Bindings: AuthBindings;
 	Variables: { user: User };
 }>({
-  defaultHook: validationHook
+	defaultHook: validationHook,
 });
 
 // Registration is permanently closed (single-user product). The middleware
@@ -129,7 +129,9 @@ const REGISTRATION_DISABLED_ERROR = errorBody(
 	"REGISTRATION_DISABLED",
 	"Registration is closed for this application",
 );
-authRoutes.use("/api/auth/register", async (c) => c.json(REGISTRATION_DISABLED_ERROR, 403));
+authRoutes.use("/api/auth/register", async (c) =>
+	c.json(REGISTRATION_DISABLED_ERROR, 403),
+);
 
 authRoutes.openapi(loginRoute, async (c) => {
 	const { email, password } = c.req.valid("json");

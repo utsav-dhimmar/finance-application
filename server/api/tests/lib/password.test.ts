@@ -14,9 +14,7 @@ const MAX_DEFAULT_ITERATIONS = 30_000;
 describe("hashPassword", () => {
 	it("produces a PHC-formatted PBKDF2-SHA256 hash", async () => {
 		const hash = await hashPassword("correct horse battery staple");
-		expect(hash).toMatch(
-			new RegExp(`^\\$pbkdf2-sha256\\$\\d+\\$[^$]+\\$[^$]+$`),
-		);
+		expect(hash).toMatch(/^\$pbkdf2-sha256\$\d+\$[^$]+\$[^$]+$/);
 	});
 
 	it("records the default iteration count, capped at the spec maximum", async () => {
@@ -79,7 +77,12 @@ describe("verifyPassword", () => {
 
 	it("rejects truncated and over-parameterized hashes", async () => {
 		const hash = await hashPassword("correct horse battery staple");
-		expect(await verifyPassword("correct horse battery staple", "$pbkdf2-sha256$25000")).toBe(false);
+		expect(
+			await verifyPassword(
+				"correct horse battery staple",
+				"$pbkdf2-sha256$25000",
+			),
+		).toBe(false);
 		expect(
 			await verifyPassword("correct horse battery staple", `${hash}$trailing`),
 		).toBe(false);
@@ -116,7 +119,9 @@ describe("DUMMY_PASSWORD_HASH", () => {
 		// The dummy exists to equalize unknown-email work, never to authenticate.
 		// Its throwaway source password was discarded at generation time, so no
 		// known password verifies — and the service ignores the result besides.
-		expect(await verifyPassword("correct horse battery staple", DUMMY_PASSWORD_HASH)).toBe(false);
+		expect(
+			await verifyPassword("correct horse battery staple", DUMMY_PASSWORD_HASH),
+		).toBe(false);
 		expect(await verifyPassword("", DUMMY_PASSWORD_HASH)).toBe(false);
 		expect(
 			await verifyPassword(

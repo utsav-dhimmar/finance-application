@@ -12,9 +12,7 @@ import {
 describe("amountMinorSchema", () => {
 	it("accepts values within the supported magnitude", () => {
 		expect(amountMinorSchema.parse(MAX_AMOUNT_MINOR)).toBe(MAX_AMOUNT_MINOR);
-		expect(amountMinorSchema.parse(-MAX_AMOUNT_MINOR)).toBe(
-			-MAX_AMOUNT_MINOR,
-		);
+		expect(amountMinorSchema.parse(-MAX_AMOUNT_MINOR)).toBe(-MAX_AMOUNT_MINOR);
 		expect(amountMinorSchema.parse(0)).toBe(0);
 	});
 

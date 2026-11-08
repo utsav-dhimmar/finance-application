@@ -41,7 +41,7 @@ import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
 import { getReportsErrorMessage } from "@/services/reports-service";
 
 export const Route = createFileRoute("/dashboard")({
-	component: DashboardPage,
+  component: DashboardPage,
 });
 
 type PeriodMode = "month" | "year";

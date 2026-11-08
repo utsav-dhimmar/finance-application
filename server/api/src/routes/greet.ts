@@ -10,7 +10,7 @@ const TAGS = ["Greet"];
 
 const greetRoute = createRoute({
 	method: "get",
-  path: "/api/greet/{name}",
+	path: "/api/greet/{name}",
 	tags: TAGS,
 	summary: "Greet a user",
 	request: {

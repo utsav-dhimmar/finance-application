@@ -2,21 +2,8 @@ import { ApiError } from "@finance-application/api-client";
 import type { TransferResponse } from "@finance-application/schemas";
 import { Button } from "@finance-application/ui/components/button";
 import { Skeleton } from "@finance-application/ui/components/skeleton";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@finance-application/ui/components/table";
-import {
-	createColumnHelper,
-	flexRender,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
+import { ArrowLeftRight, Eye } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmTransactionLifecycleDialog } from "@/components/transactions/confirm-transaction-lifecycle-dialog";
@@ -28,12 +15,17 @@ import {
 	useTransfers,
 } from "@/hooks/use-transfers";
 import { formatPaise } from "@/lib/money";
+import {
+	coreTableFeatures,
+	type CoreTableFeatures,
+} from "@/lib/table-features";
 import { getTransfersErrorMessage } from "@/services/transfers-service";
 import type { PanelMode } from "./accounts-panel";
+import { PanelPagination, PanelTable } from "./panel-table";
 
 const PAGE_SIZE = 20;
 
-const columnHelper = createColumnHelper<TransferResponse>();
+const columnHelper = createColumnHelper<CoreTableFeatures, TransferResponse>();
 
 interface TransfersPanelProps {
 	mode: PanelMode;
@@ -142,7 +134,7 @@ export function TransfersPanel({ mode }: TransfersPanelProps) {
 
 	const data = transfers.data;
 
-	const columns = [
+	const columns = columnHelper.columns([
 		columnHelper.accessor("date", { header: "Date" }),
 		columnHelper.display({
 			id: "amount",
@@ -206,14 +198,14 @@ export function TransfersPanel({ mode }: TransfersPanelProps) {
 				);
 			},
 		}),
-	];
+	]);
 
-	const table = useReactTable({
+	// Pagination is fully manual (server-side), so no table features or
+	// pagination state are registered; the table instance only renders rows.
+	const table = useTable({
+		features: coreTableFeatures,
 		data: data?.transfers ?? [],
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		manualPagination: true,
-		pageCount: data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1,
 	});
 
 	if (transfers.isPending) {
@@ -266,64 +258,13 @@ export function TransfersPanel({ mode }: TransfersPanelProps) {
 
 	return (
 		<>
-			<div className="w-full overflow-x-auto rounded-xl border border-border/80">
-				<Table className="min-w-[640px]">
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => (
-									<TableHead key={header.id}>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows.map((row) => (
-							<TableRow key={row.original.id}>
-								{row.getVisibleCells().map((cell) => (
-									<TableCell key={cell.id}>
-										{flexRender(cell.column.columnDef.cell, cell.getContext())}
-									</TableCell>
-								))}
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</div>
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<p className="text-sm text-muted-foreground">
-					Page {page} of {pageCount} · {total} total
-				</p>
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={page <= 1}
-						onClick={() => setPage((current) => Math.max(1, current - 1))}
-					>
-						<ChevronLeft aria-hidden="true" className="size-4" />
-						Prev
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={page >= pageCount}
-						onClick={() =>
-							setPage((current) => Math.min(pageCount, current + 1))
-						}
-					>
-						Next
-						<ChevronRight aria-hidden="true" className="size-4" />
-					</Button>
-				</div>
-			</div>
+			<PanelTable table={table} />
+			<PanelPagination
+				page={page}
+				pageCount={pageCount}
+				total={total}
+				onPageChange={setPage}
+			/>
 
 			{viewing && (
 				<TransferDetailDialog

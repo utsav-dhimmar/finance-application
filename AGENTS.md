@@ -119,3 +119,8 @@ Before completing a task:
 - Review security-sensitive changes.
 - Update documentation and specifications when required.
 - Report incomplete checks and known limitations honestly.
+
+## Style Preference
+
+- Follow boxy style no border radius
+- sharp corners, clean geometric edges, and a structured layout

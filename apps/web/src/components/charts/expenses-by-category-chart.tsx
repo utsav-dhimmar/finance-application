@@ -67,7 +67,7 @@ export function ExpensesByCategoryChart({
 	return (
 		<ChartContainer
 			config={config}
-			className="mx-auto aspect-square max-h-[280px] w-full"
+			className="mx-auto aspect-square max-h-70 w-full"
 		>
 			<PieChart>
 				<ChartTooltip

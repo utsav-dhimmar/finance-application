@@ -60,16 +60,31 @@ async function readJson(res: Response): Promise<unknown> {
 
 // Same-origin fetch with the shared error envelope decoding. Cookies are sent
 // automatically (same-origin), carrying the auth session. `baseUrl` exists for
-// non-browser clients that target a remote origin.
+// non-browser clients that target a remote origin; `onResponse` lets such
+// clients read raw response headers (e.g. Set-Cookie) before decoding.
+export interface ApiFetchOptions {
+	/** Prefix for all requests, e.g. "https://api.example.com". Defaults to same-origin relative paths. */
+	baseUrl?: string;
+	/** Called with the raw response before body decoding and error handling. */
+	onResponse?: (res: Response) => void;
+	/** Extra request headers (e.g. Cookie for non-browser clients), merged over the defaults. */
+	headers?: Record<string, string>;
+}
+
 export async function apiFetch<T>(
 	path: string,
 	init?: RequestInit,
-	options?: { baseUrl?: string },
+	options?: ApiFetchOptions,
 ): Promise<T> {
 	const res = await fetch(`${options?.baseUrl ?? ""}${path}`, {
 		...init,
-		headers: { "content-type": "application/json", ...init?.headers },
+		headers: {
+			"content-type": "application/json",
+			...init?.headers,
+			...options?.headers,
+		},
 	});
+	options?.onResponse?.(res);
 	const body = await readJson(res);
 	if (!res.ok) {
 		throw parseErrorEnvelope(res.status, body);

@@ -15,6 +15,7 @@ import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as RecurringExpensesRouteImport } from './routes/recurring-expenses'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TransactionsRouteImport } from './routes/transactions'
@@ -50,6 +51,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecurringExpensesRoute = RecurringExpensesRouteImport.update({
+  id: '/recurring-expenses',
+  path: '/recurring-expenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/categories': typeof CategoriesRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/recurring-expenses': typeof RecurringExpensesRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/categories': typeof CategoriesRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/recurring-expenses': typeof RecurringExpensesRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/categories': typeof CategoriesRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/recurring-expenses': typeof RecurringExpensesRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/dashboard'
     | '/login'
+    | '/recurring-expenses'
     | '/register'
     | '/settings'
     | '/transactions'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/dashboard'
     | '/login'
+    | '/recurring-expenses'
     | '/register'
     | '/settings'
     | '/transactions'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/categories'
     | '/dashboard'
     | '/login'
+    | '/recurring-expenses'
     | '/register'
     | '/settings'
     | '/transactions'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   CategoriesRoute: typeof CategoriesRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  RecurringExpensesRoute: typeof RecurringExpensesRoute
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recurring-expenses': {
+      id: '/recurring-expenses'
+      path: '/recurring-expenses'
+      fullPath: '/recurring-expenses'
+      preLoaderRoute: typeof RecurringExpensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   CategoriesRoute: CategoriesRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  RecurringExpensesRoute: RecurringExpensesRoute,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRoute,

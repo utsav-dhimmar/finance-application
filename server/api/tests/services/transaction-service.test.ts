@@ -457,6 +457,7 @@ describe("createTransactionService.update", () => {
 				date: "2026-01-15",
 				accountId: "acc-1",
 				categoryId: "cat-1",
+				recurringExpenseId: null,
 				notes: null,
 				status: "active",
 				archivedAt: null,

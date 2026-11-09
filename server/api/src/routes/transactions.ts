@@ -5,6 +5,7 @@ import { errorBody, validationHook } from "@/lib/error";
 import { requireAuth } from "@/middleware/auth";
 import { createAccountRepository } from "@/repositories/account-repository";
 import { createCategoryRepository } from "@/repositories/category-repository";
+import { createRecurringExpenseRepository } from "@/repositories/recurring-expense-repository";
 import { createTransactionRepository } from "@/repositories/transaction-repository";
 import { errorEnvelopeSchema } from "@/schemas/auth";
 import {
@@ -29,6 +30,7 @@ function createTransactionServiceForEnv(env: AppBindings): TransactionService {
 		transactions: createTransactionRepository(db),
 		accounts: createAccountRepository(db),
 		categories: createCategoryRepository(db),
+		recurringExpenses: createRecurringExpenseRepository(db),
 	});
 }
 

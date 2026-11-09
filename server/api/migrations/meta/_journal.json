@@ -1,55 +1,62 @@
 {
-	"version": "7",
-	"dialect": "sqlite",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "6",
-			"when": 1793036191333,
-			"tag": "0000_init-auth-tables",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "6",
-			"when": 1793460074936,
-			"tag": "0001_add_accounts",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "6",
-			"when": 1793523417222,
-			"tag": "0002_add_categories",
-			"breakpoints": true
-		},
-		{
-			"idx": 3,
-			"version": "6",
-			"when": 1793527695188,
-			"tag": "0003_add_transactions",
-			"breakpoints": true
-		},
-		{
-			"idx": 4,
-			"version": "6",
-			"when": 1793636204257,
-			"tag": "0004_careful_patch",
-			"breakpoints": true
-		},
-		{
-			"idx": 5,
-			"version": "6",
-			"when": 1793891936601,
-			"tag": "0005_free_kabuki",
-			"breakpoints": true
-		},
-		{
-			"idx": 6,
-			"version": "6",
-			"when": 1794038251012,
-			"tag": "0006_powerful_retro_girl",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793036191333,
+      "tag": "0000_init-auth-tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793460074936,
+      "tag": "0001_add_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793523417222,
+      "tag": "0002_add_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793527695188,
+      "tag": "0003_add_transactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793636204257,
+      "tag": "0004_careful_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793891936601,
+      "tag": "0005_free_kabuki",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794038251012,
+      "tag": "0006_powerful_retro_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794235351375,
+      "tag": "0007_simple_flatman",
+      "breakpoints": true
+    }
+  ]
 }

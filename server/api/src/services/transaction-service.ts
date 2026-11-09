@@ -3,13 +3,16 @@ import type {
 	TransactionType,
 } from "@finance-application/schemas";
 import {
+	addCalendarMonths,
 	transactionStatusSchema,
 	transactionTypeSchema,
 } from "@finance-application/schemas";
 import type { Transaction } from "@/db/schema";
 import type { ErrorCode } from "@/lib/error";
+import { uuidV7 } from "@/lib/uuid";
 import type { AccountRepository } from "@/repositories/account-repository";
 import type { CategoryRepository } from "@/repositories/category-repository";
+import type { RecurringExpenseRepository } from "@/repositories/recurring-expense-repository";
 import type { TransactionRepository } from "@/repositories/transaction-repository";
 import { isoNow } from "@/utils/datetime";
 
@@ -23,6 +26,7 @@ export interface TransactionView {
 	categoryId: string;
 	categoryName: string | null;
 	notes: string | null;
+	recurringExpenseId: string | null;
 	status: TransactionStatus;
 	archivedAt: string | null;
 	deletedAt: string | null;
@@ -48,6 +52,7 @@ function toView(
 		categoryId: row.categoryId,
 		categoryName: row.categoryName ?? null,
 		notes: row.notes,
+		recurringExpenseId: row.recurringExpenseId ?? null,
 		status: transactionStatusSchema.parse(row.status),
 		archivedAt: row.archivedAt,
 		deletedAt: row.deletedAt,
@@ -113,6 +118,11 @@ export interface CreateTransactionInput {
 	accountId: string;
 	categoryId: string;
 	notes?: string | null;
+	recurringExpenseId?: string | null;
+	recurrence?: {
+		intervalMonths: number;
+		endDate?: string | null;
+	} | null;
 }
 
 export interface UpdateTransactionInput {
@@ -159,10 +169,11 @@ export interface TransactionServiceDeps {
 	transactions: TransactionRepository;
 	accounts: AccountRepository;
 	categories: CategoryRepository;
+	recurringExpenses?: RecurringExpenseRepository;
 }
 
 export function createTransactionService(deps: TransactionServiceDeps) {
-	const { transactions, accounts, categories } = deps;
+	const { transactions, accounts, categories, recurringExpenses } = deps;
 
 	async function requireOwnedTransaction(
 		userId: string,
@@ -367,6 +378,38 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 				return { ok: false, code: "CATEGORY_INELIGIBLE" };
 			}
 			const nowIso = isoNow();
+			let recurringExpenseId = input.recurringExpenseId ?? null;
+			if (
+				input.recurrence &&
+				recurringExpenses &&
+				input.type === "expense"
+			) {
+				const category = await categories.findById(input.categoryId);
+				const recId = uuidV7();
+				const nextDueDate = addCalendarMonths(
+					input.date,
+					input.recurrence.intervalMonths,
+				);
+				await recurringExpenses.insert({
+					id: recId,
+					userId: input.userId,
+					name: category?.name ?? "Recurring expense",
+					amountMinor: input.amountMinor,
+					intervalMonths: input.recurrence.intervalMonths,
+					sourceAccountId: input.accountId,
+					categoryId: input.categoryId,
+					startDate: input.date,
+					nextDueDate,
+					endDate: input.recurrence.endDate ?? null,
+					lastPostedDate: input.date,
+					status: "active",
+					notes: input.notes ?? null,
+					createdAt: nowIso,
+					updatedAt: nowIso,
+				});
+				recurringExpenseId = recId;
+			}
+
 			try {
 				await transactions.insert({
 					id: input.id,
@@ -376,6 +419,7 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 					date: input.date,
 					accountId: input.accountId,
 					categoryId: input.categoryId,
+					recurringExpenseId,
 					notes: input.notes ?? null,
 					createdAt: nowIso,
 					updatedAt: nowIso,

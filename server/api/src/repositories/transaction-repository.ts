@@ -38,6 +38,7 @@ export interface NewTransactionRow {
 	date: string;
 	accountId: string;
 	categoryId: string;
+	recurringExpenseId?: string | null;
 	notes: string | null;
 	createdAt: string;
 	updatedAt: string;

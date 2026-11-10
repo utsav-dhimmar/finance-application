@@ -6,6 +6,10 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ACCOUNTS_QUERY_KEY } from "@/services/accounts-service";
 import { CATEGORIES_QUERY_KEY } from "@/services/categories-service";
+import {
+	DUE_RECURRING_EXPENSES_QUERY_KEY,
+	RECURRING_EXPENSES_QUERY_KEY,
+} from "@/services/recurring-expenses-service";
 import { REPORTS_QUERY_KEY } from "@/services/reports-service";
 import { ACTIVITY_QUERY_KEY } from "@/services/transfers-service";
 import {
@@ -36,6 +40,12 @@ function useInvalidateTransactionRelated() {
 		queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
 		queryClient.invalidateQueries({ queryKey: ACTIVITY_QUERY_KEY });
 		queryClient.invalidateQueries({ queryKey: REPORTS_QUERY_KEY });
+		queryClient.invalidateQueries({
+			queryKey: RECURRING_EXPENSES_QUERY_KEY,
+		});
+		queryClient.invalidateQueries({
+			queryKey: DUE_RECURRING_EXPENSES_QUERY_KEY,
+		});
 	};
 }
 

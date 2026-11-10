@@ -106,6 +106,13 @@ export function AppHeader() {
 									Transactions
 								</SafeLink>
 								<SafeLink
+									to="/recurring-expenses"
+									className="text-muted-foreground transition-colors hover:text-foreground"
+									activeProps={{ className: "text-foreground font-medium" }}
+								>
+									Recurring
+								</SafeLink>
+								<SafeLink
 									to="/archive"
 									className="text-muted-foreground transition-colors hover:text-foreground"
 									activeProps={{ className: "text-foreground font-medium" }}
@@ -237,6 +244,16 @@ export function AppHeader() {
 									}}
 								>
 									Transactions
+								</SafeLink>
+								<SafeLink
+									to="/recurring-expenses"
+									onClick={() => setMobileMenuOpen(false)}
+									className="rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+									activeProps={{
+										className: "text-foreground font-medium bg-muted/60",
+									}}
+								>
+									Recurring
 								</SafeLink>
 								<SafeLink
 									to="/archive"

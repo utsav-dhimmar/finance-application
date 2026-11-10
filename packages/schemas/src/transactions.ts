@@ -53,6 +53,18 @@ export const transactionNotesSchema = z
 		`Notes must be at most ${NOTES_MAX_LENGTH} characters`,
 	);
 
+export const transactionRecurrenceInputSchema = z.object({
+	intervalMonths: z
+		.number()
+		.int("Duration interval must be a whole number of months")
+		.min(1, "Interval must be at least 1 month")
+		.max(120, "Interval cannot exceed 120 months"),
+	endDate: transactionDateSchema.optional().nullable(),
+});
+export type TransactionRecurrenceInput = z.infer<
+	typeof transactionRecurrenceInputSchema
+>;
+
 export const createTransactionBodySchema = z.object({
 	id: transactionIdSchema,
 	type: transactionTypeSchema,
@@ -61,6 +73,8 @@ export const createTransactionBodySchema = z.object({
 	accountId: z.string().min(1),
 	categoryId: z.string().min(1),
 	notes: transactionNotesSchema.optional(),
+	recurrence: transactionRecurrenceInputSchema.optional().nullable(),
+	recurringExpenseId: transactionIdSchema.optional().nullable(),
 });
 
 export const updateTransactionBodySchema = z.object({
@@ -98,6 +112,7 @@ export const transactionResponseSchema = z.object({
 	categoryId: z.string(),
 	categoryName: z.string().nullable(),
 	notes: z.string().nullable(),
+	recurringExpenseId: z.string().nullable().optional(),
 	status: transactionStatusSchema,
 	archivedAt: z.string().nullable(),
 	deletedAt: z.string().nullable(),
@@ -130,6 +145,9 @@ export const transactionFormSchema = z.object({
 			`Notes must be at most ${NOTES_MAX_LENGTH} characters`,
 		)
 		.optional(),
+	isRecurring: z.boolean().default(false),
+	recurrenceIntervalMonths: z.coerce.number().int().min(1).max(120).default(1),
+	recurrenceEndDate: transactionDateSchema.optional().or(z.literal("")),
 });
 
 export type CreateTransactionBody = z.infer<typeof createTransactionBodySchema>;

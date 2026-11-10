@@ -48,6 +48,19 @@ export const createTransactionBodySchema = z.object({
 	notes: transactionNotesSchema
 		.openapi({ description: "Optional notes" })
 		.optional(),
+	recurrence: z
+		.object({
+			intervalMonths: z
+				.number()
+				.int()
+				.min(1)
+				.max(120)
+				.openapi({ description: "Duration interval in months" }),
+			endDate: transactionDateSchema.optional().nullable(),
+		})
+		.optional()
+		.nullable(),
+	recurringExpenseId: transactionIdSchema.optional().nullable(),
 });
 
 export const listTransactionsQuerySchema = z.object({

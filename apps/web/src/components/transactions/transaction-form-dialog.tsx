@@ -57,6 +57,14 @@ const TRANSACTION_TYPE_OPTIONS = (
 	>
 ).map((type) => ({ value: type, label: TRANSACTION_TYPE_LABELS[type] }));
 
+const INTERVAL_OPTIONS = [
+	{ value: "1", label: "Every 1 month (Monthly)" },
+	{ value: "2", label: "Every 2 months (Bi-monthly)" },
+	{ value: "3", label: "Every 3 months (Quarterly)" },
+	{ value: "6", label: "Every 6 months (Semi-annually)" },
+	{ value: "12", label: "Every 12 months (Annually)" },
+];
+
 export interface TransactionFormDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -83,6 +91,9 @@ export function TransactionFormDialog({
 			accountId: "",
 			categoryId: "",
 			notes: "",
+			isRecurring: false,
+			recurrenceIntervalMonths: 1,
+			recurrenceEndDate: "",
 		},
 	});
 
@@ -100,6 +111,9 @@ export function TransactionFormDialog({
 							accountId: transaction.accountId,
 							categoryId: transaction.categoryId,
 							notes: transaction.notes ?? "",
+							isRecurring: false,
+							recurrenceIntervalMonths: 1,
+							recurrenceEndDate: "",
 						}
 					: {
 							type: "expense",
@@ -108,6 +122,9 @@ export function TransactionFormDialog({
 							accountId: "",
 							categoryId: "",
 							notes: "",
+							isRecurring: false,
+							recurrenceIntervalMonths: 1,
+							recurrenceEndDate: "",
 						},
 			);
 			form.clearErrors("root");
@@ -178,6 +195,13 @@ export function TransactionFormDialog({
 					accountId: values.accountId,
 					categoryId: values.categoryId,
 					notes: values.notes ? values.notes : undefined,
+					recurrence:
+						values.type === "expense" && values.isRecurring
+							? {
+									intervalMonths: values.recurrenceIntervalMonths,
+									endDate: values.recurrenceEndDate || undefined,
+								}
+							: undefined,
 				},
 				{
 					onSuccess: (createdTransaction) => {
@@ -370,6 +394,84 @@ export function TransactionFormDialog({
 									</Field>
 								)}
 							/>
+							{!isEdit && selectedType === "expense" && (
+								<div className="border border-border p-3 space-y-3 bg-muted/20">
+									<label className="flex items-center gap-2 cursor-pointer select-none">
+										<input
+											type="checkbox"
+											className="h-4 w-4 rounded-none border border-input accent-primary cursor-pointer"
+											checked={form.watch("isRecurring")}
+											onChange={(e) =>
+												form.setValue("isRecurring", e.target.checked)
+											}
+										/>
+										<span className="text-sm font-medium">
+											Repeat this expense (Recurring)
+										</span>
+									</label>
+
+									{form.watch("isRecurring") && (
+										<div className="space-y-3 pt-2 border-t border-border/50">
+											<Controller
+												name="recurrenceIntervalMonths"
+												control={form.control}
+												render={({ field }) => (
+													<Field>
+														<FieldLabel htmlFor={`${idPrefix}-recurrence-interval`}>
+															Recurring Duration
+														</FieldLabel>
+														<Select
+															items={INTERVAL_OPTIONS}
+															value={String(field.value)}
+															onValueChange={(val) =>
+																field.onChange(Number(val))
+															}
+														>
+															<SelectTrigger
+																id={`${idPrefix}-recurrence-interval`}
+															>
+																<SelectValue placeholder="Select duration" />
+															</SelectTrigger>
+															<SelectContent>
+																{INTERVAL_OPTIONS.map((opt) => (
+																	<SelectItem
+																		key={opt.value}
+																		value={opt.value}
+																	>
+																		{opt.label}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</Field>
+												)}
+											/>
+
+											<Controller
+												name="recurrenceEndDate"
+												control={form.control}
+												render={({ field, fieldState }) => (
+													<Field data-invalid={fieldState.invalid || undefined}>
+														<FieldLabel
+															htmlFor={`${idPrefix}-recurrence-end-date`}
+														>
+															End Date (optional)
+														</FieldLabel>
+														<Input
+															id={`${idPrefix}-recurrence-end-date`}
+															type="date"
+															{...field}
+														/>
+														{fieldState.error && (
+															<FieldError>{fieldState.error.message}</FieldError>
+														)}
+													</Field>
+												)}
+											/>
+										</div>
+									)}
+								</div>
+							)}
 							<Controller
 								name="notes"
 								control={form.control}

@@ -33,6 +33,7 @@ import { AppHeader, SafeLink } from "@/components/app-header";
 import { ExpensesByCategoryChart } from "@/components/charts/expenses-by-category-chart";
 import { IncomeExpenseComparisonChart } from "@/components/charts/income-expense-comparison-chart";
 import { IncomeExpenseSplitChart } from "@/components/charts/income-expense-split-chart";
+import { DueRecurringExpensesCard } from "@/components/recurring-expenses/due-recurring-expenses-card";
 import { useMe } from "@/hooks/use-auth";
 import { useReportSummary } from "@/hooks/use-reports";
 import { useActivity } from "@/hooks/use-transfers";
@@ -194,6 +195,8 @@ export function DashboardPage() {
 						</SafeLink>
 					</div>
 				</div>
+
+				<DueRecurringExpensesCard />
 
 				{/* Period selector */}
 				<section

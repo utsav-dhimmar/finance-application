@@ -124,6 +124,58 @@ export const categories = sqliteTable(
 	],
 );
 
+// Recurring expenses. Owns the recurring schedule, duration interval in
+// months, and current lifecycle state. Next due date is tracked and advanced
+// upon posting or skipping.
+export const recurringExpenses = sqliteTable(
+	"recurring_expenses",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		amountMinor: integer("amount_minor").notNull(),
+		intervalMonths: integer("interval_months").notNull(),
+		sourceAccountId: text("source_account_id")
+			.notNull()
+			.references(() => accounts.id, { onDelete: "restrict" }),
+		categoryId: text("category_id")
+			.notNull()
+			.references(() => categories.id, { onDelete: "restrict" }),
+		startDate: text("start_date").notNull(),
+		nextDueDate: text("next_due_date").notNull(),
+		endDate: text("end_date"),
+		lastPostedDate: text("last_posted_date"),
+		status: text("status").notNull().default("active"),
+		notes: text("notes"),
+		createdAt: text("created_at").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		check("recurring_expenses_amount_positive_check", sql`${table.amountMinor} > 0`),
+		check("recurring_expenses_interval_positive_check", sql`${table.intervalMonths} > 0`),
+		check(
+			"recurring_expenses_status_check",
+			sql`${table.status} in ('active', 'paused', 'completed', 'cancelled')`,
+		),
+		index("recurring_expenses_user_status_due_idx").on(
+			table.userId,
+			table.status,
+			table.nextDueDate,
+		),
+		index("recurring_expenses_user_due_idx").on(table.userId, table.nextDueDate),
+		index("recurring_expenses_user_source_idx").on(
+			table.userId,
+			table.sourceAccountId,
+		),
+		index("recurring_expenses_user_category_idx").on(
+			table.userId,
+			table.categoryId,
+		),
+	],
+);
+
 // The transaction ledger. Lifecycle states are owned by the transaction
 // service; the database enforces the state vocabulary. Balances are derived:
 // the account service sums the signed effects of non-deleted transactions
@@ -149,6 +201,10 @@ export const transactions = sqliteTable(
 		categoryId: text("category_id")
 			.notNull()
 			.references(() => categories.id, { onDelete: "restrict" }),
+		recurringExpenseId: text("recurring_expense_id").references(
+			() => recurringExpenses.id,
+			{ onDelete: "set null" },
+		),
 		notes: text("notes"),
 		status: text("status").notNull().default("active"),
 		archivedAt: text("archived_at"),
@@ -177,6 +233,10 @@ export const transactions = sqliteTable(
 			table.userId,
 			table.status,
 			table.date,
+		),
+		index("transactions_user_recurring_idx").on(
+			table.userId,
+			table.recurringExpenseId,
 		),
 	],
 );
@@ -247,6 +307,8 @@ export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
+export type RecurringExpense = typeof recurringExpenses.$inferSelect;
+export type NewRecurringExpense = typeof recurringExpenses.$inferInsert;
 export type Transfer = typeof transfers.$inferSelect;
 export type NewTransfer = typeof transfers.$inferInsert;
 

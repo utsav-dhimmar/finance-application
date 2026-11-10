@@ -49,6 +49,7 @@ import {
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
+import { DueRecurringExpensesCard } from "@/components/recurring-expenses/due-recurring-expenses-card";
 import { ConfirmTransactionLifecycleDialog } from "@/components/transactions/confirm-transaction-lifecycle-dialog";
 import { RestoreTransactionDialog } from "@/components/transactions/restore-transaction-dialog";
 import { TransactionDetailDialog } from "@/components/transactions/transaction-detail-dialog";
@@ -701,6 +702,8 @@ export function TransactionsPage() {
 						</Button>
 					</div>
 				</div>
+
+				<DueRecurringExpensesCard />
 
 				{/* Status tabs */}
 				<div className="flex items-center">

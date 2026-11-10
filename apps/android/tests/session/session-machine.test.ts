@@ -1,24 +1,26 @@
+import {
+	type ApiClientOptions,
+	apiFetch,
+} from "@finance-application/api-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { apiFetch, type ApiClientOptions } from "@finance-application/api-client";
-
-import { AuthSession } from "./auth-session";
+import { AuthSession } from "@/session/auth-session";
 import {
 	ACCESS_COOKIE,
 	CookieJar,
-	REFRESH_COOKIE,
 	type CookieStore,
+	REFRESH_COOKIE,
 	type SessionCookies,
-} from "./cookie-jar";
+} from "@/session/cookie-jar";
 import {
 	API_BASE,
 	errorEnvelope,
+	type FetchHandler,
 	jsonResponse,
 	stubFetchRouter,
 	user,
-	type FetchHandler,
-} from "./fetch-mock";
-import { SessionMachine } from "./session-machine";
+} from "@/session/fetch-mock";
+import { SessionMachine } from "@/session/session-machine";
 
 const ACCESS = "access-value-123";
 const REFRESH = "refresh-value-456";
@@ -250,8 +252,7 @@ describe("SessionMachine.run (single-flight refresh)", () => {
 		store.data = { accessToken: ACCESS, refreshToken: REFRESH };
 		const machine = makeMachine(
 			{
-				"GET /api/data": () =>
-					errorEnvelope(401, "UNAUTHENTICATED", "expired"),
+				"GET /api/data": () => errorEnvelope(401, "UNAUTHENTICATED", "expired"),
 				"POST /api/auth/refresh": () =>
 					errorEnvelope(401, "INVALID_REFRESH_TOKEN", "Invalid refresh token"),
 			},
@@ -259,7 +260,9 @@ describe("SessionMachine.run (single-flight refresh)", () => {
 		);
 		const operation = (options: ApiClientOptions) =>
 			apiFetch<{ ok: boolean }>("/api/data", {}, options);
-		await expect(machine.run(operation)).rejects.toThrow("Invalid refresh token");
+		await expect(machine.run(operation)).rejects.toThrow(
+			"Invalid refresh token",
+		);
 		expect(machine.getState()).toEqual({ status: "signed-out" });
 		expect(store.clears).toBe(1);
 	});

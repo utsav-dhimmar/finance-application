@@ -1,11 +1,11 @@
 import {
 	createContext,
+	type ReactNode,
 	useContext,
 	useEffect,
 	useMemo,
 	useState,
 	useSyncExternalStore,
-	type ReactNode,
 } from "react";
 
 import { resolveApiBaseUrl } from "./api-config";
@@ -13,6 +13,7 @@ import { AuthSession } from "./auth-session";
 import { CookieJar } from "./cookie-jar";
 import { createSecureCookieStore } from "./secure-store-adapter";
 import { SessionMachine, type SessionState } from "./session-machine";
+import { registerSessionMachine } from "./session-runtime";
 
 interface SessionContextValue {
 	state: SessionState;
@@ -25,7 +26,9 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 /**
  * Binds the platform-independent SessionMachine to React: creates it once
  * with the configured API base URL and the secure cookie store, restores the
- * session on mount, and publishes state changes to consumers.
+ * session on mount, and publishes state changes to consumers. The machine is
+ * also registered with the data layer so services can route every request
+ * through SessionMachine.run().
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
 	const [machine] = useState(() => {
@@ -34,7 +37,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 			new CookieJar(createSecureCookieStore()),
 			baseUrl,
 		);
-		return new SessionMachine(auth);
+		const created = new SessionMachine(auth);
+		registerSessionMachine(created);
+		return created;
 	});
 
 	const state = useSyncExternalStore(

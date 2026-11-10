@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	ACCESS_COOKIE,
 	CookieJar,
-	REFRESH_COOKIE,
-	SessionStorageError,
 	type CookieStore,
+	REFRESH_COOKIE,
 	type SessionCookies,
-} from "./cookie-jar";
+	SessionStorageError,
+} from "@/session/cookie-jar";
 
 const ACCESS = "access-value-123";
 const REFRESH = "refresh-value-456";
@@ -39,9 +39,7 @@ class MemoryStore implements CookieStore {
 function responseWithCookies(entries: string[]): Response {
 	return new Response(null, {
 		status: 200,
-		headers: entries.map(
-			(value): [string, string] => ["set-cookie", value],
-		),
+		headers: entries.map((value): [string, string] => ["set-cookie", value]),
 	});
 }
 

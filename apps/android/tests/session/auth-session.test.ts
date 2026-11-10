@@ -1,23 +1,22 @@
+import { ApiError } from "@finance-application/api-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@finance-application/api-client";
-
-import { AuthSession } from "./auth-session";
+import { AuthSession } from "@/session/auth-session";
 import {
 	ACCESS_COOKIE,
 	CookieJar,
-	REFRESH_COOKIE,
-	SessionStorageError,
 	type CookieStore,
+	REFRESH_COOKIE,
 	type SessionCookies,
-} from "./cookie-jar";
+	SessionStorageError,
+} from "@/session/cookie-jar";
 import {
 	API_BASE,
 	errorEnvelope,
 	jsonResponse,
 	stubFetchRouter,
 	user,
-} from "./fetch-mock";
+} from "@/session/fetch-mock";
 
 const ACCESS = "access-value-123";
 const REFRESH = "refresh-value-456";
@@ -155,6 +154,8 @@ describe("AuthSession", () => {
 		store.loadError = new Error("keystore unavailable");
 		vi.stubGlobal("fetch", stubFetchRouter({}));
 		const auth = new AuthSession(new CookieJar(store), API_BASE);
-		await expect(auth.loadCookies()).rejects.toBeInstanceOf(SessionStorageError);
+		await expect(auth.loadCookies()).rejects.toBeInstanceOf(
+			SessionStorageError,
+		);
 	});
 });

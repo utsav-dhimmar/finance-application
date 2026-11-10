@@ -1,6 +1,6 @@
 import {
-	ApiError,
 	type ApiClientOptions,
+	ApiError,
 } from "@finance-application/api-client";
 import type { UserResponse } from "@finance-application/schemas";
 
@@ -12,7 +12,8 @@ export type SessionState =
 	| { status: "signed-in"; user: UserResponse };
 
 const GENERIC_INVALID_CREDENTIALS = "Invalid email or password.";
-const NETWORK_ERROR = "Could not reach the server. Check the API URL and your connection.";
+const NETWORK_ERROR =
+	"Could not reach the server. Check the API URL and your connection.";
 const STORAGE_ERROR =
 	"Secure storage is unavailable, so the session could not be kept.";
 
@@ -74,7 +75,10 @@ export class SessionMachine {
 			if (!(error instanceof ApiError) || error.status !== 401) {
 				// Unreachable API or unexpected failure: keep the stored session
 				// (cookies persist) and let the user retry rather than clearing.
-				this.set({ status: "signed-out", error: errorMessage(error, NETWORK_ERROR) });
+				this.set({
+					status: "signed-out",
+					error: errorMessage(error, NETWORK_ERROR),
+				});
 				return;
 			}
 		}
@@ -87,7 +91,10 @@ export class SessionMachine {
 				this.set({ status: "signed-out" });
 				return;
 			}
-			this.set({ status: "signed-out", error: errorMessage(error, NETWORK_ERROR) });
+			this.set({
+				status: "signed-out",
+				error: errorMessage(error, NETWORK_ERROR),
+			});
 		}
 	}
 
@@ -117,7 +124,9 @@ export class SessionMachine {
 	 * Runs an authenticated request, retrying once after a shared single-flight
 	 * refresh when the first attempt is rejected with 401 UNAUTHENTICATED.
 	 */
-	async run<T>(operation: (options: ApiClientOptions) => Promise<T>): Promise<T> {
+	async run<T>(
+		operation: (options: ApiClientOptions) => Promise<T>,
+	): Promise<T> {
 		const first = await operation(await this.auth.optionsForRequest()).then(
 			(value: T): { ok: true; value: T } | { ok: false; error: unknown } => ({
 				ok: true,
@@ -149,11 +158,9 @@ export class SessionMachine {
 
 	/** Single-flight refresh: concurrent callers share one request. */
 	private refreshOnce(): Promise<UserResponse> {
-		this.refreshInFlight ??= this.auth
-			.refreshSession()
-			.finally(() => {
-				this.refreshInFlight = null;
-			});
+		this.refreshInFlight ??= this.auth.refreshSession().finally(() => {
+			this.refreshInFlight = null;
+		});
 		return this.refreshInFlight;
 	}
 }

@@ -29,6 +29,18 @@ Run lint and typecheck before declaring any task done.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md
 
+## Testing
+
+All tests live in `tests/`, mirroring `src/` (`tests/session/`, `tests/services/`, `tests/hooks/`, `tests/components/`). Test files are `*.test.ts` for Node-logic units and `*.test.tsx` for component/hook tests. Run them with `npx vitest run` (or `pnpm test`).
+
+- **Runner**: Vitest with the `vitest-native` plugin (`reactNative()` in `vitest.config.mts`) — it runs a real React Native under the native engine with native-module mocks, so component and hook tests use `@testing-library/react-native` without Jest. RNTL matchers are typed via the `/// <reference types="vitest-native/rntl-matchers" />` directive in `tests/vitest-matchers.d.ts`.
+- **Shared setup**: `tests/setup.ts` registers RNTL matchers on vitest's `expect` and runs `cleanup()` after each test. `tests/helpers.tsx` provides `createTestQueryClient` (retry disabled), `renderWithProviders`, and `makeHookWrapper` (a `QueryClientProvider` wrapper for `renderHook`).
+- **Network is always stubbed**: never hit a real API. Use `vi.stubGlobal("fetch", stubFetchRouter(handlers))` with the helpers from `src/session/fetch-mock.ts`, and build a real `SessionMachine` over it with `makeRegisteredMachine` (`tests/services/helpers.ts`) so service and hook tests exercise the exact production path (cookies in, 401 refresh, retry).
+- **RNTL 14 is async**: always `await render(...)`, `await renderHook(...)`, and `await fireEvent.*(...)`. Give `waitFor` an explicit `{ timeout }` — the native engine's first render in a file can exceed the default 1s.
+- **Queries/mutations under test** need fresh clients per test (`createTestQueryClient`); spy on `queryClient.invalidateQueries` to assert invalidation sets.
+- **Screens that use the session context** mock `@/session/session-context` (`vi.mock` + `vi.hoisted`) instead of mounting the real provider, so no secure store or network is involved.
+- **Forms** use react-hook-form + `zodResolver` against `@finance-application/schemas`, typed `useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>`. In tests, derive expected messages by running the same schema's `safeParse` — never hardcode copies that the schema owns.
+
 ## Building with EAS
 
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.

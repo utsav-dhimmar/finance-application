@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MissingApiUrlError, resolveApiBaseUrl } from "./api-config";
+import { MissingApiUrlError, resolveApiBaseUrl } from "@/session/api-config";
 
 describe("resolveApiBaseUrl", () => {
 	it("returns the configured URL", () => {

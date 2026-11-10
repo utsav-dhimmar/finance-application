@@ -7,7 +7,7 @@ import {
 	radius,
 	spacing,
 	typography,
-} from "./theme";
+} from "@/theme";
 
 describe("theme", () => {
 	it("uses zero corner radius on every radius token (boxy style)", () => {

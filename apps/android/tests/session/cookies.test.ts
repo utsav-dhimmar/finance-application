@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSetCookie } from "./cookies";
+import { parseSetCookie } from "@/session/cookies";
 
 describe("parseSetCookie", () => {
 	it("parses a single header with attributes stripped", () => {
@@ -46,9 +46,9 @@ describe("parseSetCookie", () => {
 	});
 
 	it("keeps attribute values that contain equals signs", () => {
-		expect(parseSetCookie("sid=abc; Path=/; Priority=High; SameSite=Lax")).toEqual(
-			[{ name: "sid", value: "abc" }],
-		);
+		expect(
+			parseSetCookie("sid=abc; Path=/; Priority=High; SameSite=Lax"),
+		).toEqual([{ name: "sid", value: "abc" }]);
 	});
 
 	it("skips malformed segments", () => {

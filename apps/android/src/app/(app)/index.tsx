@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSession } from "@/session/session-context";
-import { hairline, spacing, typography, type ThemeColors } from "@/theme";
+import { hairline, spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
 
 function createStyles(c: ThemeColors) {

@@ -1,8 +1,11 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Toaster } from "sonner-native";
 
+import { queryClient } from "@/lib/query-client";
 import { SessionProvider, useSession } from "@/session/session-context";
 import type { ThemeColors } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
@@ -52,12 +55,15 @@ function SessionGate() {
 
 export default function RootLayout() {
 	return (
-		<SessionProvider>
-			<SafeAreaProvider>
-				{/* "auto" follows the device color scheme. */}
-				<StatusBar style="auto" />
-				<SessionGate />
-			</SafeAreaProvider>
-		</SessionProvider>
+		<QueryClientProvider client={queryClient}>
+			<SessionProvider>
+				<SafeAreaProvider>
+					{/* "auto" follows the device color scheme. */}
+					<StatusBar style="auto" />
+					<SessionGate />
+					<Toaster position="top-center" />
+				</SafeAreaProvider>
+			</SessionProvider>
+		</QueryClientProvider>
 	);
 }

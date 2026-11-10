@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { loginBodySchema } from "@finance-application/schemas";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
@@ -9,10 +11,16 @@ import {
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { z } from "zod";
 
 import { useSession } from "@/session/session-context";
-import { hairline, spacing, typography, type ThemeColors } from "@/theme";
+import { hairline, spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
+
+// Form state is the schema's input type; submitted values are its parsed
+// output type — the same useForm<Input, unknown, Output> shape the web uses.
+type LoginInput = z.input<typeof loginBodySchema>;
+type LoginOutput = z.output<typeof loginBodySchema>;
 
 function createStyles(c: ThemeColors) {
 	return StyleSheet.create({
@@ -25,6 +33,11 @@ function createStyles(c: ThemeColors) {
 			color: c.foreground,
 			fontSize: typography.sizeXxl,
 			fontWeight: typography.weightBold,
+		},
+		error: {
+			color: c.destructive,
+			fontSize: typography.sizeXs,
+			marginTop: spacing.xs,
 		},
 		failure: {
 			color: c.destructive,
@@ -82,29 +95,23 @@ export default function SignIn() {
 	const c = useThemeColors();
 	const styles = createStyles(c);
 	const { state, signIn } = useSession();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [submitting, setSubmitting] = useState(false);
+	const form = useForm<LoginInput, unknown, LoginOutput>({
+		resolver: zodResolver(loginBodySchema),
+		defaultValues: { email: "", password: "" },
+	});
+	const email = form.watch("email");
+	const password = form.watch("password");
 
-	const inFlight = submitting;
-	const canSubmit =
-		email.trim().length > 0 && password.length > 0 && !inFlight;
+	const inFlight = form.formState.isSubmitting;
+	const canSubmit = email.trim().length > 0 && password.length > 0 && !inFlight;
 	const failure =
 		state.status === "signed-out" && state.error !== undefined
 			? state.error
 			: null;
 
-	async function handleSubmit(): Promise<void> {
-		if (!canSubmit) {
-			return;
-		}
-		setSubmitting(true);
-		try {
-			await signIn(email.trim(), password);
-		} finally {
-			setSubmitting(false);
-		}
-	}
+	const onSubmit = form.handleSubmit(async (values: LoginOutput) => {
+		await signIn(values.email, values.password);
+	});
 
 	return (
 		<SafeAreaView style={styles.screen}>
@@ -114,29 +121,56 @@ export default function SignIn() {
 
 				<View style={[styles.form, hairline(c.border)]}>
 					<Text style={styles.label}>Email</Text>
-					<TextInput
-						autoCapitalize="none"
-						autoComplete="email"
-						keyboardType="email-address"
-						onChangeText={setEmail}
-						style={styles.input}
-						value={email}
+					<Controller
+						control={form.control}
+						name="email"
+						render={({ field, fieldState }) => (
+							<>
+								<TextInput
+									accessibilityLabel="Email"
+									autoCapitalize="none"
+									autoComplete="email"
+									keyboardType="email-address"
+									onBlur={field.onBlur}
+									onChangeText={field.onChange}
+									style={styles.input}
+									value={field.value}
+								/>
+								{fieldState.error ? (
+									<Text style={styles.error}>{fieldState.error.message}</Text>
+								) : null}
+							</>
+						)}
 					/>
 					<Text style={styles.label}>Password</Text>
-					<TextInput
-						autoCapitalize="none"
-						onChangeText={setPassword}
-						secureTextEntry
-						style={styles.input}
-						value={password}
+					<Controller
+						control={form.control}
+						name="password"
+						render={({ field, fieldState }) => (
+							<>
+								<TextInput
+									accessibilityLabel="Password"
+									autoCapitalize="none"
+									onChangeText={field.onChange}
+									onBlur={field.onBlur}
+									secureTextEntry
+									style={styles.input}
+									value={field.value}
+								/>
+								{fieldState.error ? (
+									<Text style={styles.error}>{fieldState.error.message}</Text>
+								) : null}
+							</>
+						)}
 					/>
 					{failure !== null ? (
 						<Text style={styles.failure}>{failure}</Text>
 					) : null}
 					<Pressable
+						accessibilityRole="button"
 						disabled={!canSubmit}
 						onPress={() => {
-							void handleSubmit();
+							void onSubmit();
 						}}
 						style={({ pressed }) => [
 							styles.submit,

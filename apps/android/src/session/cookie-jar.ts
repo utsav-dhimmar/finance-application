@@ -63,9 +63,7 @@ export class CookieJar {
 		const raw =
 			typeof headers.getSetCookie === "function"
 				? headers.getSetCookie()
-				: [headers.get("set-cookie") ?? ""].filter(
-						(value) => value.length > 0,
-					);
+				: [headers.get("set-cookie") ?? ""].filter((value) => value.length > 0);
 		const cookies = parseSetCookie(raw);
 		let accessToken = this.current?.accessToken ?? "";
 		let refreshToken = this.current?.refreshToken ?? "";

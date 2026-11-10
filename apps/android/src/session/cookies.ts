@@ -42,9 +42,7 @@ function parseCookiePair(segment: string): ParsedCookie | null {
 	const name = trimmed.slice(0, equals).trim();
 	const rest = trimmed.slice(equals + 1);
 	const semicolon = rest.indexOf(";");
-	const value = (
-		semicolon === -1 ? rest : rest.slice(0, semicolon)
-	).trim();
+	const value = (semicolon === -1 ? rest : rest.slice(0, semicolon)).trim();
 	if (name.length === 0) {
 		return null;
 	}

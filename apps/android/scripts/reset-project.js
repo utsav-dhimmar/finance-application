@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+#!/usr/bin / env node
+// biome-ignore-all lint: skip linting for this file
 
 /**
  * This script is used to reset the project to a blank state.
@@ -6,6 +7,7 @@
  * Demo images in /assets/images are deleted or moved along with them.
  * You can remove the `reset-project` script from package.json and safely delete this file after running it.
  */
+
 
 const fs = require("fs");
 const path = require("path");

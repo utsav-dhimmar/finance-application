@@ -11,6 +11,7 @@ import {
 	updateTransfer,
 } from "@finance-application/api-client";
 import type {
+	ActivityListResponse,
 	CreateTransferBody,
 	ListActivityQuery,
 	ListTransfersQuery,
@@ -67,6 +68,43 @@ export function activityQueryOptions(filters: Partial<ListActivityQuery>) {
 		queryKey: activityQueryKey(filters),
 		queryFn: () =>
 			sessionMachine().run((options) => listActivity(filters, options)),
+		staleTime: 30_000,
+	};
+}
+
+// Page size for the mobile feed's "Load more" pagination — the same 20-row
+// pages the web's table requests.
+export const ACTIVITY_PAGE_SIZE = 20;
+
+/**
+ * Infinite-feed variant of the activity query for useInfiniteQuery: the query
+ * key covers the filters only (never the page), so a filter or tab change
+ * starts a fresh list at page 1 — the web reducer's page reset, enforced by
+ * the key — while "load more" advances the page param under the same key.
+ */
+export function activityInfiniteQueryOptions(
+	filters: Partial<ListActivityQuery>,
+) {
+	return {
+		queryKey: activityQueryKey(filters),
+		queryFn: ({ pageParam }: { pageParam: number }) =>
+			sessionMachine().run((options) =>
+				listActivity(
+					{ ...filters, page: pageParam, pageSize: ACTIVITY_PAGE_SIZE },
+					options,
+				),
+			),
+		initialPageParam: 1,
+		getNextPageParam: (
+			lastPage: ActivityListResponse,
+			allPages: ActivityListResponse[],
+		): number | undefined => {
+			const loaded = allPages.reduce(
+				(sum, page) => sum + page.activity.length,
+				0,
+			);
+			return loaded < lastPage.total ? allPages.length + 1 : undefined;
+		},
 		staleTime: 30_000,
 	};
 }

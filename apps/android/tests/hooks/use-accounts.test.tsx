@@ -3,8 +3,17 @@ import type { ReactNode } from "react";
 
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAccounts, useCreateAccount } from "@/hooks/use-accounts";
+import {
+	useAccounts,
+	useArchiveAccount,
+	useCreateAccount,
+	useDeleteAccount,
+	usePermanentlyDeleteAccount,
+	useRestoreAccount,
+	useUpdateAccount,
+} from "@/hooks/use-accounts";
 import { ACCOUNTS_QUERY_KEY } from "@/services/accounts-service";
+import { REPORTS_QUERY_KEY } from "@/services/reports-service";
 import { jsonResponse } from "@/session/fetch-mock";
 import { createTestQueryClient, HookWrapper } from "../helpers";
 import { makeRegisteredMachine } from "../services/helpers";
@@ -106,5 +115,125 @@ describe("useAccounts", () => {
 		expect(toast.error).toHaveBeenCalledWith(
 			"An account with this name already exists. Try a different name.",
 		);
+	});
+});
+
+// Every account mutation must invalidate the accounts family (all tabs) and
+// the reports family (combined balances feed the dashboard summary), with a
+// confirmation toast on success.
+describe("useAccount mutation invalidations", () => {
+	beforeEach(() => {
+		vi.mocked(toast.success).mockClear();
+		vi.mocked(toast.error).mockClear();
+	});
+
+	it("updating an account invalidates accounts and reports and toasts", async () => {
+		makeRegisteredMachine({
+			"PATCH /api/accounts/acc-1": () => jsonResponse(200, account),
+		});
+		const queryClient = createTestQueryClient();
+		const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+		const { result } = await renderHook(() => useUpdateAccount(), {
+			wrapper: ({ children }: { children?: ReactNode }) => (
+				<HookWrapper queryClient={queryClient}>{children}</HookWrapper>
+			),
+		});
+		result.current.mutate({ id: "acc-1", body: { name: "Renamed Bank" } });
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ACCOUNTS_QUERY_KEY,
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: REPORTS_QUERY_KEY,
+		});
+		expect(toast.success).toHaveBeenCalledWith("Account updated.");
+	});
+
+	it("archiving an account invalidates accounts and reports and toasts", async () => {
+		makeRegisteredMachine({
+			"POST /api/accounts/acc-1/archive": () => jsonResponse(200, account),
+		});
+		const queryClient = createTestQueryClient();
+		const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+		const { result } = await renderHook(() => useArchiveAccount(), {
+			wrapper: ({ children }: { children?: ReactNode }) => (
+				<HookWrapper queryClient={queryClient}>{children}</HookWrapper>
+			),
+		});
+		result.current.mutate("acc-1");
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ACCOUNTS_QUERY_KEY,
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: REPORTS_QUERY_KEY,
+		});
+		expect(toast.success).toHaveBeenCalledWith("Account archived.");
+	});
+
+	it("deleting an account invalidates accounts and reports and toasts", async () => {
+		makeRegisteredMachine({
+			"POST /api/accounts/acc-1/delete": () => jsonResponse(200, account),
+		});
+		const queryClient = createTestQueryClient();
+		const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+		const { result } = await renderHook(() => useDeleteAccount(), {
+			wrapper: ({ children }: { children?: ReactNode }) => (
+				<HookWrapper queryClient={queryClient}>{children}</HookWrapper>
+			),
+		});
+		result.current.mutate("acc-1");
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ACCOUNTS_QUERY_KEY,
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: REPORTS_QUERY_KEY,
+		});
+		expect(toast.success).toHaveBeenCalledWith("Account moved to trash.");
+	});
+
+	it("restoring an account invalidates accounts and reports and toasts", async () => {
+		makeRegisteredMachine({
+			"POST /api/accounts/acc-1/restore": () => jsonResponse(200, account),
+		});
+		const queryClient = createTestQueryClient();
+		const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+		const { result } = await renderHook(() => useRestoreAccount(), {
+			wrapper: ({ children }: { children?: ReactNode }) => (
+				<HookWrapper queryClient={queryClient}>{children}</HookWrapper>
+			),
+		});
+		result.current.mutate({ id: "acc-1" });
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ACCOUNTS_QUERY_KEY,
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: REPORTS_QUERY_KEY,
+		});
+		expect(toast.success).toHaveBeenCalledWith("Account restored.");
+	});
+
+	it("permanently deleting an account invalidates accounts and reports and toasts", async () => {
+		makeRegisteredMachine({
+			"DELETE /api/accounts/acc-1": () => jsonResponse(204, null),
+		});
+		const queryClient = createTestQueryClient();
+		const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+		const { result } = await renderHook(() => usePermanentlyDeleteAccount(), {
+			wrapper: ({ children }: { children?: ReactNode }) => (
+				<HookWrapper queryClient={queryClient}>{children}</HookWrapper>
+			),
+		});
+		result.current.mutate("acc-1");
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ACCOUNTS_QUERY_KEY,
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: REPORTS_QUERY_KEY,
+		});
+		expect(toast.success).toHaveBeenCalledWith("Account deleted permanently.");
 	});
 });

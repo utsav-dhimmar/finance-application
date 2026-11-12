@@ -6,39 +6,34 @@ import type {
 } from "@finance-application/schemas";
 import { transferFormSchema } from "@finance-application/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+	DatePickerDialog,
+	Host,
+	ModalBottomSheet,
+} from "@expo/ui/jetpack-compose";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import {
-	KeyboardAvoidingView,
-	Modal,
-	Pressable,
-	ScrollView,
-	StyleSheet,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
 
 import {
-	SelectField,
+	BoxyButtonCore,
+	BoxyColumn,
+	BoxyFormField,
+	BoxyRow,
+	BoxySelectMenuCore,
+	BoxyText,
+	BoxyTextFieldCore,
 	type SelectOption,
-} from "@/components/shared/select-field";
+} from "@/components/ui";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCreateTransfer, useUpdateTransfer } from "@/hooks/use-transfers";
-import {
-	calendarDateString,
-	calendarDateValue,
-	todayString,
-} from "@/lib/calendar-date";
+import { calendarDateString, todayString } from "@/lib/calendar-date";
 import {
 	minorToMajorInput,
 	type CurrencyDisplayDefinition,
-	tabularNums,
 } from "@/lib/format";
 import { uuidV7 } from "@/lib/uuid";
 import { getTransfersErrorMessage } from "@/services/transfers-service";
-import { hairline, spacing, type ThemeColors, typography } from "@/theme";
+import { spacing } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
 
 export interface TransferFormDialogProps {
@@ -62,7 +57,6 @@ export function TransferFormDialog({
 	display,
 }: TransferFormDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
 	const isEdit = Boolean(transfer);
 	const create = useCreateTransfer();
 	const update = useUpdateTransfer();
@@ -196,289 +190,152 @@ export function TransferFormDialog({
 
 	const isPending = isEdit ? update.isPending : create.isPending;
 
-	return (
-		<Modal
-			visible={open}
-			transparent
-			animationType="fade"
-			onRequestClose={() => {
-				handleOpenChange(false);
-			}}
-		>
-			<View style={styles.backdrop}>
-				<KeyboardAvoidingView behavior="padding">
-					<View style={[styles.card, hairline(c.border)]}>
-						<Text style={styles.title}>
-							{isEdit ? "Edit transfer" : "New transfer"}
-						</Text>
-						<Text style={styles.description}>
-							{isEdit
-								? "Both sides are recalculated atomically."
-								: `Move money between two different accounts. Amounts are in ${display.symbol}.`}
-						</Text>
-						{form.formState.errors.root?.message ? (
-							<Text accessibilityRole="alert" style={styles.rootError}>
-								{form.formState.errors.root.message}
-							</Text>
-						) : null}
-						<ScrollView style={styles.scroll}>
-							<Controller
-								control={form.control}
-								name="amount"
-								render={({ field, fieldState }) => (
-									<View style={styles.field}>
-										<Text style={styles.label}>Amount ({display.symbol})</Text>
-										<TextInput
-											accessibilityLabel={`Amount (${display.symbol})`}
-											autoCapitalize="none"
-											inputMode="decimal"
-											onChangeText={field.onChange}
-											placeholder={isEdit ? undefined : "0.00"}
-											style={[styles.input, tabularNums]}
-											value={field.value}
-										/>
-										{fieldState.error ? (
-											<Text style={styles.error}>
-												{fieldState.error.message}
-											</Text>
-										) : null}
-									</View>
-								)}
-							/>
-							<Controller
-								control={form.control}
-								name="date"
-								render={({ field, fieldState }) => (
-									<View style={styles.field}>
-										<Text style={styles.label}>Date</Text>
-										<Pressable
-											accessibilityLabel="Transfer date"
-											accessibilityRole="button"
-											onPress={() => {
-												setDatePickerOpen(true);
-											}}
-											style={({ pressed }) => [
-												styles.input,
-												pressed && styles.pressed,
-											]}
-										>
-											<Text style={styles.dateText}>{field.value}</Text>
-										</Pressable>
-										{fieldState.error ? (
-											<Text style={styles.error}>
-												{fieldState.error.message}
-											</Text>
-										) : null}
-										{datePickerOpen ? (
-											<DateTimePicker
-												mode="date"
-												onChange={(_, selected) => {
-													setDatePickerOpen(false);
-													if (selected) {
-														field.onChange(calendarDateString(selected));
-													}
-												}}
-												value={calendarDateValue(field.value) ?? new Date()}
-											/>
-										) : null}
-									</View>
-								)}
-							/>
-							<Controller
-								control={form.control}
-								name="sourceAccountId"
-								render={({ field, fieldState }) => (
-									<View style={styles.field}>
-										<SelectField
-											label="Source account"
-											placeholder="Select source account"
-											options={sourceOptions}
-											value={field.value}
-											onValueChange={field.onChange}
-										/>
-										{fieldState.error ? (
-											<Text style={styles.error}>
-												{fieldState.error.message}
-											</Text>
-										) : null}
-									</View>
-								)}
-							/>
-							<Controller
-								control={form.control}
-								name="destinationAccountId"
-								render={({ field, fieldState }) => (
-									<View style={styles.field}>
-										<SelectField
-											label="Destination account"
-											placeholder="Select destination account"
-											options={destinationOptions}
-											value={field.value}
-											onValueChange={field.onChange}
-										/>
-										{fieldState.error ? (
-											<Text style={styles.error}>
-												{fieldState.error.message}
-											</Text>
-										) : null}
-									</View>
-								)}
-							/>
-							<Controller
-								control={form.control}
-								name="notes"
-								render={({ field, fieldState }) => (
-									<View style={styles.field}>
-										<Text style={styles.label}>Notes (optional)</Text>
-										<TextInput
-											accessibilityLabel="Notes"
-											autoCapitalize="none"
-											autoComplete="off"
-											onChangeText={field.onChange}
-											placeholder={
-												isEdit ? undefined : "Optional context or vendor name"
-											}
-											style={styles.input}
-											value={field.value ?? ""}
-										/>
-										{fieldState.error ? (
-											<Text style={styles.error}>
-												{fieldState.error.message}
-											</Text>
-										) : null}
-									</View>
-								)}
-							/>
-						</ScrollView>
-						<View style={styles.footer}>
-							<Pressable
-								accessibilityRole="button"
-								onPress={() => {
-									handleOpenChange(false);
-								}}
-								style={({ pressed }) => [
-									styles.footerButton,
-									hairline(c.border),
-									pressed && styles.pressed,
-								]}
-							>
-								<Text style={styles.cancelText}>Cancel</Text>
-							</Pressable>
-							<Pressable
-								accessibilityRole="button"
-								disabled={isPending}
-								onPress={() => {
-									void onSubmit();
-								}}
-								style={({ pressed }) => [
-									styles.footerButton,
-									styles.submitButton,
-									isPending && styles.disabled,
-									pressed && !isPending && styles.pressed,
-								]}
-							>
-								<Text style={styles.submitText}>
-									{isPending
-										? isEdit
-											? "Saving..."
-											: "Recording..."
-										: isEdit
-											? "Save changes"
-											: "Record transfer"}
-								</Text>
-							</Pressable>
-						</View>
-					</View>
-				</KeyboardAvoidingView>
-			</View>
-		</Modal>
-	);
-}
+	if (!open) {
+		return null;
+	}
 
-function createStyles(c: ThemeColors) {
-	return StyleSheet.create({
-		backdrop: {
-			backgroundColor: "#00000080",
-			flex: 1,
-			justifyContent: "center",
-			padding: spacing.lg,
-		},
-		cancelText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		card: {
-			backgroundColor: c.background,
-			padding: spacing.lg,
-		},
-		dateText: {
-			color: c.foreground,
-			fontSize: typography.sizeMd,
-		},
-		description: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeSm,
-			marginTop: spacing.xs,
-		},
-		disabled: {
-			opacity: 0.5,
-		},
-		error: {
-			color: c.destructive,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.xs,
-		},
-		field: {
-			marginTop: spacing.lg,
-		},
-		footer: {
-			flexDirection: "row",
-			justifyContent: "flex-end",
-			marginTop: spacing.lg,
-		},
-		footerButton: {
-			alignItems: "center",
-			borderRadius: 0,
-			padding: spacing.md,
-		},
-		input: {
-			...hairline(c.border),
-			color: c.foreground,
-			fontSize: typography.sizeMd,
-			marginTop: spacing.xs,
-			padding: spacing.md,
-		},
-		label: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeXs,
-			textTransform: "uppercase",
-		},
-		pressed: {
-			opacity: 0.9,
-		},
-		rootError: {
-			color: c.destructive,
-			fontSize: typography.sizeSm,
-			marginTop: spacing.md,
-		},
-		scroll: {
-			// Keep long forms scrollable inside the modal.
-			flexGrow: 0,
-		},
-		submitButton: {
-			backgroundColor: c.primary,
-			marginLeft: spacing.sm,
-		},
-		submitText: {
-			color: c.primaryForeground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		title: {
-			color: c.foreground,
-			fontSize: typography.sizeLg,
-			fontWeight: typography.weightBold,
-		},
-	});
+	return (
+		<Host style={{ flex: 1 }}>
+			<ModalBottomSheet
+				onDismissRequest={() => {
+					handleOpenChange(false);
+				}}
+				containerColor={c.background}
+				skipPartiallyExpanded
+			>
+				<BoxyColumn gap={spacing.lg}>
+					<BoxyText variant="title">
+						{isEdit ? "Edit transfer" : "New transfer"}
+					</BoxyText>
+					<BoxyText variant="body" foreground={c.mutedForeground}>
+						{isEdit
+							? "Both sides are recalculated atomically."
+							: `Move money between two different accounts. Amounts are in ${display.symbol}.`}
+					</BoxyText>
+					{form.formState.errors.root?.message ? (
+						<BoxyText variant="body" foreground={c.destructive}>
+							{form.formState.errors.root.message}
+						</BoxyText>
+					) : null}
+					<Controller
+						control={form.control}
+						name="amount"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label={`Amount (${display.symbol})`}
+								error={fieldState.error?.message ?? null}
+							>
+								<BoxyTextFieldCore
+									onChangeText={field.onChange}
+									placeholder={isEdit ? undefined : "0.00"}
+									keyboardType="decimal"
+									value={field.value}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="date"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label="Date"
+								error={fieldState.error?.message ?? null}
+							>
+								<BoxyButtonCore
+									label={field.value}
+									variant="outline"
+									onPress={() => {
+										setDatePickerOpen(true);
+									}}
+								/>
+								{datePickerOpen ? (
+									<DatePickerDialog
+										initialDate={field.value}
+										confirmButtonLabel="Done"
+										dismissButtonLabel="Cancel"
+										onDateSelected={(selected) => {
+											setDatePickerOpen(false);
+											field.onChange(calendarDateString(selected));
+										}}
+										onDismissRequest={() => {
+											setDatePickerOpen(false);
+										}}
+									/>
+								) : null}
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="sourceAccountId"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label="Source account"
+								error={fieldState.error?.message ?? null}
+							>
+								<BoxySelectMenuCore
+									placeholder="Select source account"
+									options={sourceOptions}
+									value={field.value}
+									onValueChange={field.onChange}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="destinationAccountId"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label="Destination account"
+								error={fieldState.error?.message ?? null}
+							>
+								<BoxySelectMenuCore
+									placeholder="Select destination account"
+									options={destinationOptions}
+									value={field.value}
+									onValueChange={field.onChange}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="notes"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label="Notes (optional)"
+								error={fieldState.error?.message ?? null}
+							>
+								<BoxyTextFieldCore
+									onChangeText={field.onChange}
+									placeholder={
+										isEdit ? undefined : "Optional context or vendor name"
+									}
+									value={field.value ?? ""}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<BoxyRow gap={spacing.sm}>
+						<BoxyButtonCore
+							label="Cancel"
+							variant="ghost"
+							onPress={() => {
+								handleOpenChange(false);
+							}}
+						/>
+						<BoxyButtonCore
+							label={isEdit ? "Save changes" : "Record transfer"}
+							onPress={() => {
+								void onSubmit();
+							}}
+							pending={isPending}
+						/>
+					</BoxyRow>
+				</BoxyColumn>
+			</ModalBottomSheet>
+		</Host>
+	);
 }

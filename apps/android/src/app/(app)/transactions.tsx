@@ -1,13 +1,5 @@
 import type { ActivityItem, ActivityKind } from "@finance-application/schemas";
-import {
-	ActivityIndicator,
-	FlatList,
-	Pressable,
-	RefreshControl,
-	StyleSheet,
-	Text,
-	View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useEffect, useMemo, useReducer, useState } from "react";
 
 import { ActivityFilters } from "@/components/activity/activity-filters";
@@ -25,6 +17,12 @@ import {
 	type TransactionsTab,
 } from "@/components/transactions/filter-state";
 import { TransferFormDialog } from "@/components/transfers/transfer-form-dialog";
+import {
+	BoxyButton,
+	BoxyLazyList,
+	BoxySegmentedRow,
+	type SelectOption,
+} from "@/components/ui";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useActivityFeed } from "@/hooks/use-activity";
 import { useCategories } from "@/hooks/use-categories";
@@ -49,6 +47,10 @@ const TAB_LABELS: Record<TransactionsTab, string> = {
 	archived: "Archived",
 	deleted: "Trash",
 };
+
+const TAB_OPTIONS: SelectOption[] = (
+	Object.keys(TAB_LABELS) as Array<keyof typeof TAB_LABELS>
+).map((tab) => ({ value: tab, label: TAB_LABELS[tab] }));
 
 const EMPTY_MESSAGES: Record<TransactionsTab, string> = {
 	active: "No transactions yet. Record your first income or expense.",
@@ -174,155 +176,131 @@ export default function TransactionsScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<FlatList
-				contentContainerStyle={styles.content}
-				data={rows}
-				keyExtractor={(item) =>
-					`${item.kind}:${item.id}:${item.direction ?? ""}`
-				}
-				refreshControl={
-					<RefreshControl
-						refreshing={activity.isRefetching}
-						onRefresh={() => {
+			<View style={styles.pageHeader}>
+				<View style={styles.titleBlock}>
+					<Text style={styles.pageTitle}>Transactions</Text>
+					<Text style={styles.subtitle}>
+						{total} record{total === 1 ? "" : "s"} in this view.
+					</Text>
+				</View>
+				<BoxyButton
+					label="New transfer"
+					variant="outline"
+					onPress={() => {
+						setCreateTransferOpen(true);
+					}}
+				/>
+				<BoxyButton
+					label="Record transaction"
+					onPress={() => {
+						setCreateOpen(true);
+					}}
+				/>
+			</View>
+			<View style={[styles.tabsRow, hairline(c.border)]}>
+				<BoxySegmentedRow
+					options={TAB_OPTIONS}
+					value={filterState.tab}
+					onValueChange={(next) => {
+						dispatchFilter({ type: "setTab", value: next as TransactionsTab });
+					}}
+				/>
+			</View>
+			<ActivityFilters
+				accounts={(accounts.data?.accounts ?? []).map((account) => ({
+					id: account.id,
+					name: account.name,
+				}))}
+				categories={(categories.data?.categories ?? []).map((category) => ({
+					id: category.id,
+					name: category.name,
+				}))}
+				onAction={dispatchFilter}
+				state={filterState}
+			/>
+			{activity.isPending ? (
+				<View style={styles.centered}>
+					<Text style={styles.mutedText}>Loading...</Text>
+				</View>
+			) : activity.isError ? (
+				<View
+					accessibilityRole="alert"
+					style={[styles.stateBox, hairline(c.border)]}
+				>
+					<Text style={styles.errorText}>
+						Could not load transactions. Is the API running?
+					</Text>
+					<BoxyButton
+						label="Retry"
+						variant="outline"
+						onPress={() => {
 							void activity.refetch();
 						}}
-						tintColor={c.primary}
-						colors={[c.primary]}
 					/>
-				}
-				renderItem={({ item }) => (
-					<ActivityRow
-						display={display}
-						item={item}
-						onArchive={(row) => {
-							setConfirming({
-								action: "archive",
-								kind: row.kind,
-								id: row.id,
-							});
-						}}
-						onDelete={(row) => {
-							setConfirming({
-								action: "delete",
-								kind: row.kind,
-								id: row.id,
-							});
-						}}
-						onEdit={(row) => {
-							setEditing({ kind: row.kind, row });
-						}}
-						onRestore={(row) => {
-							handleRestore(row.kind, row);
-						}}
-					/>
-				)}
-				ListEmptyComponent={
-					activity.isPending ? (
-						<View style={styles.centered}>
-							<Text style={styles.mutedText}>Loading...</Text>
-						</View>
-					) : activity.isError ? (
-						<View
-							accessibilityRole="alert"
-							style={[styles.stateBox, hairline(c.border)]}
-						>
-							<Text style={styles.errorText}>
-								Could not load transactions. Is the API running?
-							</Text>
-							<PressableRetry
-								label="Retry"
-								onPress={() => {
-									void activity.refetch();
-								}}
-							/>
-						</View>
-					) : (
-						<View style={[styles.stateBox, hairline(c.border)]}>
-							<Text style={styles.mutedText}>
-								{EMPTY_MESSAGES[filterState.tab]}
-							</Text>
-							{filterState.tab === "active" ? (
-								<PressableRetry
-									label="Record your first transaction"
-									onPress={() => {
-										setCreateOpen(true);
-									}}
-								/>
-							) : null}
-						</View>
-					)
-				}
-				ListFooterComponent={
-					rows.length > 0 && activity.hasNextPage ? (
-						<PressableRetry
-							label={activity.isFetchingNextPage ? "Loading..." : "Load more"}
-							disabled={activity.isFetchingNextPage}
+				</View>
+			) : rows.length === 0 ? (
+				<View style={[styles.stateBox, hairline(c.border)]}>
+					<Text style={styles.mutedText}>
+						{EMPTY_MESSAGES[filterState.tab]}
+					</Text>
+					{filterState.tab === "active" ? (
+						<BoxyButton
+							label="Record your first transaction"
 							onPress={() => {
-								void activity.fetchNextPage();
+								setCreateOpen(true);
 							}}
 						/>
-					) : undefined
-				}
-				ListHeaderComponent={
-					<View>
-						<View style={styles.pageHeader}>
-							<View style={styles.titleBlock}>
-								<Text style={styles.pageTitle}>Transactions</Text>
-								<Text style={styles.subtitle}>
-									{total} record{total === 1 ? "" : "s"} in this view.
-								</Text>
-							</View>
-							<PressableNewButton
-								label="New transfer"
-								variant="outline"
-								onPress={() => {
-									setCreateTransferOpen(true);
-								}}
-							/>
-							<PressableNewButton
-								label="Record transaction"
-								variant="primary"
-								onPress={() => {
-									setCreateOpen(true);
-								}}
-							/>
-						</View>
-						<View style={[styles.tabsRow, hairline(c.border)]}>
-							{(Object.keys(TAB_LABELS) as TransactionsTab[]).map((status) => {
-								const selected = filterState.tab === status;
-								return (
-									<Pressable
-										key={status}
-										accessibilityRole="tab"
-										accessibilityState={{ selected }}
-										onPress={() => {
-											dispatchFilter({ type: "setTab", value: status });
-										}}
-										style={[styles.tab, selected && styles.tabActive]}
-									>
-										<Text
-											style={[styles.tabText, selected && styles.tabTextActive]}
-										>
-											{TAB_LABELS[status]}
-										</Text>
-									</Pressable>
-								);
-							})}
-						</View>
-						<ActivityFilters
-							accounts={(accounts.data?.accounts ?? []).map((account) => ({
-								id: account.id,
-								name: account.name,
-							}))}
-							categories={(categories.data?.categories ?? []).map(
-								(category) => ({ id: category.id, name: category.name }),
-							)}
-							onAction={dispatchFilter}
-							state={filterState}
+					) : null}
+				</View>
+			) : (
+				<BoxyLazyList
+					isRefreshing={activity.isRefetching}
+					items={rows}
+					keyExtractor={(item) =>
+						`${item.kind}:${item.id}:${item.direction ?? ""}`
+					}
+					onRefresh={() => {
+						void activity.refetch();
+					}}
+					renderItem={(item) => (
+						<ActivityRow
+							display={display}
+							item={item}
+							onArchive={(row) => {
+								setConfirming({
+									action: "archive",
+									kind: row.kind,
+									id: row.id,
+								});
+							}}
+							onDelete={(row) => {
+								setConfirming({
+									action: "delete",
+									kind: row.kind,
+									id: row.id,
+								});
+							}}
+							onEdit={(row) => {
+								setEditing({ kind: row.kind, row });
+							}}
+							onRestore={(row) => {
+								handleRestore(row.kind, row);
+							}}
 						/>
-					</View>
-				}
-			/>
+					)}
+				/>
+			)}
+			{rows.length > 0 && activity.hasNextPage ? (
+				<BoxyButton
+					label={activity.isFetchingNextPage ? "Loading..." : "Load more"}
+					variant="outline"
+					disabled={activity.isFetchingNextPage}
+					pending={activity.isFetchingNextPage}
+					onPress={() => {
+						void activity.fetchNextPage();
+					}}
+				/>
+			) : null}
 
 			{createOpen ? (
 				<TransactionFormDialog
@@ -379,81 +357,11 @@ export default function TransactionsScreen() {
 	);
 }
 
-// Small inline row controls kept outside the screen's JSX for readability.
-function PressableNewButton({
-	label,
-	variant,
-	onPress,
-}: {
-	label: string;
-	variant: "primary" | "outline";
-	onPress: () => void;
-}) {
-	const c = useThemeColors();
-	const styles = createStyles(c);
-	return (
-		<Pressable
-			accessibilityRole="button"
-			onPress={onPress}
-			style={({ pressed }) => [
-				styles.newButton,
-				variant === "primary" ? styles.newButtonPrimary : hairline(c.border),
-				pressed && styles.pressed,
-			]}
-		>
-			<Text
-				style={[
-					styles.newButtonText,
-					variant === "primary" && styles.newButtonTextPrimary,
-				]}
-			>
-				{label}
-			</Text>
-		</Pressable>
-	);
-}
-
-function PressableRetry({
-	label,
-	onPress,
-	disabled = false,
-}: {
-	label: string;
-	onPress: () => void;
-	disabled?: boolean;
-}) {
-	const c = useThemeColors();
-	const styles = createStyles(c);
-	return (
-		<Pressable
-			accessibilityRole="button"
-			disabled={disabled}
-			onPress={onPress}
-			style={({ pressed }) => [
-				styles.retryButton,
-				hairline(c.border),
-				disabled && styles.disabled,
-				pressed && !disabled && styles.pressed,
-			]}
-		>
-			{disabled ? (
-				<ActivityIndicator color={c.foreground} size="small" />
-			) : (
-				<Text style={styles.retryText}>{label}</Text>
-			)}
-		</Pressable>
-	);
-}
-
 function createStyles(c: ThemeColors) {
 	return StyleSheet.create({
 		centered: {
 			alignItems: "center",
 			paddingVertical: spacing.xxl,
-		},
-		content: {
-			padding: spacing.lg,
-			gap: spacing.md,
 		},
 		disabled: {
 			opacity: 0.5,
@@ -468,22 +376,6 @@ function createStyles(c: ThemeColors) {
 			fontSize: typography.sizeSm,
 			textAlign: "center",
 		},
-		newButton: {
-			alignItems: "center",
-			borderRadius: 0,
-			padding: spacing.md,
-		},
-		newButtonPrimary: {
-			backgroundColor: c.primary,
-		},
-		newButtonText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		newButtonTextPrimary: {
-			color: c.primaryForeground,
-		},
 		pageHeader: {
 			flexDirection: "row",
 			flexWrap: "wrap",
@@ -494,20 +386,6 @@ function createStyles(c: ThemeColors) {
 			color: c.foreground,
 			fontSize: typography.sizeXl,
 			fontWeight: typography.weightBold,
-		},
-		pressed: {
-			opacity: 0.9,
-		},
-		retryButton: {
-			alignItems: "center",
-			borderRadius: 0,
-			marginTop: spacing.md,
-			padding: spacing.md,
-		},
-		retryText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
 		},
 		screen: {
 			backgroundColor: c.background,
@@ -522,23 +400,6 @@ function createStyles(c: ThemeColors) {
 			color: c.mutedForeground,
 			fontSize: typography.sizeSm,
 			marginTop: spacing.xs,
-		},
-		tab: {
-			alignItems: "center",
-			borderRadius: 0,
-			flex: 1,
-			padding: spacing.sm,
-		},
-		tabActive: {
-			backgroundColor: c.muted,
-		},
-		tabText: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeSm,
-		},
-		tabTextActive: {
-			color: c.foreground,
-			fontWeight: typography.weightMedium,
 		},
 		tabsRow: {
 			flexDirection: "row",

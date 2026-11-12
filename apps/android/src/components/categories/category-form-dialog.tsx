@@ -7,22 +7,24 @@ import {
 	type UpdateCategoryBody,
 } from "@finance-application/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Host, ModalBottomSheet } from "@expo/ui/jetpack-compose";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
-import {
-	KeyboardAvoidingView,
-	Modal,
-	Pressable,
-	StyleSheet,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
 
+import {
+	BoxyButtonCore,
+	BoxyColumn,
+	BoxyFormField,
+	BoxyRow,
+	BoxySegmentedRow,
+	BoxyText,
+	BoxyTextFieldCore,
+	type SelectOption,
+} from "@/components/ui";
 import { useCreateCategory, useUpdateCategory } from "@/hooks/use-categories";
 import { CATEGORY_TYPE_LABELS } from "@/lib/category-labels";
 import { getCategoriesErrorMessage } from "@/services/categories-service";
-import { hairline, spacing, type ThemeColors, typography } from "@/theme";
+import { spacing } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
 
 const CATEGORY_TYPE_OPTIONS = (
@@ -48,7 +50,6 @@ export function CategoryFormDialog({
 	category = null,
 }: CategoryFormDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
 	const isEdit = Boolean(category);
 	const create = useCreateCategory();
 	const update = useUpdateCategory();
@@ -133,302 +134,128 @@ export function CategoryFormDialog({
 	});
 
 	const isPending = isEdit ? update.isPending : create.isPending;
+	const typeOptions: SelectOption[] = CATEGORY_TYPE_OPTIONS;
+
+	if (!open) {
+		return null;
+	}
 
 	return (
-		<Modal
-			visible={open}
-			transparent
-			animationType="fade"
-			onRequestClose={() => {
-				handleOpenChange(false);
-			}}
-		>
-			<View style={styles.backdrop}>
-				<KeyboardAvoidingView behavior="padding">
-					<View style={[styles.card, hairline(c.border)]}>
-						<Text style={styles.title}>
-							{isEdit && category ? `Edit "${category.name}"` : "Add category"}
-						</Text>
-						<Text style={styles.description}>
-							{isEdit
-								? "The type locks once transactions reference this category."
-								: "Organize income and expenses. Names must be unique."}
-						</Text>
-						{form.formState.errors.root?.message ? (
-							<Text accessibilityRole="alert" style={styles.rootError}>
-								{form.formState.errors.root.message}
-							</Text>
-						) : null}
-						<Controller
-							control={form.control}
-							name="name"
-							render={({ field, fieldState }) => (
-								<View style={styles.field}>
-									<Text style={styles.label}>Name</Text>
-									<TextInput
-										accessibilityLabel="Category name"
-										autoCapitalize="none"
-										autoComplete="off"
-										onChangeText={field.onChange}
-										placeholder={isEdit ? undefined : "Groceries"}
-										style={styles.input}
-										value={field.value}
-									/>
-									{fieldState.error ? (
-										<Text style={styles.error}>{fieldState.error.message}</Text>
-									) : null}
-								</View>
-							)}
-						/>
-						<Controller
-							control={form.control}
-							name="type"
-							render={({ field }) => (
-								<View style={styles.field}>
-									<Text style={styles.label}>Type</Text>
-									<View style={styles.typeRow}>
-										{CATEGORY_TYPE_OPTIONS.map((option) => {
-											const checked = field.value === option.value;
-											return (
-												<Pressable
-													key={option.value}
-													accessibilityLabel={option.label}
-													accessibilityRole="radio"
-													accessibilityState={{ checked }}
-													onPress={() => {
-														field.onChange(option.value);
-													}}
-													style={[
-														styles.typeOption,
-														hairline(c.border),
-														checked && styles.typeOptionActive,
-													]}
-												>
-													<Text
-														style={[
-															styles.typeOptionText,
-															checked && styles.typeOptionTextActive,
-														]}
-													>
-														{option.label}
-													</Text>
-												</Pressable>
-											);
-										})}
-									</View>
-								</View>
-							)}
-						/>
-						<Controller
-							control={form.control}
-							name="color"
-							render={({ field, fieldState }) => (
-								<View style={styles.field}>
-									<Text style={styles.label}>
-										{isEdit ? "Color (#RRGGBB)" : "Color (optional)"}
-									</Text>
-									<TextInput
-										accessibilityLabel="Category color"
-										autoCapitalize="none"
-										autoComplete="off"
-										onChangeText={field.onChange}
-										placeholder="#22C55E"
-										style={[styles.input, styles.mono]}
-										value={field.value ?? ""}
-									/>
-									{fieldState.error ? (
-										<Text style={styles.error}>{fieldState.error.message}</Text>
-									) : (
-										<Text style={styles.helper}>
-											{isEdit
-												? "Leave empty for none."
-												: "Hex color like #22C55E. Leave empty for none."}
-										</Text>
-									)}
-								</View>
-							)}
-						/>
-						<Controller
-							control={form.control}
-							name="icon"
-							render={({ field, fieldState }) => (
-								<View style={styles.field}>
-									<Text style={styles.label}>
-										{isEdit ? "Icon" : "Icon (optional)"}
-									</Text>
-									<TextInput
-										accessibilityLabel="Category icon"
-										autoCapitalize="none"
-										autoComplete="off"
-										onChangeText={field.onChange}
-										placeholder="shopping-cart"
-										style={[styles.input, styles.mono]}
-										value={field.value ?? ""}
-									/>
-									{fieldState.error ? (
-										<Text style={styles.error}>{fieldState.error.message}</Text>
-									) : (
-										<Text style={styles.helper}>
-											{isEdit
-												? "Leave empty for none."
-												: "Lowercase Lucide icon name. Leave empty for none."}
-										</Text>
-									)}
-								</View>
-							)}
-						/>
-						<View style={styles.footer}>
-							<Pressable
-								accessibilityRole="button"
-								onPress={() => {
-									handleOpenChange(false);
-								}}
-								style={({ pressed }) => [
-									styles.footerButton,
-									hairline(c.border),
-									pressed && styles.pressed,
-								]}
+		<Host style={{ flex: 1 }}>
+			<ModalBottomSheet
+				onDismissRequest={() => {
+					handleOpenChange(false);
+				}}
+				containerColor={c.background}
+				skipPartiallyExpanded
+			>
+				<BoxyColumn gap={spacing.lg}>
+					<BoxyText variant="title">
+						{isEdit && category ? `Edit "${category.name}"` : "Add category"}
+					</BoxyText>
+					<BoxyText variant="body" foreground={c.mutedForeground}>
+						{isEdit
+							? "The type locks once transactions reference this category."
+							: "Organize income and expenses. Names must be unique."}
+					</BoxyText>
+					{form.formState.errors.root?.message ? (
+						<BoxyText variant="body" foreground={c.destructive}>
+							{form.formState.errors.root.message}
+						</BoxyText>
+					) : null}
+					<Controller
+						control={form.control}
+						name="name"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label="Name"
+								error={fieldState.error?.message ?? null}
 							>
-								<Text style={styles.cancelText}>Cancel</Text>
-							</Pressable>
-							<Pressable
-								accessibilityRole="button"
-								disabled={isPending}
-								onPress={() => {
-									void onSubmit();
-								}}
-								style={({ pressed }) => [
-									styles.footerButton,
-									styles.submitButton,
-									isPending && styles.disabled,
-									pressed && !isPending && styles.pressed,
-								]}
-							>
-								<Text style={styles.submitText}>
-									{isPending
-										? isEdit
-											? "Saving..."
-											: "Creating..."
+								<BoxyTextFieldCore
+									onChangeText={field.onChange}
+									placeholder={isEdit ? undefined : "Groceries"}
+									value={field.value}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="type"
+						render={({ field }) => (
+							<BoxyFormField label="Type">
+								<BoxySegmentedRow
+									options={typeOptions}
+									value={field.value}
+									onValueChange={field.onChange}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="color"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label={isEdit ? "Color (#RRGGBB)" : "Color (optional)"}
+								error={fieldState.error?.message ?? null}
+								helper={
+									fieldState.error
+										? null
 										: isEdit
-											? "Save changes"
-											: "Create category"}
-								</Text>
-							</Pressable>
-						</View>
-					</View>
-				</KeyboardAvoidingView>
-			</View>
-		</Modal>
+											? "Leave empty for none."
+											: "Hex color like #22C55E. Leave empty for none."
+								}
+							>
+								<BoxyTextFieldCore
+									onChangeText={field.onChange}
+									placeholder="#22C55E"
+									value={field.value ?? ""}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<Controller
+						control={form.control}
+						name="icon"
+						render={({ field, fieldState }) => (
+							<BoxyFormField
+								label={isEdit ? "Icon" : "Icon (optional)"}
+								error={fieldState.error?.message ?? null}
+								helper={
+									fieldState.error
+										? null
+										: isEdit
+											? "Leave empty for none."
+											: "Lowercase Lucide icon name. Leave empty for none."
+								}
+							>
+								<BoxyTextFieldCore
+									onChangeText={field.onChange}
+									placeholder="shopping-cart"
+									value={field.value ?? ""}
+								/>
+							</BoxyFormField>
+						)}
+					/>
+					<BoxyRow gap={spacing.sm}>
+						<BoxyButtonCore
+							label="Cancel"
+							variant="ghost"
+							onPress={() => {
+								handleOpenChange(false);
+							}}
+						/>
+						<BoxyButtonCore
+							label={isEdit ? "Save changes" : "Create category"}
+							onPress={() => {
+								void onSubmit();
+							}}
+							pending={isPending}
+						/>
+					</BoxyRow>
+				</BoxyColumn>
+			</ModalBottomSheet>
+		</Host>
 	);
-}
-
-function createStyles(c: ThemeColors) {
-	return StyleSheet.create({
-		backdrop: {
-			backgroundColor: "#00000080",
-			flex: 1,
-			justifyContent: "center",
-			padding: spacing.lg,
-		},
-		cancelText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		card: {
-			backgroundColor: c.background,
-			padding: spacing.lg,
-		},
-		description: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeSm,
-			marginTop: spacing.xs,
-		},
-		disabled: {
-			opacity: 0.5,
-		},
-		error: {
-			color: c.destructive,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.xs,
-		},
-		field: {
-			marginTop: spacing.lg,
-		},
-		footer: {
-			flexDirection: "row",
-			justifyContent: "flex-end",
-			marginTop: spacing.xl,
-		},
-		footerButton: {
-			alignItems: "center",
-			borderRadius: 0,
-			padding: spacing.md,
-		},
-		helper: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.xs,
-		},
-		input: {
-			...hairline(c.border),
-			color: c.foreground,
-			fontSize: typography.sizeMd,
-			marginTop: spacing.xs,
-			padding: spacing.md,
-		},
-		label: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeXs,
-			textTransform: "uppercase",
-		},
-		mono: {
-			fontVariant: ["tabular-nums"],
-		},
-		pressed: {
-			opacity: 0.9,
-		},
-		rootError: {
-			color: c.destructive,
-			fontSize: typography.sizeSm,
-			marginTop: spacing.md,
-		},
-		submitButton: {
-			backgroundColor: c.primary,
-			marginLeft: spacing.sm,
-		},
-		submitText: {
-			color: c.primaryForeground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		title: {
-			color: c.foreground,
-			fontSize: typography.sizeLg,
-			fontWeight: typography.weightBold,
-		},
-		typeOption: {
-			alignItems: "center",
-			borderRadius: 0,
-			flex: 1,
-			padding: spacing.md,
-		},
-		typeOptionActive: {
-			backgroundColor: c.primary,
-			borderColor: c.primary,
-		},
-		typeOptionText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-		},
-		typeOptionTextActive: {
-			color: c.primaryForeground,
-			fontWeight: typography.weightMedium,
-		},
-		typeRow: {
-			flexDirection: "row",
-			gap: spacing.sm,
-			marginTop: spacing.xs,
-		},
-	});
 }

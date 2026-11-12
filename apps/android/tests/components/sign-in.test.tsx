@@ -2,6 +2,14 @@ import { loginBodySchema } from "@finance-application/schemas";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The fields and submit are native @expo/ui components now; run them
+// against the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 // The screen consumes the session context; tests replace it so no secure
 // store or network is touched. vi.hoisted keeps the mock above hoisting.
 const { signInMock } = vi.hoisted(() => ({

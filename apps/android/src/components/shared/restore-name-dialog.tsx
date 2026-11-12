@@ -1,18 +1,16 @@
+import { AlertDialog, Host } from "@expo/ui/jetpack-compose";
+import { useState } from "react";
 import type { z } from "zod";
 
-import { useState } from "react";
-import {
-	KeyboardAvoidingView,
-	Modal,
-	Pressable,
-	StyleSheet,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
-
-import { hairline, spacing, type ThemeColors, typography } from "@/theme";
+import { spacing } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
+import {
+	BoxyButtonCore,
+	BoxyColumn,
+	BoxyRow,
+	BoxyText,
+	BoxyTextFieldCore,
+} from "@/components/ui";
 
 export interface RestoreNameDialogProps {
 	visible: boolean;
@@ -31,7 +29,9 @@ export interface RestoreNameDialogProps {
  * Shown when a restore is rejected because another entity took the name:
  * the user picks a new name (validated against the shared schema) and the
  * restore is retried with it — the mobile equivalent of the web's
- * RestoreNameDialog, shared by the accounts and categories screens.
+ * RestoreNameDialog, shared by the accounts and categories screens. Backed
+ * by the native Compose alert dialog; the conditional mount is the open
+ * state.
  */
 export function RestoreNameDialog({
 	visible,
@@ -43,7 +43,6 @@ export function RestoreNameDialog({
 	onCancel,
 }: RestoreNameDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
 	const [name, setName] = useState(entityName);
 	const [error, setError] = useState<string | null>(null);
 
@@ -57,139 +56,44 @@ export function RestoreNameDialog({
 		onSubmit(parsed.data);
 	}
 
-	return (
-		<Modal
-			visible={visible}
-			transparent
-			animationType="fade"
-			onRequestClose={onCancel}
-		>
-			<View style={styles.backdrop}>
-				<KeyboardAvoidingView behavior="padding">
-					<View style={[styles.card, hairline(c.border)]}>
-						<Text style={styles.title}>Choose a new name</Text>
-						<Text style={styles.description}>
-							Another {noun} already uses "{entityName}". Restore with a new
-							name.
-						</Text>
-						<Text style={styles.label}>New name</Text>
-						<TextInput
-							accessibilityLabel="New name"
-							autoCapitalize="none"
-							autoComplete="off"
-							onChangeText={setName}
-							style={styles.input}
-							value={name}
-						/>
-						{error !== null ? <Text style={styles.error}>{error}</Text> : null}
-						<View style={styles.actions}>
-							<Pressable
-								accessibilityRole="button"
-								onPress={onCancel}
-								style={({ pressed }) => [
-									styles.button,
-									styles.cancelButton,
-									pressed && styles.pressed,
-								]}
-							>
-								<Text style={styles.cancelText}>Cancel</Text>
-							</Pressable>
-							<Pressable
-								accessibilityLabel="Restore with new name"
-								accessibilityRole="button"
-								disabled={pending}
-								onPress={handleSubmit}
-								style={({ pressed }) => [
-									styles.button,
-									styles.submitButton,
-									pending && styles.disabled,
-									pressed && !pending && styles.pressed,
-								]}
-							>
-								<Text style={styles.submitText}>
-									{pending ? "Restoring..." : "Restore"}
-								</Text>
-							</Pressable>
-						</View>
-					</View>
-				</KeyboardAvoidingView>
-			</View>
-		</Modal>
-	);
-}
+	if (!visible) {
+		return null;
+	}
 
-function createStyles(c: ThemeColors) {
-	return StyleSheet.create({
-		actions: {
-			flexDirection: "row",
-			justifyContent: "flex-end",
-			marginTop: spacing.lg,
-		},
-		backdrop: {
-			backgroundColor: "#00000080",
-			flex: 1,
-			justifyContent: "center",
-			padding: spacing.lg,
-		},
-		button: {
-			alignItems: "center",
-			borderRadius: 0,
-			padding: spacing.md,
-		},
-		cancelButton: {
-			...hairline(c.border),
-			marginRight: spacing.sm,
-		},
-		cancelText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		card: {
-			backgroundColor: c.background,
-			padding: spacing.lg,
-		},
-		description: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeSm,
-			marginTop: spacing.xs,
-		},
-		disabled: {
-			opacity: 0.5,
-		},
-		error: {
-			color: c.destructive,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.xs,
-		},
-		input: {
-			...hairline(c.border),
-			color: c.foreground,
-			fontSize: typography.sizeMd,
-			marginTop: spacing.xs,
-			padding: spacing.md,
-		},
-		label: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.lg,
-			textTransform: "uppercase",
-		},
-		pressed: {
-			opacity: 0.9,
-		},
-		submitButton: {
-			backgroundColor: c.primary,
-		},
-		submitText: {
-			color: c.primaryForeground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
-		},
-		title: {
-			color: c.foreground,
-			fontSize: typography.sizeLg,
-			fontWeight: typography.weightBold,
-		},
-	});
+	return (
+		<Host style={{ flex: 1 }}>
+			<AlertDialog onDismissRequest={onCancel}>
+				<AlertDialog.Title>
+					<BoxyText variant="title">Choose a new name</BoxyText>
+				</AlertDialog.Title>
+				<AlertDialog.Text>
+					<BoxyText variant="body" foreground={c.mutedForeground}>
+						Another {noun} already uses "{entityName}". Restore with a new name.
+					</BoxyText>
+				</AlertDialog.Text>
+				<BoxyColumn gap={spacing.lg}>
+					<BoxyTextFieldCore
+						value={name}
+						onChangeText={setName}
+						placeholder="New name"
+						error={error}
+						disabled={pending}
+					/>
+					<BoxyRow gap={spacing.sm}>
+						<BoxyButtonCore
+							label="Cancel"
+							variant="ghost"
+							onPress={onCancel}
+							disabled={pending}
+						/>
+						<BoxyButtonCore
+							label="Restore"
+							onPress={handleSubmit}
+							pending={pending}
+						/>
+					</BoxyRow>
+				</BoxyColumn>
+			</AlertDialog>
+		</Host>
+	);
 }

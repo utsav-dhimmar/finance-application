@@ -9,10 +9,18 @@ import { transactionFormSchema } from "@finance-application/schemas";
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared select fields are native @expo/ui components now; run their
+// content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import { TransactionFormDialog } from "@/components/transactions/transaction-form-dialog";
 import { INR_DISPLAY } from "@/lib/format";
 import { jsonResponse } from "@/session/fetch-mock";
-import { renderWithProviders } from "../../helpers";
+import { pickOption, renderWithProviders } from "../../helpers";
 import { makeRegisteredMachine } from "../../services/helpers";
 
 // The form generates client UUIDv7 ids through expo-crypto; give the native
@@ -128,23 +136,15 @@ describe("TransactionFormDialog (create)", () => {
 			/>,
 		);
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
 		// The category options follow the selected type; pick account and
-		// category through the shared select fields. (The native Modal mock
-		// keeps closed sheets findable, so closed-state asserts are omitted.)
-		await fireEvent.press(view.getByLabelText("Account"));
-		await waitFor(() =>
-			expect(view.getByLabelText("HDFC Bank")).toBeOnTheScreen(),
-		);
-		await fireEvent.press(view.getByLabelText("HDFC Bank"));
-		await fireEvent.press(view.getByLabelText("Category"));
-		await waitFor(() =>
-			expect(view.getByLabelText("Groceries")).toBeOnTheScreen(),
-		);
-		await fireEvent.press(view.getByLabelText("Groceries"));
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "1250.50");
+		// category through the native dropdown's options (mounted inline by
+		// the test doubles — the popup itself is native and device-verified).
+		await pickOption(view, "HDFC Bank");
+		await pickOption(view, "Groceries");
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "1250.50");
 		await fireEvent.press(
 			view.getByRole("button", { name: "Record transaction" }),
 		);
@@ -181,10 +181,10 @@ describe("TransactionFormDialog (create)", () => {
 			/>,
 		);
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "0");
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "0");
 		await fireEvent.press(
 			view.getByRole("button", { name: "Record transaction" }),
 		);
@@ -232,13 +232,15 @@ describe("TransactionFormDialog (edit)", () => {
 			/>,
 		);
 		await waitFor(
-			() =>
-				expect(view.getByLabelText("Amount (₹)").props.value).toBe("1000.00"),
+			() => expect(view.getByDisplayValue("1000.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		expect(view.getByLabelText("Transaction date")).toBeOnTheScreen();
+		// The date trigger button shows the date text; the notes input keeps
+		// its prefill too.
+		expect(view.getByText("2026-01-15")).toBeOnTheScreen();
 		expect(view.getByText("Edit transaction")).toBeOnTheScreen();
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "1500.75");
+		expect(view.getByDisplayValue("Weekly shop")).toBeOnTheScreen();
+		await fireEvent.changeText(view.getByDisplayValue("1000.00"), "1500.75");
 		await fireEvent.press(view.getByRole("button", { name: "Save changes" }));
 		await waitFor(() => {
 			expect(

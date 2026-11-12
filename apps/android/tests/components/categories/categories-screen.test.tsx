@@ -7,6 +7,14 @@ import {
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared dialogs and select fields are native @expo/ui components now;
+// run their content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import CategoriesScreen from "@/app/(app)/categories";
 import { CategoryFormDialog } from "@/components/categories/category-form-dialog";
 import { jsonResponse } from "@/session/fetch-mock";
@@ -128,15 +136,12 @@ describe("CategoriesScreen", () => {
 			).toBeOnTheScreen(),
 		);
 		await fireEvent.changeText(
-			view.getByLabelText("Category name"),
+			view.getByPlaceholderText("Groceries"),
 			"Groceries",
 		);
+		await fireEvent.changeText(view.getByPlaceholderText("#22C55E"), "#22C55E");
 		await fireEvent.changeText(
-			view.getByLabelText("Category color"),
-			"#22C55E",
-		);
-		await fireEvent.changeText(
-			view.getByLabelText("Category icon"),
+			view.getByPlaceholderText("shopping-cart"),
 			"shopping-cart",
 		);
 		await fireEvent.press(
@@ -311,11 +316,19 @@ describe("CategoriesScreen", () => {
 				'Another category already uses "Old Salary". Restore with a new name.',
 			),
 		).toBeOnTheScreen();
-		expect(view.getByLabelText("New name").props.value).toBe("Old Salary");
-		await fireEvent.changeText(view.getByLabelText("New name"), "New Salary");
-		await fireEvent.press(
-			view.getByRole("button", { name: "Restore with new name" }),
+		expect(view.getByDisplayValue("Old Salary")).toBeOnTheScreen();
+		await fireEvent.changeText(
+			view.getByDisplayValue("Old Salary"),
+			"New Salary",
 		);
+		// The card's Restore and the dialog's submit share the name; the
+		// dialog's is the later match in the tree.
+		const restoreButtons = view.getAllByRole("button", { name: "Restore" });
+		const submit = restoreButtons[restoreButtons.length - 1];
+		if (!submit) {
+			throw new Error("Restore submit button missing");
+		}
+		await fireEvent.press(submit);
 		await waitFor(() => expect(restoreCalls).toBe(2), { timeout: 10_000 });
 		const retry = fetchMock.mock.calls.find(([, init]) =>
 			String((init as RequestInit | undefined)?.body ?? "").includes("newName"),
@@ -351,16 +364,13 @@ describe("CategoryFormDialog (edit mode)", () => {
 			/>,
 		);
 		await waitFor(
-			() =>
-				expect(view.getByLabelText("Category name").props.value).toBe(
-					"Groceries",
-				),
+			() => expect(view.getByDisplayValue("Groceries")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		expect(view.getByLabelText("Category color").props.value).toBe("#22C55E");
+		expect(view.getByDisplayValue("#22C55E")).toBeOnTheScreen();
 		expect(view.getByText('Edit "Groceries"')).toBeOnTheScreen();
-		await fireEvent.changeText(view.getByLabelText("Category color"), "");
-		await fireEvent.changeText(view.getByLabelText("Category icon"), "");
+		await fireEvent.changeText(view.getByDisplayValue("#22C55E"), "");
+		await fireEvent.changeText(view.getByDisplayValue("shopping-cart"), "");
 		await fireEvent.press(view.getByRole("button", { name: "Save changes" }));
 		await waitFor(() => {
 			expect(

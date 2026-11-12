@@ -8,10 +8,18 @@ import { transferFormSchema } from "@finance-application/schemas";
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared select fields are native @expo/ui components now; run their
+// content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import { TransferFormDialog } from "@/components/transfers/transfer-form-dialog";
 import { INR_DISPLAY } from "@/lib/format";
 import { jsonResponse } from "@/session/fetch-mock";
-import { renderWithProviders } from "../../helpers";
+import { pickOption, renderWithProviders } from "../../helpers";
 import { makeRegisteredMachine } from "../../services/helpers";
 
 vi.mock("expo-crypto", () => ({
@@ -89,26 +97,6 @@ function findCall(
 	);
 }
 
-async function pickAccount(
-	view: Awaited<ReturnType<typeof renderWithProviders>>["view"],
-	fieldLabel: string,
-	optionLabel: string,
-): Promise<void> {
-	await fireEvent.press(view.getByLabelText(fieldLabel));
-	await waitFor(
-		() => expect(view.getAllByLabelText(optionLabel).length).toBeGreaterThan(0),
-		{ timeout: 10_000 },
-	);
-	// Both sheets list the same accounts and a closed sheet keeps its
-	// options findable, so press the open sheet's option (the last match).
-	const options = view.getAllByLabelText(optionLabel);
-	const option = options[options.length - 1];
-	if (!option) {
-		throw new Error(`Option not found: ${optionLabel}`);
-	}
-	await fireEvent.press(option);
-}
-
 beforeEach(() => {
 	vi.mocked(toast.success).mockClear();
 	vi.mocked(toast.error).mockClear();
@@ -130,12 +118,12 @@ describe("TransferFormDialog (create)", () => {
 			/>,
 		);
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await pickAccount(view, "Source account", "HDFC Bank");
-		await pickAccount(view, "Destination account", "Cash Wallet");
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "2500.75");
+		await pickOption(view, "HDFC Bank", "Source account");
+		await pickOption(view, "Cash Wallet", "Destination account");
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "2500.75");
 		await fireEvent.press(
 			view.getByRole("button", { name: "Record transfer" }),
 		);
@@ -164,12 +152,12 @@ describe("TransferFormDialog (create)", () => {
 			<TransferFormDialog display={INR_DISPLAY} onOpenChange={vi.fn()} open />,
 		);
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await pickAccount(view, "Source account", "HDFC Bank");
-		await pickAccount(view, "Destination account", "HDFC Bank");
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "100");
+		await pickOption(view, "HDFC Bank", "Source account");
+		await pickOption(view, "HDFC Bank", "Destination account");
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "100");
 		await fireEvent.press(
 			view.getByRole("button", { name: "Record transfer" }),
 		);
@@ -200,7 +188,7 @@ describe("TransferFormDialog (create)", () => {
 			<TransferFormDialog display={INR_DISPLAY} onOpenChange={vi.fn()} open />,
 		);
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
 		await fireEvent.press(
@@ -257,12 +245,11 @@ describe("TransferFormDialog (edit)", () => {
 			/>,
 		);
 		await waitFor(
-			() =>
-				expect(view.getByLabelText("Amount (₹)").props.value).toBe("1000.00"),
+			() => expect(view.getByDisplayValue("1000.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
 		expect(view.getByText("Edit transfer")).toBeOnTheScreen();
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "1200");
+		await fireEvent.changeText(view.getByDisplayValue("1000.00"), "1200");
 		await fireEvent.press(view.getByRole("button", { name: "Save changes" }));
 		await waitFor(() => {
 			expect(

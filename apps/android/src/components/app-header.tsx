@@ -1,15 +1,10 @@
 import { useState } from "react";
-import {
-	ActivityIndicator,
-	Pressable,
-	StyleSheet,
-	Text,
-	View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { BoxyButton } from "@/components/ui";
 import { useSession } from "@/session/session-context";
-import { hairline, spacing, type ThemeColors, typography } from "@/theme";
+import { spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
 
 /**
@@ -46,25 +41,14 @@ export function AppHeader() {
 					<Text numberOfLines={1} style={styles.email}>
 						{state.user.email}
 					</Text>
-					<Pressable
-						accessibilityLabel="Sign out"
-						accessibilityRole="button"
-						disabled={signingOut}
+					<BoxyButton
+						label="Sign out"
+						variant="outline"
 						onPress={() => {
 							void handleSignOut();
 						}}
-						style={({ pressed }) => [
-							styles.signOut,
-							signingOut && styles.signOutDisabled,
-							pressed && !signingOut && styles.signOutPressed,
-						]}
-					>
-						{signingOut ? (
-							<ActivityIndicator color={c.foreground} size="small" />
-						) : (
-							<Text style={styles.signOutText}>Sign out</Text>
-						)}
-					</Pressable>
+						pending={signingOut}
+					/>
 				</View>
 			</View>
 		</SafeAreaView>
@@ -101,23 +85,6 @@ function createStyles(c: ThemeColors) {
 			flexDirection: "row",
 			flexShrink: 1,
 			gap: spacing.md,
-		},
-		signOut: {
-			...hairline(c.border),
-			alignItems: "center",
-			borderRadius: 0,
-			padding: spacing.sm,
-		},
-		signOutDisabled: {
-			opacity: 0.5,
-		},
-		signOutPressed: {
-			backgroundColor: c.muted,
-		},
-		signOutText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
 		},
 	});
 }

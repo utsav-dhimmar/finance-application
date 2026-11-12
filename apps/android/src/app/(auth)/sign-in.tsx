@@ -1,18 +1,11 @@
 import { loginBodySchema } from "@finance-application/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import {
-	ActivityIndicator,
-	KeyboardAvoidingView,
-	Pressable,
-	StyleSheet,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { z } from "zod";
 
+import { BoxyButton, BoxyTextField } from "@/components/ui";
 import { useSession } from "@/session/session-context";
 import { hairline, spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
@@ -34,11 +27,6 @@ function createStyles(c: ThemeColors) {
 			fontSize: typography.sizeXxl,
 			fontWeight: typography.weightBold,
 		},
-		error: {
-			color: c.destructive,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.xs,
-		},
 		failure: {
 			color: c.destructive,
 			fontSize: typography.sizeSm,
@@ -46,42 +34,13 @@ function createStyles(c: ThemeColors) {
 		},
 		form: {
 			backgroundColor: c.background,
-			gap: spacing.sm,
+			gap: spacing.md,
 			marginTop: spacing.xl,
 			padding: spacing.lg,
-		},
-		input: {
-			...hairline(c.border),
-			color: c.foreground,
-			fontSize: typography.sizeMd,
-			padding: spacing.md,
-		},
-		label: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeXs,
-			marginTop: spacing.xs,
-			textTransform: "uppercase",
 		},
 		screen: {
 			backgroundColor: c.background,
 			flex: 1,
-		},
-		submit: {
-			alignItems: "center",
-			backgroundColor: c.primary,
-			marginTop: spacing.lg,
-			padding: spacing.md,
-		},
-		submitDisabled: {
-			opacity: 0.5,
-		},
-		submitPressed: {
-			opacity: 0.9,
-		},
-		submitText: {
-			color: c.primaryForeground,
-			fontSize: typography.sizeMd,
-			fontWeight: typography.weightMedium,
 		},
 		tagline: {
 			color: c.mutedForeground,
@@ -115,77 +74,50 @@ export default function SignIn() {
 
 	return (
 		<SafeAreaView style={styles.screen}>
-			<KeyboardAvoidingView behavior="padding" style={styles.body}>
+			<View style={styles.body}>
 				<Text style={styles.brand}>Finance</Text>
 				<Text style={styles.tagline}>Personal finance, one box at a time.</Text>
 
 				<View style={[styles.form, hairline(c.border)]}>
-					<Text style={styles.label}>Email</Text>
 					<Controller
 						control={form.control}
 						name="email"
 						render={({ field, fieldState }) => (
-							<>
-								<TextInput
-									accessibilityLabel="Email"
-									autoCapitalize="none"
-									autoComplete="email"
-									keyboardType="email-address"
-									onBlur={field.onBlur}
-									onChangeText={field.onChange}
-									style={styles.input}
-									value={field.value}
-								/>
-								{fieldState.error ? (
-									<Text style={styles.error}>{fieldState.error.message}</Text>
-								) : null}
-							</>
+							<BoxyTextField
+								label="Email"
+								keyboardType="email"
+								onChangeText={field.onChange}
+								value={field.value}
+								error={fieldState.error?.message ?? null}
+							/>
 						)}
 					/>
-					<Text style={styles.label}>Password</Text>
 					<Controller
 						control={form.control}
 						name="password"
 						render={({ field, fieldState }) => (
-							<>
-								<TextInput
-									accessibilityLabel="Password"
-									autoCapitalize="none"
-									onChangeText={field.onChange}
-									onBlur={field.onBlur}
-									secureTextEntry
-									style={styles.input}
-									value={field.value}
-								/>
-								{fieldState.error ? (
-									<Text style={styles.error}>{fieldState.error.message}</Text>
-								) : null}
-							</>
+							<BoxyTextField
+								label="Password"
+								secure
+								onChangeText={field.onChange}
+								value={field.value}
+								error={fieldState.error?.message ?? null}
+							/>
 						)}
 					/>
 					{failure !== null ? (
 						<Text style={styles.failure}>{failure}</Text>
 					) : null}
-					<Pressable
-						accessibilityRole="button"
-						disabled={!canSubmit}
+					<BoxyButton
+						label="Sign in"
 						onPress={() => {
 							void onSubmit();
 						}}
-						style={({ pressed }) => [
-							styles.submit,
-							!canSubmit && styles.submitDisabled,
-							pressed && canSubmit && styles.submitPressed,
-						]}
-					>
-						{inFlight ? (
-							<ActivityIndicator color={c.primaryForeground} />
-						) : (
-							<Text style={styles.submitText}>Sign in</Text>
-						)}
-					</Pressable>
+						disabled={!canSubmit}
+						pending={inFlight}
+					/>
 				</View>
-			</KeyboardAvoidingView>
+			</View>
 		</SafeAreaView>
 	);
 }

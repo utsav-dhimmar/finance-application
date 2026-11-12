@@ -11,13 +11,14 @@ import { AccountBalances } from "@/components/dashboard/account-balances";
 import { CategoryBreakdown } from "@/components/dashboard/category-breakdown";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { SelectField } from "@/components/shared/select-field";
+import { BoxyButton, BoxySegmentedRow } from "@/components/ui";
 import { usePreferences } from "@/hooks/use-preferences";
 import { useReportSummary } from "@/hooks/use-report-summary";
 import { INR_DISPLAY, preferencesToDisplay } from "@/lib/format";
 import { getReportsErrorMessage } from "@/services/reports-service";
 import { hairline, spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 
 // The period state mirrors the web reducer: mode + month/year values, with
@@ -45,29 +46,16 @@ export default function DashboardScreen() {
 
 			{/* Period selection: mode switch + month/year select */}
 			<View style={[styles.modeRow, hairline(c.border)]}>
-				{(["month", "year"] as const).map((option) => {
-					const selected = mode === option;
-					return (
-						<Pressable
-							key={option}
-							accessibilityRole="tab"
-							accessibilityState={{ selected }}
-							onPress={() => {
-								setMode(option);
-							}}
-							style={[styles.modeTab, selected && styles.modeTabActive]}
-						>
-							<Text
-								style={[
-									styles.modeTabText,
-									selected && styles.modeTabTextActive,
-								]}
-							>
-								{option === "month" ? "Month" : "Year"}
-							</Text>
-						</Pressable>
-					);
-				})}
+				<BoxySegmentedRow
+					options={[
+						{ value: "month", label: "Month" },
+						{ value: "year", label: "Year" },
+					]}
+					value={mode}
+					onValueChange={(next) => {
+						setMode(next as PeriodMode);
+					}}
+				/>
 			</View>
 			{mode === "month" ? (
 				<SelectField
@@ -101,19 +89,13 @@ export default function DashboardScreen() {
 							"Could not load the report for this period.",
 						)}
 					</Text>
-					<Pressable
-						accessibilityRole="button"
+					<BoxyButton
+						label="Retry"
+						variant="outline"
 						onPress={() => {
 							void report.refetch();
 						}}
-						style={({ pressed }) => [
-							styles.retryButton,
-							hairline(c.border),
-							pressed && styles.pressed,
-						]}
-					>
-						<Text style={styles.retryText}>Retry</Text>
-					</Pressable>
+					/>
 				</View>
 			) : null}
 
@@ -195,41 +177,10 @@ function createStyles(c: ThemeColors) {
 			flexDirection: "row",
 			marginTop: spacing.lg,
 		},
-		modeTab: {
-			alignItems: "center",
-			borderRadius: 0,
-			flex: 1,
-			padding: spacing.sm,
-		},
-		modeTabActive: {
-			backgroundColor: c.muted,
-		},
-		modeTabText: {
-			color: c.mutedForeground,
-			fontSize: typography.sizeSm,
-		},
-		modeTabTextActive: {
-			color: c.foreground,
-			fontWeight: typography.weightMedium,
-		},
 		pageTitle: {
 			color: c.foreground,
 			fontSize: typography.sizeXl,
 			fontWeight: typography.weightBold,
-		},
-		pressed: {
-			opacity: 0.9,
-		},
-		retryButton: {
-			alignItems: "center",
-			borderRadius: 0,
-			marginTop: spacing.md,
-			padding: spacing.md,
-		},
-		retryText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
 		},
 		screen: {
 			backgroundColor: c.background,

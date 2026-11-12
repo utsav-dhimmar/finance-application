@@ -6,6 +6,14 @@ import type {
 
 import { describe, expect, it, vi } from "vitest";
 
+// The shared select fields are native @expo/ui components now; run their
+// content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 // The preferences hook chain reaches sonner-native (reanimated easings);
 // mock it so the screen test stays native-module free.
 vi.mock("sonner-native", () => ({
@@ -19,7 +27,7 @@ import {
 	periodLabel,
 } from "@/components/dashboard/period";
 import { jsonResponse } from "@/session/fetch-mock";
-import { renderWithProviders } from "../../helpers";
+import { pickOption, renderWithProviders } from "../../helpers";
 import { makeRegisteredMachine } from "../../services/helpers";
 
 // The whole screen renders over stubbed API fixtures, the same shape the
@@ -186,7 +194,7 @@ describe("DashboardScreen", () => {
 
 		// Switch to year mode: the year select takes over and the summary is
 		// requested for the year.
-		await fireEvent.press(view.getByRole("tab", { name: "Year" }));
+		await fireEvent.press(view.getByRole("button", { name: "Year" }));
 		await waitFor(
 			() => expect(reportUrls(fetchMock).length).toBeGreaterThan(monthUrls),
 			{ timeout: 10_000 },
@@ -200,18 +208,17 @@ describe("DashboardScreen", () => {
 
 		// Back to month mode and pick a different month: a fresh request for
 		// that month.
-		await fireEvent.press(view.getByRole("tab", { name: "Month" }));
+		await fireEvent.press(view.getByRole("button", { name: "Month" }));
+		// "Month" is both the mode tab and the select's label; the select is
+		// mounted once the label appears twice.
 		await waitFor(
-			() => expect(view.getByLabelText("Month")).toBeOnTheScreen(),
+			() => expect(view.getAllByText("Month").length).toBeGreaterThan(1),
 			{ timeout: 10_000 },
 		);
 		const before = reportUrls(fetchMock).length;
-		await fireEvent.press(view.getByLabelText("Month"));
-		await waitFor(
-			() => expect(view.getByLabelText("February")).toBeOnTheScreen(),
-			{ timeout: 10_000 },
-		);
-		await fireEvent.press(view.getByLabelText("February"));
+		// The native dropdown's options mount inline under the test doubles:
+		// pick February directly.
+		await pickOption(view, "February", "Month");
 		await waitFor(
 			() => {
 				const urls = reportUrls(fetchMock);

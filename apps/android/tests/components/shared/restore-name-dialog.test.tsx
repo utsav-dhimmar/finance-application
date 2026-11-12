@@ -2,6 +2,13 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { accountNameSchema } from "@finance-application/schemas";
 import { describe, expect, it, vi } from "vitest";
 
+// The dialog is the native Compose alert dialog now; run it against the
+// typed test doubles (design.md D9 — see src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import { RestoreNameDialog } from "@/components/shared/restore-name-dialog";
 
 function schemaMessage(value: string): string {
@@ -22,7 +29,7 @@ describe("RestoreNameDialog", () => {
 				onCancel={vi.fn()}
 			/>,
 		);
-		expect(view.getByLabelText("New name").props.value).toBe("HDFC Bank");
+		expect(view.getByDisplayValue("HDFC Bank")).toBeOnTheScreen();
 		expect(
 			view.getByText(
 				'Another account already uses "HDFC Bank". Restore with a new name.',
@@ -42,10 +49,8 @@ describe("RestoreNameDialog", () => {
 				onCancel={vi.fn()}
 			/>,
 		);
-		await fireEvent.changeText(view.getByLabelText("New name"), "");
-		await fireEvent.press(
-			view.getByRole("button", { name: "Restore with new name" }),
-		);
+		await fireEvent.changeText(view.getByDisplayValue("HDFC Bank"), "");
+		await fireEvent.press(view.getByRole("button", { name: "Restore" }));
 		await waitFor(
 			() => expect(view.getByText(schemaMessage(""))).toBeOnTheScreen(),
 			{ timeout: 10_000 },
@@ -66,12 +71,10 @@ describe("RestoreNameDialog", () => {
 			/>,
 		);
 		await fireEvent.changeText(
-			view.getByLabelText("New name"),
+			view.getByDisplayValue("HDFC Bank"),
 			"  HDFC Bank 2 ",
 		);
-		await fireEvent.press(
-			view.getByRole("button", { name: "Restore with new name" }),
-		);
+		await fireEvent.press(view.getByRole("button", { name: "Restore" }));
 		await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 		// Parsed output: the schema trims the value.
 		expect(onSubmit).toHaveBeenCalledWith("HDFC Bank 2");

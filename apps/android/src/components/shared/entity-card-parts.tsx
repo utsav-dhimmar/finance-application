@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Host } from "@expo/ui/jetpack-compose";
+import { StyleSheet, Text, View } from "react-native";
 
+import { BoxyButtonCore, BoxyRow } from "@/components/ui";
 import { hairline, spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
 
@@ -13,7 +15,8 @@ interface EntityBadgesProps {
 
 /**
  * The type-and-status badge row shared by the account and category cards:
- * the entity's type badge plus the archived/deleted status badges.
+ * the entity's type badge plus the archived/deleted status badges. Badges
+ * are static, so they stay React Native.
  */
 export function EntityBadges({
 	typeLabel,
@@ -50,7 +53,8 @@ interface EntityActionsProps {
 }
 
 /**
- * The lifecycle action row shared by the account and category cards: edit,
+ * The lifecycle action row shared by the account and category cards (and the
+ * activity feed's rows): native Compose buttons inside one host — edit,
  * archive, and delete for active entities; restore otherwise.
  */
 export function EntityActions({
@@ -60,97 +64,51 @@ export function EntityActions({
 	onDelete,
 	onRestore,
 }: EntityActionsProps) {
-	const c = useThemeColors();
-	const styles = createStyles(c);
 	const isArchived = status === "archived";
 	const isDeleted = status === "deleted";
 	return (
-		<View style={styles.actionRow}>
-			{status === "active" && (
-				<>
-					<Pressable
-						accessibilityRole="button"
-						onPress={onEdit}
-						style={({ pressed }) => [
-							styles.actionButton,
-							hairline(c.border),
-							pressed && styles.pressed,
-						]}
-					>
-						<Text style={styles.actionText}>Edit</Text>
-					</Pressable>
-					<Pressable
-						accessibilityRole="button"
-						onPress={onArchive}
-						style={({ pressed }) => [
-							styles.actionButton,
-							hairline(c.border),
-							pressed && styles.pressed,
-						]}
-					>
-						<Text style={styles.actionText}>Archive</Text>
-					</Pressable>
-					<Pressable
-						accessibilityRole="button"
-						onPress={onDelete}
-						style={({ pressed }) => [
-							styles.actionButton,
-							hairline(c.border),
-							pressed && styles.pressed,
-						]}
-					>
-						<Text style={[styles.actionText, styles.destructiveText]}>
-							Delete
-						</Text>
-					</Pressable>
-				</>
-			)}
-			{(isArchived || isDeleted) && (
-				<Pressable
-					accessibilityRole="button"
-					onPress={onRestore}
-					style={({ pressed }) => [
-						styles.actionButton,
-						hairline(c.border),
-						pressed && styles.pressed,
-					]}
-				>
-					<Text style={styles.actionText}>Restore</Text>
-				</Pressable>
-			)}
-		</View>
+		<Host style={ACTION_ROW_STYLE}>
+			<BoxyRow gap={spacing.sm}>
+				{status === "active" && (
+					<>
+						<BoxyButtonCore label="Edit" variant="outline" onPress={onEdit} />
+						<BoxyButtonCore
+							label="Archive"
+							variant="outline"
+							onPress={onArchive}
+						/>
+						<BoxyButtonCore
+							label="Delete"
+							variant="outlineDestructive"
+							onPress={onDelete}
+						/>
+					</>
+				)}
+				{(isArchived || isDeleted) && (
+					<BoxyButtonCore
+						label="Restore"
+						variant="outline"
+						onPress={onRestore}
+					/>
+				)}
+			</BoxyRow>
+		</Host>
 	);
 }
 
+// Theme-free: the host's own outer margin (RN-side layout of the host).
+const ACTION_ROW_STYLE = { marginTop: spacing.lg } as const;
+
 function createStyles(c: ThemeColors) {
 	return StyleSheet.create({
-		actionButton: {
-			borderRadius: 0,
-			paddingVertical: spacing.sm,
-			paddingHorizontal: spacing.md,
-		},
 		actionRow: {
-			flexDirection: "row",
-			flexWrap: "wrap",
-			gap: spacing.sm,
 			marginTop: spacing.lg,
-		},
-		actionText: {
-			color: c.foreground,
-			fontSize: typography.sizeSm,
-			fontWeight: typography.weightMedium,
 		},
 		badgeRow: {
 			flexDirection: "row",
 			flexWrap: "wrap",
 			gap: spacing.xs,
 			marginTop: spacing.xs,
-		},
-		destructiveText: {
-			color: c.destructive,
-		},
-		pressed: {
-			opacity: 0.9,
 		},
 		statusBadge: {
 			borderRadius: 0,

@@ -1,45 +1,49 @@
-import { Tabs } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 
 import { AppHeader } from "@/components/app-header";
-import { typography } from "@/theme";
+import { BoxyNavigationBar, type SelectOption } from "@/components/ui";
 import { useThemeColors } from "@/use-theme-colors";
 
+/** The four core destinations; values are the group-relative route paths. */
+const TAB_ITEMS: SelectOption[] = [
+	{ value: "/", label: "Dashboard" },
+	{ value: "/transactions", label: "Transactions" },
+	{ value: "/accounts", label: "Accounts" },
+	{ value: "/categories", label: "Categories" },
+];
+
 /**
- * The authenticated shell: the app header stays mounted above the bottom tab
- * bar on every tab screen. All four core destinations are declared up front
- * so route names never churn across the remaining screen changes. The
- * Dashboard tab is index.tsx, which Expo Router loads as the default tab.
+ * The authenticated shell: the app header and the native Compose bottom
+ * navigation bar stay mounted on every tab screen. The destinations are
+ * declared up front so route names never churn; expo-router keeps owning
+ * screen mounting (Stack) while the native bar drives navigation with
+ * router.navigate, which pops to an existing entry instead of stacking.
  */
 export default function AppLayout() {
 	const c = useThemeColors();
 	const styles = createStyles();
+	const router = useRouter();
+	const pathname = usePathname();
 	return (
 		<View style={[styles.shell, { backgroundColor: c.background }]}>
 			<AppHeader />
-			<Tabs
-				screenOptions={{
-					headerShown: false,
-					tabBarActiveTintColor: c.primary,
-					tabBarInactiveTintColor: c.mutedForeground,
-					tabBarLabelStyle: {
-						fontSize: typography.sizeXs,
-						fontWeight: typography.weightMedium,
-					},
-					tabBarStyle: {
-						backgroundColor: c.background,
-						borderTopColor: c.border,
-						borderTopWidth: 1,
-						elevation: 0,
-						shadowOpacity: 0,
-					},
+			<Stack screenOptions={{ headerShown: false }}>
+				<Stack.Screen name="index" />
+				<Stack.Screen name="transactions" />
+				<Stack.Screen name="accounts" />
+				<Stack.Screen name="categories" />
+			</Stack>
+			<BoxyNavigationBar
+				items={TAB_ITEMS}
+				activeValue={pathname}
+				onNavigate={(route) => {
+					// The values are the developer-controlled TAB_ITEMS paths,
+					// which match the declared Stack screens exactly; expo
+					//-router's typed routes just cannot see that from a string.
+					router.navigate(route as "/transactions");
 				}}
-			>
-				<Tabs.Screen name="index" options={{ title: "Dashboard" }} />
-				<Tabs.Screen name="transactions" options={{ title: "Transactions" }} />
-				<Tabs.Screen name="accounts" options={{ title: "Accounts" }} />
-				<Tabs.Screen name="categories" options={{ title: "Categories" }} />
-			</Tabs>
+			/>
 		</View>
 	);
 }

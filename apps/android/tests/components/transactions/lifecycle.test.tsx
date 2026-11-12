@@ -7,9 +7,17 @@ import type {
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared select fields are native @expo/ui components now; run their
+// content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import TransactionsScreen from "@/app/(app)/transactions";
 import { jsonResponse } from "@/session/fetch-mock";
-import { renderWithProviders } from "../../helpers";
+import { pickOption, renderWithProviders } from "../../helpers";
 import { makeRegisteredMachine } from "../../services/helpers";
 
 vi.mock("expo-crypto", () => ({
@@ -124,9 +132,12 @@ describe("TransactionsScreen lifecycle", () => {
 	it("renders the feed rows with signed amounts and record count", async () => {
 		makeRegisteredMachine(baseHandlers());
 		const { view } = await renderWithProviders(<TransactionsScreen />);
-		await waitFor(() => expect(view.getByText("Groceries")).toBeOnTheScreen(), {
-			timeout: 10_000,
-		});
+		// The category name appears in the feed row and, under the test
+		// doubles, in the filter dropdown's mounted options.
+		await waitFor(
+			() => expect(view.getAllByText("Groceries").length).toBeGreaterThan(0),
+			{ timeout: 10_000 },
+		);
 		expect(view.getByText("−₹1,250.50")).toBeOnTheScreen();
 		expect(view.getByText("1 record in this view.")).toBeOnTheScreen();
 		expect(
@@ -223,10 +234,12 @@ describe("TransactionsScreen lifecycle", () => {
 		const { view } = await renderWithProviders(<TransactionsScreen />);
 		await waitFor(
 			() =>
-				expect(view.getByRole("tab", { name: "Archived" })).toBeOnTheScreen(),
+				expect(
+					view.getByRole("button", { name: "Archived" }),
+				).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await fireEvent.press(view.getByRole("tab", { name: "Archived" }));
+		await fireEvent.press(view.getByRole("button", { name: "Archived" }));
 		await waitFor(
 			() =>
 				expect(view.getByRole("button", { name: "Restore" })).toBeOnTheScreen(),
@@ -273,24 +286,23 @@ describe("TransactionsScreen lifecycle", () => {
 			view.getByRole("button", { name: "Record transaction" }),
 		);
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		// Income type, then account + category through the select sheets.
-		await fireEvent.press(view.getByRole("radio", { name: "Income" }));
-		await fireEvent.press(view.getByLabelText("Account"));
-		await waitFor(
-			() => expect(view.getByLabelText("HDFC Bank")).toBeOnTheScreen(),
-			{ timeout: 10_000 },
-		);
-		await fireEvent.press(view.getByLabelText("HDFC Bank"));
-		await fireEvent.press(view.getByLabelText("Category"));
-		await waitFor(
-			() => expect(view.getByLabelText("Salary")).toBeOnTheScreen(),
-			{ timeout: 10_000 },
-		);
-		await fireEvent.press(view.getByLabelText("Salary"));
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "5000");
+		// Income type (the native type row's option button), then account +
+		// category through the native dropdowns (options mount inline under
+		// the test doubles).
+		// "Income" also exists as the screen filter's mounted dropdown option;
+		// the dialog's type button is the later match in the tree.
+		const incomeButtons = view.getAllByRole("button", { name: "Income" });
+		const incomeButton = incomeButtons[incomeButtons.length - 1];
+		if (!incomeButton) {
+			throw new Error("Income type button missing");
+		}
+		await fireEvent.press(incomeButton);
+		await pickOption(view, "HDFC Bank", "Account");
+		await pickOption(view, "Salary", "Category");
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "5000");
 		// Two "Record transaction" buttons exist now (screen header + dialog
 		// submit); the dialog's is the later one in the tree.
 		const recordButtons = view.getAllByRole("button", {

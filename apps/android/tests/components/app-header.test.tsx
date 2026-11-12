@@ -1,6 +1,13 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The sign-out control is a native @expo/ui button now; run it against the
+// typed test doubles (design.md D9 — see src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 // The header consumes the session context; tests replace it so no secure
 // store or network is touched. vi.hoisted keeps the mock above hoisting.
 const { signOutMock } = vi.hoisted(() => ({

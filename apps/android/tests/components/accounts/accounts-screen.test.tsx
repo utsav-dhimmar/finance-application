@@ -7,6 +7,14 @@ import {
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared dialogs and select fields are native @expo/ui components now;
+// run their content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import AccountsScreen from "@/app/(app)/accounts";
 import { AccountFormDialog } from "@/components/accounts/account-form-dialog";
 import { INR_DISPLAY } from "@/lib/format";
@@ -173,13 +181,10 @@ describe("AccountsScreen", () => {
 			).toBeOnTheScreen(),
 		);
 		await fireEvent.changeText(
-			view.getByLabelText("Account name"),
+			view.getByPlaceholderText("HDFC Bank"),
 			"HDFC Bank",
 		);
-		await fireEvent.changeText(
-			view.getByLabelText("Opening balance (₹)"),
-			"1250.50",
-		);
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "1250.50");
 		await fireEvent.press(view.getByRole("button", { name: "Create account" }));
 		await waitFor(() => {
 			expect(findCall(fetchMock, "POST", "/api/accounts")).toBeDefined();
@@ -377,11 +382,19 @@ describe("AccountsScreen", () => {
 			() => expect(view.getByText("Choose a new name")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		expect(view.getByLabelText("New name").props.value).toBe("Old Wallet");
-		await fireEvent.changeText(view.getByLabelText("New name"), "New Wallet");
-		await fireEvent.press(
-			view.getByRole("button", { name: "Restore with new name" }),
+		expect(view.getByDisplayValue("Old Wallet")).toBeOnTheScreen();
+		await fireEvent.changeText(
+			view.getByDisplayValue("Old Wallet"),
+			"New Wallet",
 		);
+		// The card's Restore and the dialog's submit share the name; the
+		// dialog's is the later match in the tree.
+		const restoreButtons = view.getAllByRole("button", { name: "Restore" });
+		const submit = restoreButtons[restoreButtons.length - 1];
+		if (!submit) {
+			throw new Error("Restore submit button missing");
+		}
+		await fireEvent.press(submit);
 		await waitFor(() => expect(restoreCalls).toBe(2), { timeout: 10_000 });
 		const retry = fetchMock.mock.calls.find(([, init]) =>
 			String((init as RequestInit | undefined)?.body ?? "").includes("newName"),
@@ -419,19 +432,14 @@ describe("AccountFormDialog (edit mode)", () => {
 			/>,
 		);
 		await waitFor(
-			() =>
-				expect(view.getByLabelText("Account name").props.value).toBe(
-					"HDFC Bank",
-				),
+			() => expect(view.getByDisplayValue("HDFC Bank")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
 		// 100000 paise renders as the major-unit edit string.
-		expect(view.getByLabelText("Opening balance (₹)").props.value).toBe(
-			"1000.00",
-		);
+		expect(view.getByDisplayValue("1000.00")).toBeOnTheScreen();
 		expect(view.getByText('Edit "HDFC Bank"')).toBeOnTheScreen();
 		await fireEvent.changeText(
-			view.getByLabelText("Account name"),
+			view.getByDisplayValue("HDFC Bank"),
 			"HDFC Bank Prime",
 		);
 		await fireEvent.press(view.getByRole("button", { name: "Save changes" }));

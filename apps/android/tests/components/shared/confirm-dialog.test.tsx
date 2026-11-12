@@ -1,6 +1,13 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { describe, expect, it, vi } from "vitest";
 
+// The dialog is the native Compose alert dialog now; run it against the
+// typed test doubles (design.md D9 — see src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 describe("ConfirmDialog", () => {

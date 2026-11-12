@@ -4,9 +4,17 @@ import type { AccountResponse } from "@finance-application/schemas";
 import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared select fields are native @expo/ui components now; run their
+// content through the typed test doubles (design.md D9 — see
+// src/components/ui/SPIKE-NOTES.md).
+vi.mock(
+	"@expo/ui/jetpack-compose",
+	async () => await import("@tests/helpers/ui-doubles"),
+);
+
 import TransactionsScreen from "@/app/(app)/transactions";
 import { jsonResponse } from "@/session/fetch-mock";
-import { renderWithProviders } from "../../helpers";
+import { pickOption, renderWithProviders } from "../../helpers";
 import { makeRegisteredMachine } from "../../services/helpers";
 
 vi.mock("expo-crypto", () => ({
@@ -124,8 +132,10 @@ describe("TransfersScreen lifecycle", () => {
 		expect(view.getByText("+₹5,000.00")).toBeOnTheScreen();
 		// Each side shows its counterparty: source side → destination, and
 		// the other way around.
-		expect(view.getAllByText("Cash Wallet")).toHaveLength(2);
-		expect(view.getAllByText("HDFC Bank")).toHaveLength(2);
+		// The names appear in both rows and, under the test doubles, in the
+		// filter dropdown's mounted options.
+		expect(view.getAllByText("Cash Wallet").length).toBeGreaterThanOrEqual(2);
+		expect(view.getAllByText("HDFC Bank").length).toBeGreaterThanOrEqual(2);
 	});
 
 	it("archives a transfer through the confirmation dialog", async () => {
@@ -214,10 +224,11 @@ describe("TransfersScreen lifecycle", () => {
 		} as Parameters<typeof makeRegisteredMachine>[0]);
 		const { view } = await renderWithProviders(<TransactionsScreen />);
 		await waitFor(
-			() => expect(view.getByRole("tab", { name: "Trash" })).toBeOnTheScreen(),
+			() =>
+				expect(view.getByRole("button", { name: "Trash" })).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await fireEvent.press(view.getByRole("tab", { name: "Trash" }));
+		await fireEvent.press(view.getByRole("button", { name: "Trash" }));
 		await waitFor(
 			() =>
 				expect(
@@ -262,12 +273,12 @@ describe("TransfersScreen lifecycle", () => {
 		);
 		await fireEvent.press(view.getByRole("button", { name: "New transfer" }));
 		await waitFor(
-			() => expect(view.getByLabelText("Amount (₹)")).toBeOnTheScreen(),
+			() => expect(view.getByPlaceholderText("0.00")).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await pickOption(view, "Source account", "HDFC Bank");
-		await pickOption(view, "Destination account", "HDFC Bank");
-		await fireEvent.changeText(view.getByLabelText("Amount (₹)"), "500");
+		await pickOption(view, "HDFC Bank", "Source account");
+		await pickOption(view, "HDFC Bank", "Destination account");
+		await fireEvent.changeText(view.getByPlaceholderText("0.00"), "500");
 		await fireEvent.press(
 			view.getByRole("button", { name: "Record transfer" }),
 		);
@@ -280,7 +291,7 @@ describe("TransfersScreen lifecycle", () => {
 				).toBeOnTheScreen(),
 			{ timeout: 10_000 },
 		);
-		await pickOption(view, "Destination account", "Cash Wallet");
+		await pickOption(view, "Cash Wallet", "Destination account");
 		await fireEvent.press(
 			view.getByRole("button", { name: "Record transfer" }),
 		);
@@ -290,24 +301,6 @@ describe("TransfersScreen lifecycle", () => {
 		expect(toast.success).toHaveBeenCalledWith("Transfer recorded.");
 	});
 });
-
-async function pickOption(
-	view: Awaited<ReturnType<typeof renderWithProviders>>["view"],
-	fieldLabel: string,
-	optionLabel: string,
-): Promise<void> {
-	await fireEvent.press(view.getByLabelText(fieldLabel));
-	await waitFor(
-		() => expect(view.getAllByLabelText(optionLabel).length).toBeGreaterThan(0),
-		{ timeout: 10_000 },
-	);
-	const options = view.getAllByLabelText(optionLabel);
-	const option = options[options.length - 1];
-	if (!option) {
-		throw new Error(`Option not found: ${optionLabel}`);
-	}
-	await fireEvent.press(option);
-}
 
 function firstButton(
 	view: Awaited<ReturnType<typeof renderWithProviders>>["view"],

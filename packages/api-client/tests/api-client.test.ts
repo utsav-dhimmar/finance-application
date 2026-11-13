@@ -86,6 +86,37 @@ describe("apiFetch", () => {
 			expect.anything(),
 		);
 	});
+
+	it("calls onResponse with the raw response before decoding", async () => {
+		const seen: Response[] = [];
+		await apiFetch<typeof user>("/api/auth/me", {}, {
+			onResponse: (res: Response) => seen.push(res),
+		});
+		expect(seen).toHaveLength(1);
+		expect(seen[0]?.status).toBe(200);
+	});
+
+	it("calls onResponse even when the response is an error", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				jsonResponse(401, {
+					error: { code: "UNAUTHENTICATED", message: "No session" },
+				}),
+			),
+		);
+		const seen: Response[] = [];
+		const error = await apiFetch("/api/auth/me", {}, {
+			onResponse: (res: Response) => seen.push(res),
+		}).catch((caught: unknown) => caught);
+		expect(seen).toHaveLength(1);
+		expect(seen[0]?.status).toBe(401);
+		expect(error).toBeInstanceOf(ApiError);
+	});
+
+	it("works unchanged when onResponse is omitted", async () => {
+		await expect(apiFetch<typeof user>("/api/auth/me")).resolves.toEqual(user);
+	});
 });
 
 describe("auth endpoints", () => {

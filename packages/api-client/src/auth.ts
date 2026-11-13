@@ -1,10 +1,7 @@
 import type { LoginBody, UserResponse } from "@finance-application/schemas";
-import { apiFetch } from "./client";
+import { apiFetch, type ApiFetchOptions } from "./client";
 
-export interface ApiClientOptions {
-	/** Prefix for all requests, e.g. "https://api.example.com". Defaults to same-origin relative paths. */
-	baseUrl?: string;
-}
+export interface ApiClientOptions extends ApiFetchOptions {}
 
 export function login(
 	body: LoginBody,

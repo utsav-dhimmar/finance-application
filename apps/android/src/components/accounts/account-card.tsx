@@ -1,4 +1,5 @@
 import type { AccountResponse } from "@finance-application/schemas";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import {
@@ -30,7 +31,7 @@ export function AccountCard({
 	onRestore,
 }: AccountCardProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<View style={[styles.card, hairline(c.border)]}>
 			<Text style={styles.name}>{account.name}</Text>

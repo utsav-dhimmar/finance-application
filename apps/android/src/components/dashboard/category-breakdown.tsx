@@ -1,4 +1,5 @@
 import type { CategoryBreakdownItem } from "@finance-application/schemas";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import type { CurrencyDisplayDefinition } from "@/lib/format";
@@ -28,7 +29,7 @@ export function CategoryBreakdown({
 	periodLabelText,
 }: CategoryBreakdownProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<View style={styles.section}>
 			<Text style={styles.title}>Expenses by category</Text>

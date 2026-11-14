@@ -8,7 +8,7 @@ import { toast } from "sonner-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TransactionsScreen from "@/app/(app)/transactions";
-import { jsonResponse } from "@/session/fetch-mock";
+import { errorEnvelope, jsonResponse } from "@/session/fetch-mock";
 import { renderWithProviders } from "../../helpers";
 import { makeRegisteredMachine } from "../../services/helpers";
 
@@ -307,5 +307,121 @@ describe("TransactionsScreen lifecycle", () => {
 			{ timeout: 10_000 },
 		);
 		expect(toast.success).toHaveBeenCalledWith("Transaction recorded.");
+	});
+});
+
+// The feed's rendering behaviors under FlashList: progressive pagination and
+// the empty and error states. Pull-to-refresh shares its refetch handler with
+// the retry button asserted here; the physical gesture is device-verified in
+// the QA checklist.
+describe("TransactionsScreen feed", () => {
+	it("loads the next page beneath the feed and stops at the last page", async () => {
+		let activityCalls = 0;
+		const { fetchMock } = makeRegisteredMachine(
+			baseHandlers({
+				"GET /api/activity": () => {
+					activityCalls++;
+					if (activityCalls === 1) {
+						return jsonResponse(200, {
+							activity: Array.from({ length: 20 }, (_, index) =>
+								activityRow(`tx-${index + 1}`, -(1000 + index * 100)),
+							),
+							page: 1,
+							pageSize: 20,
+							total: 25,
+						});
+					}
+					return jsonResponse(200, {
+						activity: Array.from({ length: 5 }, (_, index) =>
+							activityRow(`tx-${21 + index}`, -(9000 + index * 100)),
+						),
+						page: 2,
+						pageSize: 20,
+						total: 25,
+					});
+				},
+			}),
+		);
+		const { view } = await renderWithProviders(<TransactionsScreen />);
+		// The subtitle reports the view's total (25), not the loaded page size.
+		await waitFor(
+			() => expect(view.getByText("25 records in this view.")).toBeOnTheScreen(),
+			{ timeout: 10_000 },
+		);
+		await fireEvent.press(view.getByRole("button", { name: "Load more" }));
+		const pageTwo = fetchMock.mock.calls.find(([input]) =>
+			String(input).includes("page=2"),
+		);
+		expect(pageTwo).toBeDefined();
+		// The last page removes the footer: loaded rows (25) meet the total.
+		await waitFor(
+			() => expect(view.queryByText("Load more")).toBeNull(),
+			{ timeout: 10_000 },
+		);
+	});
+
+	it("shows the empty state with a create action when the feed has no rows", async () => {
+		makeRegisteredMachine(
+			baseHandlers({
+				"GET /api/activity": () =>
+					jsonResponse(200, {
+						activity: [],
+						page: 1,
+						pageSize: 20,
+						total: 0,
+					}),
+			}),
+		);
+		const { view } = await renderWithProviders(<TransactionsScreen />);
+		await waitFor(
+			() =>
+				expect(
+					view.getByText(
+						"No transactions yet. Record your first income or expense.",
+					),
+				).toBeOnTheScreen(),
+			{ timeout: 10_000 },
+		);
+		expect(
+			view.getByRole("button", { name: "Record your first transaction" }),
+		).toBeOnTheScreen();
+	});
+
+	it("shows an error state and recovers through retry", async () => {
+		let activityCalls = 0;
+		const { fetchMock } = makeRegisteredMachine(
+			baseHandlers({
+				"GET /api/activity": () => {
+					activityCalls++;
+					if (activityCalls === 1) {
+						return errorEnvelope(500, "INTERNAL", "boom");
+					}
+					return jsonResponse(200, {
+						activity: [activityRow("tx-1", -125050)],
+						page: 1,
+						pageSize: 20,
+						total: 1,
+					});
+				},
+			}),
+		);
+		const { view } = await renderWithProviders(<TransactionsScreen />);
+		await waitFor(
+			() =>
+				expect(
+					view.getByText("Could not load transactions. Is the API running?"),
+				).toBeOnTheScreen(),
+			{ timeout: 10_000 },
+		);
+		await fireEvent.press(view.getByRole("button", { name: "Retry" }));
+		await waitFor(
+			() => expect(view.getByText("Groceries")).toBeOnTheScreen(),
+			{ timeout: 10_000 },
+		);
+		expect(
+			view.queryByText("Could not load transactions. Is the API running?"),
+		).toBeNull();
+		expect(activityCalls).toBe(2);
+		expect(fetchMock).toBeDefined();
 	});
 });

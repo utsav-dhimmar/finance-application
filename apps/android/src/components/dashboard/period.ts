@@ -55,9 +55,10 @@ export function periodLabel(period: ReportPeriodQuery): string {
 }
 
 // The month select offers the twelve calendar months of the active year; the
-// year select spans the same range the web's year input accepts (2000–2100).
-const FIRST_YEAR = 2000;
-const LAST_YEAR = 2100;
+// year select offers a rolling window around the device's current year so the
+// native dropdown menu stays usable (21 options instead of the web input's
+// 2000–2100 range, which the reporting API still accepts).
+const YEAR_WINDOW = 10;
 
 export function monthOptions(year: string): SelectOption[] {
 	return MONTH_NAMES.map((name, index) => ({
@@ -67,8 +68,13 @@ export function monthOptions(year: string): SelectOption[] {
 }
 
 export function yearOptions(): SelectOption[] {
+	const currentYear = new Date().getFullYear();
 	const options: SelectOption[] = [];
-	for (let year = FIRST_YEAR; year <= LAST_YEAR; year += 1) {
+	for (
+		let year = currentYear - YEAR_WINDOW;
+		year <= currentYear + YEAR_WINDOW;
+		year += 1
+	) {
 		options.push({ value: String(year), label: String(year) });
 	}
 	return options;

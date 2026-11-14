@@ -18,13 +18,13 @@ import { getReportsErrorMessage } from "@/services/reports-service";
 import { hairline, spacing, type ThemeColors, typography } from "@/theme";
 import { useThemeColors } from "@/use-theme-colors";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 // The period state mirrors the web reducer: mode + month/year values, with
 // the device's local clock picking the default current month.
 export default function DashboardScreen() {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const [mode, setMode] = useState<PeriodMode>("month");
 	const [monthValue, setMonthValue] = useState(currentMonthValue());
 	const [yearValue, setYearValue] = useState(currentYearValue());

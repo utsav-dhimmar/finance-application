@@ -91,7 +91,7 @@ The system SHALL, when an API request is rejected with `401 UNAUTHENTICATED` whi
 
 ### Requirement: Sign out
 
-The system SHALL provide a sign-out control on the authenticated home screen that calls `POST /api/auth/logout`, clears the stored session, and shows the sign-in screen.
+The system SHALL provide a sign-out control in the authenticated shell's app header that calls `POST /api/auth/logout`, clears the stored session, and shows the sign-in screen.
 
 #### Scenario: Sign-out flow
 

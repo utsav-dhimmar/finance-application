@@ -11,11 +11,6 @@ The application SHALL provide an activity screen on the Transactions tab that re
 - **WHEN** the user opens the Transactions tab
 - **THEN** activity rows render newest first with date, kind, category or counterparty account, and signed amounts, where incomes credit, expenses debit, and a transfer shows its effect for the row's account side, all formatted in the active currency
 
-#### Scenario: Viewing the active feed
-
-- **WHEN** the user opens the Transactions tab
-- **THEN** activity rows render newest first with date, kind, category or counterparty account, and signed amounts, where incomes credit, expenses debit, and a transfer shows its effect for the row's account side
-
 #### Scenario: Status tabs scope the feed
 
 - **WHEN** the user switches between the Active, Archived, and Trash tabs

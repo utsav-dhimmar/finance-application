@@ -5,7 +5,7 @@ import {
 	type AccountResponse,
 } from "@finance-application/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
 	KeyboardAvoidingView,
@@ -52,7 +52,7 @@ export function AccountFormDialog({
 	display,
 }: AccountFormDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const isEdit = Boolean(account);
 	const create = useCreateAccount();
 	const update = useUpdateAccount();

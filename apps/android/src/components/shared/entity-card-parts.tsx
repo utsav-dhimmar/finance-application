@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { hairline, spacing, type ThemeColors, typography } from "@/theme";
@@ -21,7 +22,7 @@ export function EntityBadges({
 	isDeleted,
 }: EntityBadgesProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<View style={styles.badgeRow}>
 			<View style={styles.typeBadge}>
@@ -61,7 +62,7 @@ export function EntityActions({
 	onRestore,
 }: EntityActionsProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const isArchived = status === "archived";
 	const isDeleted = status === "deleted";
 	return (

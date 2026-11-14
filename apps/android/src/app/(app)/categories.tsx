@@ -3,7 +3,7 @@ import {
 	categoryNameSchema,
 	type CategoryResponse,
 } from "@finance-application/schemas";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Pressable,
@@ -53,7 +53,7 @@ const DELETE_DESCRIPTION =
 
 export default function CategoriesScreen() {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const [tab, setTab] = useState<CategoriesTab>("active");
 	const categories = useCategories(tab);
 	const archive = useArchiveCategory();

@@ -34,7 +34,7 @@
    - GitHub Actions for CI/CD.
 4. One authoritative backend API.
    - Hono owns the HTTP API implementation.
-   - Both the web application and future Android application consume the same API.
+   - The web application consumes the same API.
    - Do not duplicate business logic across clients.
    - Do not expose D1 bindings or database credentials to client applications.
 5. Prefer small, cohesive, testable changes.
@@ -55,8 +55,7 @@ personal-finance/
 ├── openspec/
 │   └── ...
 ├── apps/
-│   ├── web/                  # TanStack Start
-│   └── android/              # Future Expo application
+│   └── web/                  # TanStack Start
 ├── packages/
 │   ├── domain/               # Finance rules and calculations
 │   ├── schemas/              # Shared validation schemas

@@ -15,8 +15,7 @@
 			"!.AGENTS.md",
 			"!openspec",
 			"!**/worker-configuration.d.ts",
-			"!**/routeTree.gen.ts",
-			"!apps/android/assets"
+			"!**/routeTree.gen.ts"
 		]
 	},
 	"formatter": {

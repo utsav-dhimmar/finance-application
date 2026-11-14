@@ -4,7 +4,7 @@
 
 Build a single-user personal finance application for tracking income, expenses, accounts, transfers, budgets, and financial history. Registration is permanently closed: the product ships with exactly one pre-existing account, and the register endpoint always responds 403 REGISTRATION_DISABLED.
 
-The initial target is a web application. An Android application built with Expo React Native will follow after the web application is complete.
+The product targets a single web application; no additional clients (such as mobile apps) are planned.
 
 Development follows spec-driven development using OpenSpec, `AGENTS.md`, and coding agents.
 

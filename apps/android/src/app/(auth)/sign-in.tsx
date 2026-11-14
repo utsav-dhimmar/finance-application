@@ -1,5 +1,6 @@
 import { loginBodySchema } from "@finance-application/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
 	ActivityIndicator,
@@ -93,7 +94,7 @@ function createStyles(c: ThemeColors) {
 
 export default function SignIn() {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const { state, signIn } = useSession();
 	const form = useForm<LoginInput, unknown, LoginOutput>({
 		resolver: zodResolver(loginBodySchema),

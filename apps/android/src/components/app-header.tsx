@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Pressable,
@@ -20,7 +20,7 @@ import { useThemeColors } from "@/use-theme-colors";
  */
 export function AppHeader() {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const { state, signOut } = useSession();
 	const [signingOut, setSigningOut] = useState(false);
 

@@ -1,7 +1,7 @@
 import { ApiError } from "@finance-application/api-client";
 import { accountNameSchema } from "@finance-application/schemas";
 import type { AccountResponse } from "@finance-application/schemas";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Pressable,
@@ -57,7 +57,7 @@ const DELETE_DESCRIPTION =
 
 export default function AccountsScreen() {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const [tab, setTab] = useState<AccountsTab>("active");
 	const accounts = useAccounts(tab);
 	const archive = useArchiveAccount();

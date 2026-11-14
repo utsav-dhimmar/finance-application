@@ -1,7 +1,7 @@
 import type { ActivityItem, ActivityKind } from "@finance-application/schemas";
+import { FlashList } from "@shopify/flash-list";
 import {
 	ActivityIndicator,
-	FlatList,
 	Pressable,
 	RefreshControl,
 	StyleSheet,
@@ -80,7 +80,7 @@ interface ConfirmingState {
 
 export default function TransactionsScreen() {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 
 	const [filterState, dispatchFilter] = useReducer(
 		transactionsFilterReducer,
@@ -174,7 +174,7 @@ export default function TransactionsScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<FlatList
+			<FlashList
 				contentContainerStyle={styles.content}
 				data={rows}
 				keyExtractor={(item) =>
@@ -390,7 +390,7 @@ function PressableNewButton({
 	onPress: () => void;
 }) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -423,7 +423,7 @@ function PressableRetry({
 	disabled?: boolean;
 }) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<Pressable
 			accessibilityRole="button"

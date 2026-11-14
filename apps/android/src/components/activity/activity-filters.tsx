@@ -1,5 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { SelectField } from "@/components/shared/select-field";
@@ -48,7 +48,7 @@ export function ActivityFilters({
 	onAction,
 }: ActivityFiltersProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const [pickerField, setPickerField] = useState<"from" | "to" | null>(null);
 
 	const typeValue = state.type || ALL_TYPES;
@@ -179,7 +179,7 @@ function PressableDate({
 	onPress: () => void;
 }) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<Pressable
 			accessibilityLabel={label}

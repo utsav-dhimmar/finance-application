@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import type { CurrencyDisplayDefinition } from "@/lib/format";
@@ -27,7 +28,7 @@ export function SummaryCards({
 	periodLabelText,
 }: SummaryCardsProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const netNegative = netCashFlowMinor < 0;
 	return (
 		<View style={styles.row}>

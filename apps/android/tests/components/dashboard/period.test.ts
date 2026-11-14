@@ -56,9 +56,16 @@ describe("select options", () => {
 		expect(options[11]).toEqual({ value: "2026-12", label: "December" });
 	});
 
-	it("spans the web's year-input range", () => {
+	it("spans a rolling year window around the current year", () => {
 		const options = yearOptions();
-		expect(options[0]?.value).toBe("2000");
-		expect(options[options.length - 1]?.value).toBe("2100");
+		const currentYear = new Date().getFullYear();
+		// Ten years before through ten years after the current year: 21 options.
+		expect(options).toHaveLength(21);
+		expect(options[0]?.value).toBe(String(currentYear - 10));
+		expect(options[options.length - 1]?.value).toBe(String(currentYear + 10));
+		// The current year is among the offered options.
+		expect(options.some((option) => option.value === String(currentYear))).toBe(
+			true,
+		);
 	});
 });

@@ -1,4 +1,5 @@
 import type { AccountResponse } from "@finance-application/schemas";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ACCOUNT_TYPE_LABELS } from "@/lib/account-labels";
@@ -25,7 +26,7 @@ export function AccountBalances({
 	display,
 }: AccountBalancesProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<View style={styles.section}>
 			<View style={styles.header}>

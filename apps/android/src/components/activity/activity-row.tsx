@@ -1,4 +1,5 @@
 import type { ActivityItem } from "@finance-application/schemas";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { EntityActions } from "@/components/shared/entity-card-parts";
@@ -45,7 +46,7 @@ export function ActivityRow({
 	onRestore,
 }: ActivityRowProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const kindLabel =
 		item.kind === "transaction"
 			? item.type

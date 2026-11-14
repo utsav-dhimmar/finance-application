@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	KeyboardAvoidingView,
 	Modal,
@@ -43,7 +43,7 @@ export function RestoreNameDialog({
 	onCancel,
 }: RestoreNameDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const [name, setName] = useState(entityName);
 	const [error, setError] = useState<string | null>(null);
 

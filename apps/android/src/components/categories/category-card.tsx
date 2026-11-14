@@ -1,4 +1,5 @@
 import type { CategoryResponse } from "@finance-application/schemas";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import {
@@ -26,7 +27,7 @@ export function CategoryCard({
 	onRestore,
 }: CategoryCardProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<View style={[styles.card, hairline(c.border)]}>
 			<View style={styles.titleRow}>

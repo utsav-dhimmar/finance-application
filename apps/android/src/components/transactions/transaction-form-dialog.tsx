@@ -9,7 +9,7 @@ import type {
 import { transactionFormSchema } from "@finance-application/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
 	KeyboardAvoidingView,
@@ -76,7 +76,7 @@ export function TransactionFormDialog({
 	display,
 }: TransactionFormDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	const isEdit = Boolean(transaction);
 	const create = useCreateTransaction();
 	const update = useUpdateTransaction();

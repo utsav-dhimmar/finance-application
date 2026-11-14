@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Toaster } from "sonner-native";
@@ -23,7 +24,7 @@ function createLoadingStyles(c: ThemeColors) {
 
 function LoadingView() {
 	const c = useThemeColors();
-	const styles = createLoadingStyles(c);
+	const styles = useMemo(() => createLoadingStyles(c), [c]);
 	return (
 		<View style={styles.center}>
 			<ActivityIndicator color={c.primary} size="large" />
@@ -46,8 +47,10 @@ function SessionGate() {
 			<Stack.Protected guard={signedIn}>
 				<Stack.Screen name="(app)" />
 			</Stack.Protected>
+			{/* The auth group has no layout file, so its route is the full
+			"(auth)/sign-in" path — declaring it by group name warns at runtime. */}
 			<Stack.Protected guard={!signedIn}>
-				<Stack.Screen name="(auth)" />
+				<Stack.Screen name="(auth)/sign-in" />
 			</Stack.Protected>
 		</Stack>
 	);

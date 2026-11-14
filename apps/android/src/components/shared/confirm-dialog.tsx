@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
 	ActivityIndicator,
 	Modal,
@@ -38,7 +39,7 @@ export function ConfirmDialog({
 	onCancel,
 }: ConfirmDialogProps) {
 	const c = useThemeColors();
-	const styles = createStyles(c);
+	const styles = useMemo(() => createStyles(c), [c]);
 	return (
 		<Modal
 			visible={visible}

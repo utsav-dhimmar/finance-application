@@ -23,8 +23,42 @@ describe("GET /api/openapi (enabled)", () => {
 				"/api/activity": expect.anything(),
 				"/api/reports/summary": expect.anything(),
 				"/api/preferences": expect.anything(),
+				"/api/transactions": expect.anything(),
+				"/api/transactions/export": expect.anything(),
 			},
 		});
+	});
+
+	it("registers the export endpoint with its keyset query parameters", async () => {
+		const res = await app.request("/api/openapi", undefined, DOCS_ENV);
+		expect(res.status).toBe(200);
+		const doc = (await res.json()) as {
+			paths: Record<
+				string,
+				Record<
+					string,
+					{ parameters?: Array<{ name?: string; in?: string }> } | undefined
+				>
+			>;
+		};
+		const getOperation = doc.paths["/api/transactions/export"]?.get;
+		expect(getOperation).toBeDefined();
+		const queryParameters = (getOperation?.parameters ?? [])
+			.filter((parameter) => parameter.in === "query")
+			.map((parameter) => parameter.name);
+		expect(queryParameters).toEqual(
+			expect.arrayContaining([
+				"cursor",
+				"limit",
+				"status",
+				"from",
+				"to",
+				"type",
+				"accountId",
+				"categoryId",
+				"q",
+			]),
+		);
 	});
 
 	it("registers the permanent-delete operations for accounts and categories", async () => {

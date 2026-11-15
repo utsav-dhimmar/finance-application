@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { MAX_AMOUNT_MINOR } from "../src/accounts";
 import {
 	createTransactionBodySchema,
+	exportTransactionsQuerySchema,
+	exportTransactionsResponseSchema,
 	listTransactionsQuerySchema,
 	NOTES_MAX_LENGTH,
 	restoreTransactionBodySchema,
@@ -196,6 +198,91 @@ describe("listTransactionsQuerySchema", () => {
 		expect(() =>
 			listTransactionsQuerySchema.parse({ from: "2026-13-01" }),
 		).toThrow();
+	});
+});
+
+describe("exportTransactionsQuerySchema", () => {
+	it("defaults status and limit without list pagination", () => {
+		expect(exportTransactionsQuerySchema.parse({})).toEqual({
+			status: "active",
+			limit: 1000,
+		});
+		expect(exportTransactionsQuerySchema.parse({})).not.toHaveProperty("page");
+		expect(exportTransactionsQuerySchema.parse({})).not.toHaveProperty(
+			"pageSize",
+		);
+	});
+
+	it("coerces limit from a query string and applies the bounds", () => {
+		expect(
+			exportTransactionsQuerySchema.parse({ limit: "2000" }),
+		).toMatchObject({ limit: 2000 });
+		expect(() =>
+			exportTransactionsQuerySchema.parse({ limit: "99" }),
+		).toThrow();
+		expect(() =>
+			exportTransactionsQuerySchema.parse({ limit: "2001" }),
+		).toThrow();
+		expect(() =>
+			exportTransactionsQuerySchema.parse({ limit: "12.5" }),
+		).toThrow();
+	});
+
+	it("keeps the list filters", () => {
+		const parsed = exportTransactionsQuerySchema.parse({
+			status: "archived",
+			from: "2026-01-01",
+			to: "2026-01-31",
+			type: "income",
+			accountId: "acc-1",
+			categoryId: "cat-1",
+			q: "shop",
+		});
+		expect(parsed).toMatchObject({
+			status: "archived",
+			from: "2026-01-01",
+			to: "2026-01-31",
+			type: "income",
+			accountId: "acc-1",
+			categoryId: "cat-1",
+			q: "shop",
+		});
+	});
+
+	it("accepts a UUIDv7 cursor and rejects other formats", () => {
+		expect(exportTransactionsQuerySchema.parse({ cursor: UUID_V7 })).toEqual({
+			status: "active",
+			limit: 1000,
+			cursor: UUID_V7,
+		});
+		expect(() =>
+			exportTransactionsQuerySchema.parse({ cursor: UUID_V4 }),
+		).toThrow();
+		expect(() =>
+			exportTransactionsQuerySchema.parse({ cursor: "not-a-uuid" }),
+		).toThrow();
+	});
+});
+
+describe("exportTransactionsResponseSchema", () => {
+	it("parses a chunk envelope", () => {
+		const response = {
+			transactions: [
+				{
+					id: UUID_V7,
+					date: "2026-01-15",
+					createdAt: "2026-01-16T00:00:00.000Z",
+					type: "expense",
+					amountMinor: 125050,
+					notes: null,
+					status: "active",
+					accountName: "HDFC Bank",
+					categoryName: "Groceries",
+				},
+			],
+			nextCursor: null,
+		};
+		expect(exportTransactionsResponseSchema.parse(response)).toEqual(response);
 	});
 });
 

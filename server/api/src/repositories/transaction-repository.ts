@@ -6,6 +6,7 @@ import {
 	eq,
 	gte,
 	inArray,
+	lt,
 	lte,
 	or,
 	type SQL,
@@ -62,6 +63,42 @@ export interface TransactionListFilters {
 	q?: string;
 	page: number;
 	pageSize: number;
+}
+
+// Filter fields the CSV export shares with the ordinary list (no pagination —
+// the export walks a keyset instead).
+export interface ExportListFilters {
+	status: string;
+	from?: string;
+	to?: string;
+	type?: string;
+	accountId?: string;
+	categoryId?: string;
+	q?: string;
+}
+
+// Sort key of one transaction in the list ordering (date DESC, createdAt
+// DESC, id DESC) — the anchor a resolved export cursor yields.
+export interface ExportCursorKey {
+	date: string;
+	createdAt: string;
+	id: string;
+}
+
+// One CSV export row: only the fields the browser serializes, with the
+// account/category names resolved by the same left joins as the list. Names
+// may be null when the referenced record was permanently deleted (same
+// convention as TransactionRowWithRefs).
+export interface ExportRow {
+	id: string;
+	date: string;
+	createdAt: string;
+	type: string;
+	amountMinor: number;
+	notes: string | null;
+	status: string;
+	accountName: string | null;
+	categoryName: string | null;
 }
 
 // Signed effect of a transaction on its account: income credits, expense
@@ -180,6 +217,80 @@ export function createTransactionRepository(db: Db) {
 				.leftJoin(categories, eq(categories.id, transactions.categoryId))
 				.where(and(...conditions));
 			return { rows, total: totals[0]?.value ?? 0 };
+		},
+
+		// Sort key of one user's transaction — the anchor for the export cursor.
+		// Resolving it server-side keeps the cursor a plain id on the wire while
+		// the keyset walk continues from the full (date, createdAt, id) position.
+		// User-scoped so another user's id is indistinguishable from a missing one.
+		async findExportCursorKey(
+			id: string,
+			userId: string,
+		): Promise<ExportCursorKey | undefined> {
+			const found = await db
+				.select({
+					date: transactions.date,
+					createdAt: transactions.createdAt,
+					id: transactions.id,
+				})
+				.from(transactions)
+				.where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+				.limit(1);
+			return found[0];
+		},
+
+		// Keyset-paginated rows for the CSV export. Same filter conditions and
+		// ordering as list, but no count query and only the columns the CSV needs,
+		// so each chunk stays well inside the Worker's CPU budget. `cursorKey`
+		// comes from findExportCursorKey; returned rows strictly precede it in
+		// (date, createdAt, id) DESC order, so no row repeats or disappears.
+		async listForExport(
+			userId: string,
+			filters: ExportListFilters,
+			limit: number,
+			cursorKey?: ExportCursorKey,
+		): Promise<ExportRow[]> {
+			const conditions = buildFilterConditions(userId, filters);
+			if (cursorKey) {
+				const cursorCondition = or(
+					lt(transactions.date, cursorKey.date),
+					and(
+						eq(transactions.date, cursorKey.date),
+						or(
+							lt(transactions.createdAt, cursorKey.createdAt),
+							and(
+								eq(transactions.createdAt, cursorKey.createdAt),
+								lt(transactions.id, cursorKey.id),
+							),
+						),
+					),
+				);
+				if (cursorCondition) {
+					conditions.push(cursorCondition);
+				}
+			}
+			return db
+				.select({
+					id: transactions.id,
+					date: transactions.date,
+					createdAt: transactions.createdAt,
+					type: transactions.type,
+					amountMinor: transactions.amountMinor,
+					notes: transactions.notes,
+					status: transactions.status,
+					accountName: accounts.name,
+					categoryName: categories.name,
+				})
+				.from(transactions)
+				.leftJoin(accounts, eq(accounts.id, transactions.accountId))
+				.leftJoin(categories, eq(categories.id, transactions.categoryId))
+				.where(and(...conditions))
+				.orderBy(
+					desc(transactions.date),
+					desc(transactions.createdAt),
+					desc(transactions.id),
+				)
+				.limit(limit);
 		},
 
 		// Signed sum of non-deleted transaction effects per account for one

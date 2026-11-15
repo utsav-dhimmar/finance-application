@@ -1,4 +1,5 @@
 import type {
+	ExportTransactionRow,
 	TransactionStatus,
 	TransactionType,
 } from "@finance-application/schemas";
@@ -13,7 +14,11 @@ import { uuidV7 } from "@/lib/uuid";
 import type { AccountRepository } from "@/repositories/account-repository";
 import type { CategoryRepository } from "@/repositories/category-repository";
 import type { RecurringExpenseRepository } from "@/repositories/recurring-expense-repository";
-import type { TransactionRepository } from "@/repositories/transaction-repository";
+import type {
+	ExportCursorKey,
+	ExportRow,
+	TransactionRepository,
+} from "@/repositories/transaction-repository";
 import { isoNow } from "@/utils/datetime";
 
 export interface TransactionView {
@@ -61,12 +66,28 @@ function toView(
 	};
 }
 
+// Export chunks pass repository rows through unchanged — no formatting happens
+// server-side. The enum parses only keep the response types honest (identity
+// for values the DB CHECK constraints already guarantee).
+function toExportRow(row: ExportRow): ExportTransactionRow {
+	return {
+		id: row.id,
+		date: row.date,
+		createdAt: row.createdAt,
+		type: transactionTypeSchema.parse(row.type),
+		amountMinor: row.amountMinor,
+		notes: row.notes,
+		status: transactionStatusSchema.parse(row.status),
+		accountName: row.accountName,
+		categoryName: row.categoryName,
+	};
+}
+
 // Each method fails with exactly one code so controllers can map it to a
 // literal response status.
 export type TransactionOutcome<T, E extends ErrorCode> =
 	| { ok: true; value: T }
 	| { ok: false; code: E };
-
 // Creation carries a `replayed` flag on success so the route can answer
 // 201 (fresh) or 200 (idempotent replay) without re-inspecting the row.
 // ID_CONFLICT covers a client-generated id that already exists on any row:
@@ -108,6 +129,28 @@ export interface TransactionList {
 	pageSize: number;
 	total: number;
 }
+
+export interface ExportTransactionsFilters {
+	status: TransactionStatus;
+	from?: string;
+	to?: string;
+	type?: string;
+	accountId?: string;
+	categoryId?: string;
+	q?: string;
+	cursor?: string;
+	limit: number;
+}
+
+export interface ExportTransactionsPage {
+	transactions: ExportTransactionRow[];
+	nextCursor: string | null;
+}
+
+export type ExportTransactionsOutcome = TransactionOutcome<
+	ExportTransactionsPage,
+	"NOT_FOUND"
+>;
 
 export interface CreateTransactionInput {
 	userId: string;
@@ -379,11 +422,7 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 			}
 			const nowIso = isoNow();
 			let recurringExpenseId = input.recurringExpenseId ?? null;
-			if (
-				input.recurrence &&
-				recurringExpenses &&
-				input.type === "expense"
-			) {
+			if (input.recurrence && recurringExpenses && input.type === "expense") {
 				const category = await categories.findById(input.categoryId);
 				const recId = uuidV7();
 				const nextDueDate = addCalendarMonths(
@@ -474,6 +513,43 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 				page: filters.page,
 				pageSize: filters.pageSize,
 				total,
+			};
+		},
+
+		// One keyset-paginated CSV export chunk. The cursor (the previous
+		// chunk's last row id) resolves to its (date, createdAt, id) sort key so
+		// the walk continues exactly where it stopped; an unknown or not-owned
+		// cursor is NOT_FOUND and the route maps that to 404. A full chunk may
+		// still be the export's tail — the client then makes one final request
+		// returning zero rows with a null cursor, a termination check that
+		// needs no count query.
+		async listForExport(
+			userId: string,
+			filters: ExportTransactionsFilters,
+		): Promise<ExportTransactionsOutcome> {
+			let cursorKey: ExportCursorKey | undefined;
+			if (filters.cursor !== undefined) {
+				cursorKey = await transactions.findExportCursorKey(
+					filters.cursor,
+					userId,
+				);
+				if (!cursorKey) {
+					return { ok: false, code: "NOT_FOUND" };
+				}
+			}
+			const rows = await transactions.listForExport(
+				userId,
+				filters,
+				filters.limit,
+				cursorKey,
+			);
+			return {
+				ok: true,
+				value: {
+					transactions: rows.map(toExportRow),
+					nextCursor:
+						rows.length === filters.limit ? (rows.at(-1)?.id ?? null) : null,
+				},
 			};
 		},
 

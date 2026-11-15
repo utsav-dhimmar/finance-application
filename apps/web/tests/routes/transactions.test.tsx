@@ -1,8 +1,11 @@
 import type { ActivityItem } from "@finance-application/schemas";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import { TransactionsPage } from "@/routes/transactions";
 import { renderRoute } from "./helpers";
+
+const EXPORT_URL = "/api/transactions/export?status=active";
 
 const sessionUser = { id: "u1", email: "user@example.com" };
 
@@ -91,86 +94,95 @@ function activityBody(activity: ActivityItem[], total = activity.length) {
 // Signed-in session by default; tests override the endpoints they exercise.
 // Any URL without an override returns 404 so accidental requests are visible.
 function stubActivityApi(
-	overrides: Record<string, () => Response> = {},
+	overrides: Record<string, (init?: RequestInit) => Response> = {},
 ): ReturnType<typeof vi.fn> {
-	const fetchMock = vi.fn(async (input: RequestInfo | string) => {
-		const url = typeof input === "string" ? input : input.url;
-		if (url === "/api/auth/me") {
-			return jsonResponse(200, sessionUser);
-		}
-		if (url === "/api/accounts?status=active") {
-			return jsonResponse(200, {
-				accounts: [
-					{
-						id: "acc-1",
-						name: "HDFC Bank",
-						type: "bank",
-						openingBalanceMinor: 0,
-						currentBalanceMinor: 0,
-						status: "active",
-						archivedAt: null,
-						deletedAt: null,
-						createdAt: "",
-						updatedAt: "",
-					},
-					{
-						id: "acc-2",
-						name: "Wallet",
-						type: "wallet",
-						openingBalanceMinor: 0,
-						currentBalanceMinor: 0,
-						status: "active",
-						archivedAt: null,
-						deletedAt: null,
-						createdAt: "",
-						updatedAt: "",
-					},
-				],
-				combinedBalanceMinor: 0,
+	const fetchMock = vi.fn(
+		async (input: RequestInfo | string, init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input.url;
+			if (url === "/api/auth/me") {
+				return jsonResponse(200, sessionUser);
+			}
+			if (url === "/api/preferences") {
+				return jsonResponse(200, {
+					currencyCode: "INR",
+					currencySymbol: "₹",
+					minorUnitExponent: 2,
+				});
+			}
+			if (url === "/api/accounts?status=active") {
+				return jsonResponse(200, {
+					accounts: [
+						{
+							id: "acc-1",
+							name: "HDFC Bank",
+							type: "bank",
+							openingBalanceMinor: 0,
+							currentBalanceMinor: 0,
+							status: "active",
+							archivedAt: null,
+							deletedAt: null,
+							createdAt: "",
+							updatedAt: "",
+						},
+						{
+							id: "acc-2",
+							name: "Wallet",
+							type: "wallet",
+							openingBalanceMinor: 0,
+							currentBalanceMinor: 0,
+							status: "active",
+							archivedAt: null,
+							deletedAt: null,
+							createdAt: "",
+							updatedAt: "",
+						},
+					],
+					combinedBalanceMinor: 0,
+				});
+			}
+			if (url === "/api/categories?status=active") {
+				return jsonResponse(200, {
+					categories: [
+						{
+							id: "cat-1",
+							name: "Groceries",
+							type: "expense",
+							color: null,
+							icon: null,
+							status: "active",
+							archivedAt: null,
+							deletedAt: null,
+							createdAt: "",
+							updatedAt: "",
+						},
+						{
+							id: "cat-2",
+							name: "Salary",
+							type: "income",
+							color: null,
+							icon: null,
+							status: "active",
+							archivedAt: null,
+							deletedAt: null,
+							createdAt: "",
+							updatedAt: "",
+						},
+					],
+				});
+			}
+			const override = overrides[url];
+			if (override) {
+				return override(init);
+			}
+			return jsonResponse(404, {
+				error: {
+					code: "NOT_FOUND",
+					message: "Resource not found",
+					details: [],
+				},
 			});
-		}
-		if (url === "/api/categories?status=active") {
-			return jsonResponse(200, {
-				categories: [
-					{
-						id: "cat-1",
-						name: "Groceries",
-						type: "expense",
-						color: null,
-						icon: null,
-						status: "active",
-						archivedAt: null,
-						deletedAt: null,
-						createdAt: "",
-						updatedAt: "",
-					},
-					{
-						id: "cat-2",
-						name: "Salary",
-						type: "income",
-						color: null,
-						icon: null,
-						status: "active",
-						archivedAt: null,
-						deletedAt: null,
-						createdAt: "",
-						updatedAt: "",
-					},
-				],
-			});
-		}
-		const override = overrides[url];
-		if (override) {
-			return override();
-		}
-		return jsonResponse(404, {
-			error: {
-				code: "NOT_FOUND",
-				message: "Resource not found",
-				details: [],
-			},
-		});
-	});
+		},
+	);
 	vi.stubGlobal("fetch", fetchMock);
 	return fetchMock;
 }
@@ -709,5 +721,237 @@ describe("create transfer dialog", () => {
 			expect(screen.getAllByRole("alert").length).toBeGreaterThan(0),
 		);
 		expect(createCalls).toBe(0);
+	});
+});
+
+describe("/transactions CSV export", () => {
+	function exportRow(id: string, date: string) {
+		return {
+			id,
+			date,
+			createdAt: "2026-01-16T00:00:00.000Z",
+			type: "expense",
+			amountMinor: 125050,
+			notes: `row ${id}`,
+			status: "active",
+			accountName: "HDFC Bank",
+			categoryName: "Groceries",
+		};
+	}
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("shows the Export CSV button and walks chunks with progress", async () => {
+		let releaseFirst!: () => void;
+		const firstChunk = new Promise<Response>((resolve) => {
+			releaseFirst = () =>
+				resolve(
+					jsonResponse(200, {
+						transactions: [
+							exportRow("a", "2026-03-02"),
+							exportRow("b", "2026-03-01"),
+						],
+						nextCursor: "cursor-1",
+					}),
+				);
+		});
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
+			[EXPORT_URL]: () => firstChunk as unknown as Response,
+			[`${EXPORT_URL}&cursor=cursor-1`]: () =>
+				jsonResponse(200, {
+					transactions: [],
+					nextCursor: null,
+				}),
+		});
+		const createObjectURL = vi.fn(() => "blob:route-export");
+		const revokeObjectURL = vi.fn();
+		Object.defineProperty(URL, "createObjectURL", {
+			value: createObjectURL,
+			configurable: true,
+			writable: true,
+		});
+		Object.defineProperty(URL, "revokeObjectURL", {
+			value: revokeObjectURL,
+			configurable: true,
+			writable: true,
+		});
+		vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
+
+		expect(screen.getByRole("button", { name: /Export CSV/ })).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: /Export CSV/ }));
+
+		// Progress shows immediately, disabled, with the paired Cancel.
+		const exporting = screen.getByRole("button", {
+			name: /Exporting… \(0 rows\)/,
+		});
+		expect(exporting.hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+
+		releaseFirst();
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /Export CSV/ })).toBeTruthy(),
+		);
+
+		// Two chunk requests: the initial one and the fed-back cursor.
+		expect(callsTo(fetchMock, EXPORT_URL).length).toBe(1);
+		expect(callsTo(fetchMock, `${EXPORT_URL}&cursor=cursor-1`).length).toBe(1);
+		// Two accumulated rows across the two chunks: the export completes
+		// and downloads exactly once.
+		expect(createObjectURL).toHaveBeenCalledTimes(1);
+		expect(revokeObjectURL).toHaveBeenCalledWith("blob:route-export");
+	});
+
+	it("downloads the file after a successful export", async () => {
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
+			[EXPORT_URL]: () =>
+				jsonResponse(200, {
+					transactions: [exportRow("a", "2026-03-02")],
+					nextCursor: null,
+				}),
+		});
+		void fetchMock;
+		const createObjectURL = vi.fn(() => "blob:route-export");
+		const revokeObjectURL = vi.fn();
+		Object.defineProperty(URL, "createObjectURL", {
+			value: createObjectURL,
+			configurable: true,
+			writable: true,
+		});
+		Object.defineProperty(URL, "revokeObjectURL", {
+			value: revokeObjectURL,
+			configurable: true,
+			writable: true,
+		});
+		let clicked: HTMLAnchorElement | null = null;
+		// Read through a function so TS control flow does not narrow the
+		// closure-assigned variable to null.
+		const getClicked = () => clicked;
+		vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+			this: HTMLAnchorElement,
+		) {
+			clicked = this;
+		});
+
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /Export CSV/ }));
+
+		await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+		expect(revokeObjectURL).toHaveBeenCalledWith("blob:route-export");
+		expect(getClicked()?.download).toMatch(
+			/^transactions-\d{4}-\d{2}-\d{2}\.csv$/,
+		);
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /Export CSV/ })).toBeTruthy(),
+		);
+	});
+
+	it("toasts without downloading when the filtered export is empty", async () => {
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
+			[EXPORT_URL]: () =>
+				jsonResponse(200, { transactions: [], nextCursor: null }),
+		});
+		const infoSpy = vi.spyOn(toast, "info");
+		const createObjectURL = vi.fn();
+		Object.defineProperty(URL, "createObjectURL", {
+			value: createObjectURL,
+			configurable: true,
+			writable: true,
+		});
+
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /Export CSV/ }));
+
+		await waitFor(() =>
+			expect(infoSpy).toHaveBeenCalledWith("No transactions to export"),
+		);
+		expect(createObjectURL).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /Export CSV/ })).toBeTruthy(),
+		);
+	});
+
+	it("cancel aborts the in-flight export and toasts cancellation", async () => {
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([activeTxn])),
+			// The chunk never resolves; aborting the request rejects it, the
+			// same way a real fetch behaves.
+			[EXPORT_URL]: (init) =>
+				new Promise<Response>((_resolve, reject) => {
+					init?.signal?.addEventListener("abort", () => {
+						reject(new DOMException("Aborted", "AbortError"));
+					});
+				}) as unknown as Response,
+		});
+		const infoSpy = vi.spyOn(toast, "info");
+		const createObjectURL = vi.fn();
+		Object.defineProperty(URL, "createObjectURL", {
+			value: createObjectURL,
+			configurable: true,
+			writable: true,
+		});
+
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() => expect(screen.getByText("2026-01-15")).toBeTruthy());
+
+		fireEvent.click(screen.getByRole("button", { name: /Export CSV/ }));
+		expect(
+			screen.getByRole("button", { name: /Exporting… \(0 rows\)/ }),
+		).toBeTruthy();
+
+		fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+		await waitFor(() =>
+			expect(infoSpy).toHaveBeenCalledWith("Export cancelled"),
+		);
+		expect(createObjectURL).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /Export CSV/ })).toBeTruthy(),
+		);
+	});
+
+	it("disables the export when the type filter is transfers", async () => {
+		stubActivityApi({
+			"/api/activity?status=active&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([transferOut])),
+		});
+
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() => expect(screen.getByText("2026-01-18")).toBeTruthy());
+
+		// Choose the "Transfers" type filter option.
+		fireEvent.click(screen.getByLabelText("Type filter"));
+		const transferOption = await waitFor(() => {
+			const match = screen
+				.getAllByRole("option")
+				.find((option) => option.textContent === "Transfers");
+			if (!match) {
+				throw new Error("type option not rendered yet");
+			}
+			return match;
+		});
+		fireEvent.pointerDown(transferOption);
+		fireEvent.click(transferOption);
+
+		await waitFor(() => {
+			const button = screen.getByRole("button", { name: /Export CSV/ });
+			expect(button.hasAttribute("disabled")).toBe(true);
+		});
 	});
 });

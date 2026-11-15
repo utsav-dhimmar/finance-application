@@ -1,4 +1,8 @@
 import {
+	EXPORT_CHUNK_DEFAULT,
+	EXPORT_CHUNK_MAX,
+	EXPORT_CHUNK_MIN,
+	exportTransactionsResponseSchema,
 	restoreTransactionBodySchema,
 	transactionAmountSchema,
 	transactionDateSchema,
@@ -18,6 +22,7 @@ import { z } from "@hono/zod-openapi";
 // metadata and are re-exported as-is.
 
 export {
+	exportTransactionsResponseSchema,
 	restoreTransactionBodySchema,
 	transactionListResponseSchema,
 	transactionResponseSchema,
@@ -73,4 +78,24 @@ export const listTransactionsQuerySchema = z.object({
 	q: z.string().trim().max(200).optional(),
 	page: z.coerce.number().int().min(1).max(10_000).default(1),
 	pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+// Keyset-paginated CSV export: the list filters minus page/pageSize, plus the
+// id of the previous chunk's last row and the bounded chunk size. Bounds come
+// from the shared package so list and export cannot drift.
+export const exportTransactionsQuerySchema = z.object({
+	status: z.enum(transactionStatuses).default("active"),
+	from: transactionDateSchema.optional(),
+	to: transactionDateSchema.optional(),
+	type: transactionTypeSchema.optional(),
+	accountId: z.string().min(1).optional(),
+	categoryId: z.string().min(1).optional(),
+	q: z.string().trim().max(200).optional(),
+	cursor: transactionIdSchema.optional(),
+	limit: z.coerce
+		.number()
+		.int()
+		.min(EXPORT_CHUNK_MIN, "Limit must be at least 100")
+		.max(EXPORT_CHUNK_MAX, "Limit cannot exceed 2000")
+		.default(EXPORT_CHUNK_DEFAULT),
 });

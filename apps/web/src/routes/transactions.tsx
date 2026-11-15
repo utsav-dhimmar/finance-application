@@ -38,7 +38,9 @@ import {
 import {
 	ChevronLeft,
 	ChevronRight,
+	Download,
 	Eye,
+	Loader2,
 	Pencil,
 	Plus,
 	Receipt,
@@ -61,12 +63,14 @@ import { useAccounts } from "@/hooks/use-accounts";
 import { useMe } from "@/hooks/use-auth";
 import { useCategories } from "@/hooks/use-categories";
 import { useDebounce } from "@/hooks/use-debounce";
+import { usePreferences } from "@/hooks/use-preferences";
 import {
 	useArchiveTransaction,
 	useDeleteTransaction,
 	usePermanentlyDeleteTransaction,
 	useRestoreTransaction,
 } from "@/hooks/use-transactions";
+import { useTransactionExport } from "@/hooks/use-transaction-export";
 import {
 	useActivity,
 	useArchiveTransfer,
@@ -74,6 +78,7 @@ import {
 	usePermanentlyDeleteTransfer,
 	useRestoreTransfer,
 } from "@/hooks/use-transfers";
+import type { ExportFilterSnapshot } from "@/lib/csv-export";
 import { formatPaise } from "@/lib/money";
 import {
 	coreTableFeatures,
@@ -289,6 +294,38 @@ export function TransactionsPage() {
 	const activity = useActivity(filters);
 	const accounts = useAccounts("active");
 	const categories = useCategories("active");
+	const preferences = usePreferences();
+
+	// CSV export: only user-event driven, from the header button's handler.
+	const {
+		state: exportState,
+		startExport,
+		cancel: cancelExport,
+	} = useTransactionExport();
+
+	const exportDisabledReason =
+		filterState.type === "transfer"
+			? "Transfers are not included in CSV exports"
+			: undefined;
+
+	function handleExportClick() {
+		// Snapshot the current filter state at click time; the export freezes
+		// this copy so later filter changes cannot alter the running export.
+		// The activity feed's "transfer" type option has no export equivalent
+		// (transfers are not transaction rows) and the button is disabled then.
+		const snapshot: ExportFilterSnapshot = {
+			status: filterState.tab,
+			...(filterState.type === "income" || filterState.type === "expense"
+				? { type: filterState.type }
+				: {}),
+			...(filterState.accountId ? { accountId: filterState.accountId } : {}),
+			...(filterState.categoryId ? { categoryId: filterState.categoryId } : {}),
+			...(filterState.from ? { from: filterState.from } : {}),
+			...(filterState.to ? { to: filterState.to } : {}),
+			...(filterState.q ? { q: filterState.q } : {}),
+		};
+		startExport(snapshot, preferences.data?.currencyCode ?? "INR");
+	}
 
 	// Transaction mutations.
 	const archiveTransaction = useArchiveTransaction();
@@ -685,6 +722,37 @@ export function TransactionsPage() {
 						</p>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
+						{exportState.phase === "exporting" ? (
+							<>
+								<Button
+									variant="outline"
+									disabled
+									className="gap-1.5 shadow-xs"
+								>
+									<Loader2 aria-hidden="true" className="size-4 animate-spin" />
+									Exporting… ({exportState.fetchedRows.toLocaleString("en-IN")}{" "}
+									rows)
+								</Button>
+								<Button
+									variant="outline"
+									onClick={cancelExport}
+									className="shadow-xs"
+								>
+									Cancel
+								</Button>
+							</>
+						) : (
+							<Button
+								variant="outline"
+								onClick={handleExportClick}
+								disabled={exportDisabledReason !== undefined}
+								title={exportDisabledReason}
+								className="gap-1.5 shadow-xs"
+							>
+								<Download aria-hidden="true" className="size-4" />
+								Export CSV
+							</Button>
+						)}
 						<Button
 							variant="outline"
 							onClick={() => setCreateTransferOpen(true)}

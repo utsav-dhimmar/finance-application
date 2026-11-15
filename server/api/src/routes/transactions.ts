@@ -10,6 +10,8 @@ import { createTransactionRepository } from "@/repositories/transaction-reposito
 import { errorEnvelopeSchema } from "@/schemas/auth";
 import {
 	createTransactionBodySchema,
+	exportTransactionsQuerySchema,
+	exportTransactionsResponseSchema,
 	listTransactionsQuerySchema,
 	restoreTransactionBodySchema,
 	transactionListResponseSchema,
@@ -39,6 +41,10 @@ const ACCOUNT_INELIGIBLE_MESSAGE =
 const CATEGORY_INELIGIBLE_MESSAGE =
 	"Transactions require an active category of the matching type";
 const TRANSACTION_NOT_FOUND = errorBody("NOT_FOUND", "Transaction not found");
+const EXPORT_CURSOR_NOT_FOUND = errorBody(
+	"NOT_FOUND",
+	"Export cursor does not match any of your transactions",
+);
 const TRANSITION_INVALID_MESSAGE =
 	"That transaction lifecycle change is not allowed";
 const NOT_EDITABLE_MESSAGE =
@@ -106,6 +112,36 @@ const listTransactionsRoute = createRoute({
 		401: {
 			content: { "application/json": { schema: errorEnvelopeSchema } },
 			description: "Missing, invalid, or expired access token",
+		},
+	},
+});
+
+const exportTransactionsRoute = createRoute({
+	method: "get",
+	// Registered before the /:id routes so "export" is never captured as an id.
+	path: "/api/transactions/export",
+	request: {
+		query: exportTransactionsQuerySchema,
+	},
+	responses: {
+		200: {
+			content: {
+				"application/json": { schema: exportTransactionsResponseSchema },
+			},
+			description:
+				"One keyset-paginated chunk of raw export rows with the cursor to resume from",
+		},
+		400: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Request validation failed",
+		},
+		401: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Missing, invalid, or expired access token",
+		},
+		404: {
+			content: { "application/json": { schema: errorEnvelopeSchema } },
+			description: "Cursor does not identify one of the user's transactions",
 		},
 	},
 });
@@ -321,6 +357,20 @@ transactionsRoutes.openapi(listTransactionsRoute, async (c) => {
 		filters,
 	);
 	return c.json(list, 200);
+});
+
+// Raw rows pass straight through — no server-side formatting, keeping each
+// chunk inside the Worker's CPU budget. CSV assembly happens in the browser.
+transactionsRoutes.openapi(exportTransactionsRoute, async (c) => {
+	const query = c.req.valid("query");
+	const outcome = await createTransactionServiceForEnv(c.env).listForExport(
+		c.get("user").id,
+		query,
+	);
+	if (!outcome.ok) {
+		return c.json(EXPORT_CURSOR_NOT_FOUND, 404);
+	}
+	return c.json(outcome.value, 200);
 });
 
 transactionsRoutes.openapi(getTransactionRoute, async (c) => {

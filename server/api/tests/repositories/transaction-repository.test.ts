@@ -36,6 +36,7 @@ async function insertTransaction(overrides: {
 	accountId?: string;
 	categoryId?: string;
 	notes?: string | null;
+	createdAt?: string;
 }): Promise<Transaction> {
 	sequence += 1;
 	const row: NewTransactionRow = {
@@ -47,7 +48,9 @@ async function insertTransaction(overrides: {
 		accountId: overrides.accountId ?? accountId,
 		categoryId: overrides.categoryId ?? categoryId,
 		notes: overrides.notes ?? null,
-		createdAt: `2026-01-${String(10 + (sequence % 10)).padStart(2, "0")}T00:00:00.000Z`,
+		createdAt:
+			overrides.createdAt ??
+			`2026-01-${String(10 + (sequence % 10)).padStart(2, "0")}T00:00:00.000Z`,
 		updatedAt: nowIso,
 	};
 	const inserted = await repo.insert(row);
@@ -559,5 +562,112 @@ describe("TransactionRepository.reporting aggregations", () => {
 			incomeMinor: 0,
 			expenseMinor: 500,
 		});
+	});
+});
+
+describe("TransactionRepository.listForExport keyset walk", () => {
+	it("resolves a user-scoped cursor key and returns undefined otherwise", async () => {
+		const txn = await insertTransaction({ date: "2026-03-01" });
+
+		const key = await repo.findExportCursorKey(txn.id, userId);
+		expect(key).toEqual({
+			id: txn.id,
+			date: "2026-03-01",
+			createdAt: txn.createdAt,
+		});
+
+		expect(
+			await repo.findExportCursorKey(txn.id, "other-user"),
+		).toBeUndefined();
+		expect(
+			await repo.findExportCursorKey("no-such-id", userId),
+		).toBeUndefined();
+	});
+
+	it("walks every matching row exactly once in list order across chunks", async () => {
+		// Two rows share date AND createdAt so only the unique id breaks the
+		// tie; archived and deleted rows must stay out of the active walk.
+		const tiedCreated = "2026-02-01T00:00:00.000Z";
+		await insertTransaction({
+			date: "2026-03-01",
+			createdAt: tiedCreated,
+			notes: "tied one",
+		});
+		await insertTransaction({
+			date: "2026-03-01",
+			createdAt: tiedCreated,
+			notes: "tied two",
+		});
+		await insertTransaction({
+			date: "2026-03-01",
+			createdAt: "2026-02-02T00:00:00.000Z",
+		});
+		await insertTransaction({ date: "2026-02-15" });
+		await insertTransaction({ date: "2026-02-16", status: "archived" });
+		await insertTransaction({ date: "2026-02-17", status: "deleted" });
+
+		// The ordinary list already specifies the deterministic order; the
+		// keyset walk must reproduce it exactly, two rows per chunk.
+		const listed = await repo.list(userId, {
+			status: "active",
+			page: 1,
+			pageSize: 10,
+		});
+		const expectedOrder = listed.rows.map((row) => row.transaction.id);
+		expect(expectedOrder).toHaveLength(4);
+
+		const walked: string[] = [];
+		let cursor: string | undefined;
+		for (let request = 0; request < 10; request += 1) {
+			const cursorKey = cursor
+				? await repo.findExportCursorKey(cursor, userId)
+				: undefined;
+			expect(cursor === undefined || cursorKey !== undefined).toBe(true);
+			const rows = await repo.listForExport(
+				userId,
+				{ status: "active" },
+				2,
+				cursorKey,
+			);
+			walked.push(...rows.map((row) => row.id));
+			const last = rows.at(-1);
+			if (rows.length < 2 || !last) {
+				break;
+			}
+			cursor = last.id;
+		}
+
+		expect(walked).toEqual(expectedOrder);
+		// The final chunk was short: the walk stopped cleanly.
+		expect(walked.length % 2).toBe(0);
+	});
+
+	it("applies the shared filters during the walk", async () => {
+		await insertTransaction({
+			type: "income",
+			amountMinor: 5000,
+			date: "2026-03-05",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 1000,
+			date: "2026-03-04",
+		});
+		await insertTransaction({
+			type: "expense",
+			amountMinor: 2000,
+			date: "2026-03-03",
+			accountId: otherAccountId,
+		});
+
+		const rows = await repo.listForExport(
+			userId,
+			{ status: "active", type: "expense", accountId: accountId },
+			100,
+		);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.type).toBe("expense");
+		expect(rows[0]?.accountName).toBe("HDFC Bank");
+		expect(rows[0]?.categoryName).toBe("Groceries");
 	});
 });

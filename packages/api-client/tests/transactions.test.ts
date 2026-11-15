@@ -1,16 +1,22 @@
-import type { TransactionResponse } from "@finance-application/schemas";
+import type {
+	ExportTransactionsResponse,
+	TransactionResponse,
+} from "@finance-application/schemas";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../src/client";
 import {
 	archiveTransaction,
 	createTransaction,
 	deleteTransaction,
+	fetchTransactionsExportChunk,
 	getTransaction,
 	listTransactions,
 	permanentlyDeleteTransaction,
 	restoreTransaction,
 	updateTransaction,
 } from "../src/transactions";
+
+const UUID_V7 = "018f6a2c-9b7d-7ce2-8f3a-1d4e5f6a7b8c";
 
 const transaction: TransactionResponse = {
 	id: "018f6a2c-9b7d-7ce2-8f3a-1d4e5f6a7b8c",
@@ -171,5 +177,99 @@ describe("transaction client functions", () => {
 		expect(error).toBeInstanceOf(ApiError);
 		expect((error as ApiError).status).toBe(409);
 		expect((error as ApiError).code).toBe("RESTORE_CONFLICT");
+	});
+});
+
+describe("fetchTransactionsExportChunk", () => {
+	it("requests /api/transactions/export with no params when empty", async () => {
+		await fetchTransactionsExportChunk();
+		const [url] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+		expect(url).toBe("/api/transactions/export");
+	});
+
+	it("serializes cursor, limit, and filters into the query string", async () => {
+		await fetchTransactionsExportChunk({
+			cursor: UUID_V7,
+			limit: 2000,
+			status: "archived",
+			type: "income",
+			accountId: "acc-1",
+			categoryId: "cat-1",
+			from: "2026-01-01",
+			to: "2026-01-31",
+			q: "shop",
+		});
+		const [url] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+		const params = new URLSearchParams((url as string).split("?")[1] ?? "");
+		expect(params.get("cursor")).toBe(UUID_V7);
+		expect(params.get("limit")).toBe("2000");
+		expect(params.get("status")).toBe("archived");
+		expect(params.get("type")).toBe("income");
+		expect(params.get("accountId")).toBe("acc-1");
+		expect(params.get("categoryId")).toBe("cat-1");
+		expect(params.get("from")).toBe("2026-01-01");
+		expect(params.get("to")).toBe("2026-01-31");
+		expect(params.get("q")).toBe("shop");
+	});
+
+	it("forwards the abort signal to fetch", async () => {
+		const controller = new AbortController();
+		await fetchTransactionsExportChunk({}, { signal: controller.signal });
+		const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+		expect(init.signal).toBe(controller.signal);
+	});
+
+	it("resolves the parsed chunk envelope", async () => {
+		const chunk: ExportTransactionsResponse = {
+			transactions: [
+				{
+					id: UUID_V7,
+					date: "2026-01-15",
+					createdAt: "2026-01-16T00:00:00.000Z",
+					type: "expense",
+					amountMinor: 125050,
+					notes: null,
+					status: "active",
+					accountName: "HDFC Bank",
+					categoryName: "Groceries",
+				},
+			],
+			nextCursor: null,
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response(JSON.stringify(chunk), {
+						status: 200,
+						headers: { "content-type": "application/json" },
+					}),
+			),
+		);
+		await expect(fetchTransactionsExportChunk()).resolves.toEqual(chunk);
+	});
+
+	it("propagates a non-2xx envelope as an ApiError", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							error: {
+								code: "NOT_FOUND",
+								message: "Export cursor not found",
+								details: [],
+							},
+						}),
+						{ status: 404, headers: { "content-type": "application/json" } },
+					),
+			),
+		);
+		const error = await fetchTransactionsExportChunk().catch((e: unknown) => e);
+		expect(error).toBeInstanceOf(ApiError);
+		expect((error as ApiError).status).toBe(404);
+		expect((error as ApiError).code).toBe("NOT_FOUND");
+		expect((error as ApiError).message).toBe("Export cursor not found");
 	});
 });

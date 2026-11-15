@@ -1,5 +1,7 @@
 import type {
 	CreateTransactionBody,
+	ExportTransactionsQuery,
+	ExportTransactionsResponse,
 	ListTransactionsQuery,
 	RestoreTransactionBody,
 	TransactionListResponse,
@@ -46,6 +48,27 @@ export function getTransaction(
 	options?: ApiClientOptions,
 ): Promise<TransactionResponse> {
 	return apiFetch<TransactionResponse>(`/api/transactions/${id}`, {}, options);
+}
+
+// One keyset-paginated chunk of the CSV export. The browser export loop calls
+// this repeatedly, feeding `nextCursor` back as `cursor` until it is null;
+// `options.signal` cancels the in-flight chunk.
+export function fetchTransactionsExportChunk(
+	query: Partial<ExportTransactionsQuery> = {},
+	options?: ApiClientOptions,
+): Promise<ExportTransactionsResponse> {
+	const params = new URLSearchParams();
+	for (const [key, value] of Object.entries(query)) {
+		if (value !== undefined && value !== "") {
+			params.set(key, String(value));
+		}
+	}
+	const suffix = params.size > 0 ? `?${params}` : "";
+	return apiFetch<ExportTransactionsResponse>(
+		`/api/transactions/export${suffix}`,
+		{ signal: options?.signal },
+		options,
+	);
 }
 
 export function updateTransaction(

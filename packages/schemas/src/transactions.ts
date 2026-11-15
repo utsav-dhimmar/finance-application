@@ -127,6 +127,43 @@ export const transactionListResponseSchema = z.object({
 	total: z.number().int(),
 });
 
+// CSV export: the API returns keyset-paginated raw rows (no server-side
+// formatting) and the browser assembles the file. The cursor is the id of the
+// last row of the previous chunk; the row shape carries only the fields the
+// CSV needs, so responses stay lean on the Worker's CPU budget.
+export const EXPORT_CHUNK_MIN = 100;
+export const EXPORT_CHUNK_MAX = 2000;
+export const EXPORT_CHUNK_DEFAULT = 1000;
+
+export const exportTransactionsQuerySchema = listTransactionsQuerySchema
+	.omit({ page: true, pageSize: true })
+	.extend({
+		cursor: transactionIdSchema.optional(),
+		limit: z.coerce
+			.number()
+			.int()
+			.min(EXPORT_CHUNK_MIN, "Limit must be at least 100")
+			.max(EXPORT_CHUNK_MAX, "Limit cannot exceed 2000")
+			.default(EXPORT_CHUNK_DEFAULT),
+	});
+
+export const exportTransactionRowSchema = z.object({
+	id: z.string(),
+	date: z.string(),
+	createdAt: z.string(),
+	type: transactionTypeSchema,
+	amountMinor: z.number().int(),
+	notes: z.string().nullable(),
+	status: transactionStatusSchema,
+	accountName: z.string().nullable(),
+	categoryName: z.string().nullable(),
+});
+
+export const exportTransactionsResponseSchema = z.object({
+	transactions: z.array(exportTransactionRowSchema),
+	nextCursor: z.string().nullable(),
+});
+
 // Web form input: the amount is a rupee string; the parsed output maps onto
 // CreateTransactionBody's amountMinor. Empty notes mean "unset".
 export const transactionFormSchema = z.object({
@@ -159,6 +196,13 @@ export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 export type TransactionResponse = z.infer<typeof transactionResponseSchema>;
 export type TransactionListResponse = z.infer<
 	typeof transactionListResponseSchema
+>;
+export type ExportTransactionsQuery = z.infer<
+	typeof exportTransactionsQuerySchema
+>;
+export type ExportTransactionRow = z.infer<typeof exportTransactionRowSchema>;
+export type ExportTransactionsResponse = z.infer<
+	typeof exportTransactionsResponseSchema
 >;
 export type TransactionFormInput = z.input<typeof transactionFormSchema>;
 export type TransactionFormValues = z.output<typeof transactionFormSchema>;

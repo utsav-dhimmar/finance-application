@@ -34,5 +34,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Persist Turborepo task cache
+        # v4.3.0
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .turbo
+          # Loose restore keys are safe: turbo only replays cache entries whose
+          # computed input hash matches, so stale entries can never feed
+          # wrong results.
+          key: turbo-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.ref_name }}-
+
       - name: Build, typecheck, lint, test
-        run: pnpm turbo run typecheck lint test build
+        env:
+          TURBO_CACHE_DIR: .turbo
+          TURBO_TELEMETRY_DISABLED: "1"
+        run: pnpm turbo run typecheck lint test build test:workers

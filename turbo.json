@@ -9,6 +9,7 @@
 			"dependsOn": ["^typecheck"]
 		},
 		"lint": {},
-		"test": {}
+		"test": {},
+		"test:workers": {}
 	}
 }

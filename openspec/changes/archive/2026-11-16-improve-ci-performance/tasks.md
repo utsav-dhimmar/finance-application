@@ -27,7 +27,7 @@
 ## 5. Full pipeline verification
 
 - [x] 5.1 Run the complete pipeline locally: `pnpm turbo run typecheck lint test build test:workers` — all tasks green, and the turbo summary shows 17 successful tasks (16 baseline + new `test:workers`)
-- [ ] 5.2 Push the branch, open a PR, and compare the new CI run against the 2026-11-15 baseline in `ci.logs`: web test task no longer reports per-file environment creation, the two API suites appear as separate tasks, and turbo reports cache behavior; record measured wall-clock before/after in the PR description
+- [x] 5.2 Push the branch, open a PR, and compare the new CI run against the 2026-11-15 baseline in `ci.logs`: web test task no longer reports per-file environment creation, the two API suites appear as separate tasks, and turbo reports cache behavior; record measured wall-clock before/after in the PR description
 
 ## Workflow follow-up
 

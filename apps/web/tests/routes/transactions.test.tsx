@@ -329,6 +329,82 @@ describe("/transactions rendering states", () => {
 	});
 });
 
+describe("/transactions account and category filter comboboxes", () => {
+	it("narrows options by search, dispatches filters, and restores via the All entries", async () => {
+		const fetchMock = stubActivityApi({
+			"/api/activity?status=active&accountId=acc-1&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([])),
+			"/api/activity?status=active&categoryId=cat-1&page=1&pageSize=20": () =>
+				jsonResponse(200, activityBody([])),
+		});
+		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() =>
+			expect(screen.getByLabelText("Account filter")).toBeTruthy(),
+		);
+
+		const accountFilter = screen.getByLabelText("Account filter");
+		const categoryFilter = screen.getByLabelText("Category filter");
+
+		// The All entry leads the list, followed by every account.
+		fireEvent.click(accountFilter);
+		const options = await screen.findAllByRole("option");
+		expect(options).toHaveLength(3);
+		expect(options[0]?.textContent).toContain("All accounts");
+
+		// Typing narrows case-insensitively.
+		fireEvent.change(screen.getByPlaceholderText("Search..."), {
+			target: { value: "hdfc" },
+		});
+		const narrowed = screen.getAllByRole("option");
+		expect(narrowed).toHaveLength(1);
+		expect(narrowed[0]?.textContent).toContain("HDFC Bank");
+
+		// Picking an option refetches the activity scoped to that account.
+		fireEvent.click(screen.getByRole("option", { name: "HDFC Bank" }));
+		await waitFor(() =>
+			expect(
+				callsTo(
+					fetchMock,
+					"/api/activity?status=active&accountId=acc-1&page=1&pageSize=20",
+				).length,
+			).toBeGreaterThan(0),
+		);
+
+		// Picking the All entry restores the unfiltered activity query.
+		fireEvent.click(accountFilter);
+		await screen.findAllByRole("option");
+		fireEvent.click(screen.getByRole("option", { name: "All accounts" }));
+		await waitFor(() =>
+			expect(
+				callsTo(fetchMock, "/api/activity?status=active&page=1&pageSize=20")
+					.length,
+			).toBeGreaterThan(1),
+		);
+
+		// Category filter: scoped pick and All-entry restore behave the same.
+		fireEvent.click(categoryFilter);
+		await screen.findAllByRole("option");
+		fireEvent.click(screen.getByRole("option", { name: "Groceries" }));
+		await waitFor(() =>
+			expect(
+				callsTo(
+					fetchMock,
+					"/api/activity?status=active&categoryId=cat-1&page=1&pageSize=20",
+				).length,
+			).toBeGreaterThan(0),
+		);
+		fireEvent.click(categoryFilter);
+		await screen.findAllByRole("option");
+		fireEvent.click(screen.getByRole("option", { name: "All categories" }));
+		await waitFor(() =>
+			expect(
+				callsTo(fetchMock, "/api/activity?status=active&page=1&pageSize=20")
+					.length,
+			).toBeGreaterThan(2),
+		);
+	});
+});
+
 describe("/transactions edit dialog", () => {
 	it("prefills the transaction and patches on save", async () => {
 		const fetchMock = stubActivityApi({

@@ -21,17 +21,11 @@ import {
 } from "@finance-application/ui/components/field";
 import { Input } from "@finance-application/ui/components/input";
 import { ScrollArea } from "@finance-application/ui/components/scroll-area";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@finance-application/ui/components/select";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { ComboboxSelectField } from "@/components/shared/combobox-select-field";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCreateTransfer, useUpdateTransfer } from "@/hooks/use-transfers";
 import { formatPaise, paiseToRupeeInput } from "@/lib/money";
@@ -212,28 +206,20 @@ export function TransferFormDialog({
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid || undefined}>
 						<FieldLabel htmlFor={id}>{label}</FieldLabel>
-						<Select
+						<ComboboxSelectField
+							id={id}
 							items={options.map((account) => ({
 								value: account.id,
-								label: account.name,
+								label:
+									account.status !== "active"
+										? `${account.name} (archived)`
+										: account.name,
 							}))}
 							value={field.value}
 							onValueChange={(value) => field.onChange(value)}
-						>
-							<SelectTrigger id={id}>
-								<SelectValue
-									placeholder={isEdit ? undefined : "Choose an account"}
-								/>
-							</SelectTrigger>
-							<SelectContent>
-								{options.map((account) => (
-									<SelectItem key={account.id} value={account.id}>
-										{account.name}
-										{account.status !== "active" ? " (archived)" : ""}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+							placeholder={isEdit ? undefined : "Choose an account"}
+							invalid={fieldState.invalid}
+						/>
 						{fieldState.error && (
 							<FieldError>{fieldState.error.message}</FieldError>
 						)}

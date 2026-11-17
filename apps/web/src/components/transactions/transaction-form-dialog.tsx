@@ -34,6 +34,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { ComboboxSelectField } from "@/components/shared/combobox-select-field";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useCategories } from "@/hooks/use-categories";
 import {
@@ -322,7 +323,8 @@ export function TransactionFormDialog({
 										<FieldLabel htmlFor={`${idPrefix}-account`}>
 											Account
 										</FieldLabel>
-										<Select
+										<ComboboxSelectField
+											id={`${idPrefix}-account`}
 											items={eligibleAccounts.map((a) => ({
 												value: a.id,
 												label:
@@ -332,19 +334,9 @@ export function TransactionFormDialog({
 											}))}
 											value={field.value}
 											onValueChange={(value) => field.onChange(value)}
-										>
-											<SelectTrigger id={`${idPrefix}-account`}>
-												<SelectValue placeholder="Select account" />
-											</SelectTrigger>
-											<SelectContent>
-												{eligibleAccounts.map((account) => (
-													<SelectItem key={account.id} value={account.id}>
-														{account.name}
-														{account.status === "archived" && " (archived)"}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+											placeholder="Select account"
+											invalid={fieldState.invalid}
+										/>
 										{fieldState.error ? (
 											<FieldError>{fieldState.error.message}</FieldError>
 										) : chosenAccount &&
@@ -369,25 +361,17 @@ export function TransactionFormDialog({
 										<FieldLabel htmlFor={`${idPrefix}-category`}>
 											Category
 										</FieldLabel>
-										<Select
+										<ComboboxSelectField
+											id={`${idPrefix}-category`}
 											items={categoryOptions.map((c) => ({
 												value: c.id,
 												label: c.name,
 											}))}
 											value={field.value}
 											onValueChange={(value) => field.onChange(value)}
-										>
-											<SelectTrigger id={`${idPrefix}-category`}>
-												<SelectValue placeholder="Select category" />
-											</SelectTrigger>
-											<SelectContent>
-												{categoryOptions.map((category) => (
-													<SelectItem key={category.id} value={category.id}>
-														{category.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+											placeholder="Select category"
+											invalid={fieldState.invalid}
+										/>
 										{fieldState.error && (
 											<FieldError>{fieldState.error.message}</FieldError>
 										)}

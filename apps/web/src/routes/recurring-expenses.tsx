@@ -58,6 +58,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
+import { ComboboxSelectField } from "@/components/shared/combobox-select-field";
 import { DueRecurringExpensesCard } from "@/components/recurring-expenses/due-recurring-expenses-card";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useMe } from "@/hooks/use-auth";
@@ -577,46 +578,35 @@ export function RecurringExpensesPage() {
 						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<Field>
 								<FieldLabel htmlFor="create-rule-account">Source Account</FieldLabel>
-								<Select
+								<ComboboxSelectField
+									id="create-rule-account"
 									items={accountList.map((a) => ({ value: a.id, label: a.name }))}
 									value={createAccountId}
 									onValueChange={(val) => {
 										if (val) setCreateAccountId(val);
 									}}
-								>
-									<SelectTrigger id="create-rule-account" className="rounded-none">
-										<SelectValue placeholder="Select account" />
-									</SelectTrigger>
-									<SelectContent className="rounded-none">
-										{accountList.map((a) => (
-											<SelectItem key={a.id} value={a.id}>
-												{a.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									placeholder="Select account"
+									className="rounded-none"
+									contentClassName="rounded-none"
+								/>
 							</Field>
 
 							<Field>
 								<FieldLabel htmlFor="create-rule-category">Category</FieldLabel>
-								<Select
-									items={expenseCategories.map((c) => ({ value: c.id, label: c.name }))}
+								<ComboboxSelectField
+									id="create-rule-category"
+									items={expenseCategories.map((c) => ({
+										value: c.id,
+										label: c.name,
+									}))}
 									value={createCategoryId}
 									onValueChange={(val) => {
 										if (val) setCreateCategoryId(val);
 									}}
-								>
-									<SelectTrigger id="create-rule-category" className="rounded-none">
-										<SelectValue placeholder="Select category" />
-									</SelectTrigger>
-									<SelectContent className="rounded-none">
-										{expenseCategories.map((c) => (
-											<SelectItem key={c.id} value={c.id}>
-												{c.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									placeholder="Select category"
+									className="rounded-none"
+									contentClassName="rounded-none"
+								/>
 							</Field>
 						</div>
 

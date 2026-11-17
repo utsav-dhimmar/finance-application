@@ -51,6 +51,7 @@ import {
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
+import { ComboboxSelectField } from "@/components/shared/combobox-select-field";
 import { DueRecurringExpensesCard } from "@/components/recurring-expenses/due-recurring-expenses-card";
 import { ConfirmTransactionLifecycleDialog } from "@/components/transactions/confirm-transaction-lifecycle-dialog";
 import { RestoreTransactionDialog } from "@/components/transactions/restore-transaction-dialog";
@@ -855,7 +856,7 @@ export function TransactionsPage() {
 							))}
 						</SelectContent>
 					</Select>
-					<Select
+					<ComboboxSelectField
 						items={accountFilterItems}
 						value={filterState.accountId || ALL_ACCOUNTS}
 						onValueChange={(value) =>
@@ -864,19 +865,10 @@ export function TransactionsPage() {
 								value: value === ALL_ACCOUNTS || value === null ? "" : value,
 							})
 						}
-					>
-						<SelectTrigger aria-label="Account filter" className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{accountFilterItems.map((option) => (
-								<SelectItem key={option.value} value={option.value}>
-									{option.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Select
+						ariaLabel="Account filter"
+						className="w-full"
+					/>
+					<ComboboxSelectField
 						items={categoryFilterItems}
 						value={filterState.categoryId || ALL_CATEGORIES}
 						onValueChange={(value) =>
@@ -885,18 +877,9 @@ export function TransactionsPage() {
 								value: value === ALL_CATEGORIES || value === null ? "" : value,
 							})
 						}
-					>
-						<SelectTrigger aria-label="Category filter" className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{categoryFilterItems.map((option) => (
-								<SelectItem key={option.value} value={option.value}>
-									{option.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+						ariaLabel="Category filter"
+						className="w-full"
+					/>
 				</div>
 
 				{/* Table content / states */}

@@ -7,10 +7,7 @@ import type {
 import { amountInputSchema } from "@finance-application/schemas";
 import { Badge } from "@finance-application/ui/components/badge";
 import { Button } from "@finance-application/ui/components/button";
-import {
-	Card,
-	CardContent,
-} from "@finance-application/ui/components/card";
+import { Card, CardContent } from "@finance-application/ui/components/card";
 import {
 	Dialog,
 	DialogContent,
@@ -19,10 +16,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@finance-application/ui/components/dialog";
-import {
-	Field,
-	FieldLabel,
-} from "@finance-application/ui/components/field";
+import { Field, FieldLabel } from "@finance-application/ui/components/field";
 import { Input } from "@finance-application/ui/components/input";
 import {
 	Select,
@@ -45,7 +39,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@finance-application/ui/components/tabs";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
 	CalendarClock,
 	Check,
@@ -55,7 +49,7 @@ import {
 	Plus,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
 import { ComboboxSelectField } from "@/components/shared/combobox-select-field";
@@ -73,9 +67,35 @@ import {
 	useUpdateRecurringExpense,
 } from "@/hooks/use-recurring-expenses";
 import { formatPaise, paiseToRupeeInput } from "@/lib/money";
+import { guardAuthenticated } from "@/lib/route-guards";
 import { uuidV7 } from "@/lib/uuid";
+import { accountsQueryOptions } from "@/services/accounts-service";
+import { categoriesQueryOptions } from "@/services/categories-service";
+import {
+	dueRecurringExpensesQueryOptions,
+	recurringExpensesQueryOptions,
+} from "@/services/recurring-expenses-service";
 
 export const Route = createFileRoute("/recurring-expenses")({
+	beforeLoad: guardAuthenticated,
+	// Warm the default ("all") rule list, the due card, and the form's
+	// account/category slices in parallel, best-effort.
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient
+				.query({ ...recurringExpensesQueryOptions({}), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...dueRecurringExpensesQueryOptions({}), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...accountsQueryOptions("active"), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...categoriesQueryOptions("active"), staleTime: "static" })
+				.catch(() => undefined),
+		]);
+	},
 	component: RecurringExpensesPage,
 });
 
@@ -90,7 +110,6 @@ const CADENCE_OPTIONS = [
 ];
 
 export function RecurringExpensesPage() {
-	const navigate = useNavigate();
 	const me = useMe();
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -131,14 +150,10 @@ export function RecurringExpensesPage() {
 	const [editEndDate, setEditEndDate] = useState("");
 	const [editNotes, setEditNotes] = useState("");
 
-	useEffect(() => {
-		if (me.isPending) return;
-		if (!me.data) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, me.isPending, navigate]);
-
-	if (me.isPending || !me.data) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<div className="flex min-h-screen flex-col bg-background">
 				<AppHeader />
@@ -270,7 +285,11 @@ export function RecurringExpensesPage() {
 	}
 
 	function handleCancel(item: RecurringExpenseResponse) {
-		if (confirm(`Cancel recurring rule "${item.name}"? Past recorded transactions will not be deleted.`)) {
+		if (
+			confirm(
+				`Cancel recurring rule "${item.name}"? Past recorded transactions will not be deleted.`,
+			)
+		) {
 			cancelRule.mutate(item.id, {
 				onSuccess: () => toast.info(`Cancelled "${item.name}".`),
 				onError: () => toast.error("Could not cancel rule."),
@@ -312,7 +331,8 @@ export function RecurringExpensesPage() {
 							Recurring Expenses
 						</h1>
 						<p className="mt-1 text-sm text-muted-foreground">
-							Track duration-driven repeating bills, subscriptions, and scheduled expenses.
+							Track duration-driven repeating bills, subscriptions, and
+							scheduled expenses.
 						</p>
 					</div>
 					<Button
@@ -364,7 +384,8 @@ export function RecurringExpensesPage() {
 								No recurring expenses found
 							</p>
 							<p className="text-xs text-muted-foreground mt-1 max-w-sm">
-								Create a recurring expense rule to automate scheduled reminders and one-click ledger postings.
+								Create a recurring expense rule to automate scheduled reminders
+								and one-click ledger postings.
 							</p>
 							<Button
 								variant="outline"
@@ -385,12 +406,24 @@ export function RecurringExpensesPage() {
 									<TableHead className="font-semibold text-xs">
 										Expected
 									</TableHead>
-									<TableHead className="font-semibold text-xs">Cadence</TableHead>
-									<TableHead className="font-semibold text-xs">Category</TableHead>
-									<TableHead className="font-semibold text-xs">Account</TableHead>
-									<TableHead className="font-semibold text-xs">Next Due</TableHead>
-									<TableHead className="font-semibold text-xs">Status</TableHead>
-									<TableHead className="font-semibold text-xs text-right">Actions</TableHead>
+									<TableHead className="font-semibold text-xs">
+										Cadence
+									</TableHead>
+									<TableHead className="font-semibold text-xs">
+										Category
+									</TableHead>
+									<TableHead className="font-semibold text-xs">
+										Account
+									</TableHead>
+									<TableHead className="font-semibold text-xs">
+										Next Due
+									</TableHead>
+									<TableHead className="font-semibold text-xs">
+										Status
+									</TableHead>
+									<TableHead className="font-semibold text-xs text-right">
+										Actions
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -415,7 +448,10 @@ export function RecurringExpensesPage() {
 												{formatPaise(rule.amountMinor)}
 											</TableCell>
 											<TableCell className="text-xs">
-												<Badge variant="outline" className="rounded-none font-normal text-xs">
+												<Badge
+													variant="outline"
+													className="rounded-none font-normal text-xs"
+												>
 													Every {rule.intervalMonths} mo
 												</Badge>
 											</TableCell>
@@ -482,7 +518,9 @@ export function RecurringExpensesPage() {
 															size="sm"
 															variant="ghost"
 															className="rounded-none h-7 px-2 text-xs gap-1"
-															title={rule.status === "active" ? "Pause" : "Resume"}
+															title={
+																rule.status === "active" ? "Pause" : "Resume"
+															}
 															onClick={() => handleTogglePause(rule)}
 														>
 															{rule.status === "active" ? (
@@ -518,7 +556,9 @@ export function RecurringExpensesPage() {
 			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 				<DialogContent className="rounded-none max-w-lg">
 					<DialogHeader>
-						<DialogTitle className="rounded-none">New Recurring Expense</DialogTitle>
+						<DialogTitle className="rounded-none">
+							New Recurring Expense
+						</DialogTitle>
 						<DialogDescription>
 							Schedule a repeating expense with duration cadence in months. The
 							expected amount pre-fills each occurrence; the actual expense can
@@ -539,21 +579,23 @@ export function RecurringExpensesPage() {
 						</Field>
 
 						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								<Field>
-									<FieldLabel htmlFor="create-rule-amount">
-										Expected amount (₹)
-									</FieldLabel>
-									<Input
-										id="create-rule-amount"
-										placeholder="0.00"
-										value={createAmount}
-										onChange={(e) => setCreateAmount(e.target.value)}
-										className="rounded-none font-mono"
-									/>
-								</Field>
+							<Field>
+								<FieldLabel htmlFor="create-rule-amount">
+									Expected amount (₹)
+								</FieldLabel>
+								<Input
+									id="create-rule-amount"
+									placeholder="0.00"
+									value={createAmount}
+									onChange={(e) => setCreateAmount(e.target.value)}
+									className="rounded-none font-mono"
+								/>
+							</Field>
 
 							<Field>
-								<FieldLabel htmlFor="create-rule-interval">Duration Cadence</FieldLabel>
+								<FieldLabel htmlFor="create-rule-interval">
+									Duration Cadence
+								</FieldLabel>
 								<Select
 									items={CADENCE_OPTIONS}
 									value={createInterval}
@@ -561,7 +603,10 @@ export function RecurringExpensesPage() {
 										if (val) setCreateInterval(val);
 									}}
 								>
-									<SelectTrigger id="create-rule-interval" className="rounded-none">
+									<SelectTrigger
+										id="create-rule-interval"
+										className="rounded-none"
+									>
 										<SelectValue placeholder="Select cadence" />
 									</SelectTrigger>
 									<SelectContent className="rounded-none">
@@ -577,10 +622,15 @@ export function RecurringExpensesPage() {
 
 						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<Field>
-								<FieldLabel htmlFor="create-rule-account">Source Account</FieldLabel>
+								<FieldLabel htmlFor="create-rule-account">
+									Source Account
+								</FieldLabel>
 								<ComboboxSelectField
 									id="create-rule-account"
-									items={accountList.map((a) => ({ value: a.id, label: a.name }))}
+									items={accountList.map((a) => ({
+										value: a.id,
+										label: a.name,
+									}))}
 									value={createAccountId}
 									onValueChange={(val) => {
 										if (val) setCreateAccountId(val);
@@ -623,7 +673,9 @@ export function RecurringExpensesPage() {
 							</Field>
 
 							<Field>
-								<FieldLabel htmlFor="create-rule-end">End Date (optional)</FieldLabel>
+								<FieldLabel htmlFor="create-rule-end">
+									End Date (optional)
+								</FieldLabel>
 								<Input
 									id="create-rule-end"
 									type="date"
@@ -635,7 +687,9 @@ export function RecurringExpensesPage() {
 						</div>
 
 						<Field>
-							<FieldLabel htmlFor="create-rule-notes">Notes (optional)</FieldLabel>
+							<FieldLabel htmlFor="create-rule-notes">
+								Notes (optional)
+							</FieldLabel>
 							<Input
 								id="create-rule-notes"
 								placeholder="Optional notes or reference number"
@@ -678,7 +732,9 @@ export function RecurringExpensesPage() {
 							Edit Recurring Expense
 						</DialogTitle>
 						<DialogDescription>
-							Adjust duration cadence, expected amount, or parameters. Changing cadence recalculates future due dates while keeping past transactions intact.
+							Adjust duration cadence, expected amount, or parameters. Changing
+							cadence recalculates future due dates while keeping past
+							transactions intact.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -708,7 +764,9 @@ export function RecurringExpensesPage() {
 								</Field>
 
 								<Field>
-									<FieldLabel htmlFor="edit-rule-interval">Duration Cadence</FieldLabel>
+									<FieldLabel htmlFor="edit-rule-interval">
+										Duration Cadence
+									</FieldLabel>
 									<Select
 										items={CADENCE_OPTIONS}
 										value={editInterval}
@@ -716,7 +774,10 @@ export function RecurringExpensesPage() {
 											if (val) setEditInterval(val);
 										}}
 									>
-										<SelectTrigger id="edit-rule-interval" className="rounded-none">
+										<SelectTrigger
+											id="edit-rule-interval"
+											className="rounded-none"
+										>
 											<SelectValue placeholder="Select cadence" />
 										</SelectTrigger>
 										<SelectContent className="rounded-none">
@@ -732,15 +793,23 @@ export function RecurringExpensesPage() {
 
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<Field>
-									<FieldLabel htmlFor="edit-rule-account">Source Account</FieldLabel>
+									<FieldLabel htmlFor="edit-rule-account">
+										Source Account
+									</FieldLabel>
 									<Select
-										items={accountList.map((a) => ({ value: a.id, label: a.name }))}
+										items={accountList.map((a) => ({
+											value: a.id,
+											label: a.name,
+										}))}
 										value={editAccountId}
 										onValueChange={(val) => {
 											if (val) setEditAccountId(val);
 										}}
 									>
-										<SelectTrigger id="edit-rule-account" className="rounded-none">
+										<SelectTrigger
+											id="edit-rule-account"
+											className="rounded-none"
+										>
 											<SelectValue placeholder="Select account" />
 										</SelectTrigger>
 										<SelectContent className="rounded-none">
@@ -756,13 +825,19 @@ export function RecurringExpensesPage() {
 								<Field>
 									<FieldLabel htmlFor="edit-rule-category">Category</FieldLabel>
 									<Select
-										items={expenseCategories.map((c) => ({ value: c.id, label: c.name }))}
+										items={expenseCategories.map((c) => ({
+											value: c.id,
+											label: c.name,
+										}))}
 										value={editCategoryId}
 										onValueChange={(val) => {
 											if (val) setEditCategoryId(val);
 										}}
 									>
-										<SelectTrigger id="edit-rule-category" className="rounded-none">
+										<SelectTrigger
+											id="edit-rule-category"
+											className="rounded-none"
+										>
 											<SelectValue placeholder="Select category" />
 										</SelectTrigger>
 										<SelectContent className="rounded-none">
@@ -777,7 +852,9 @@ export function RecurringExpensesPage() {
 							</div>
 
 							<Field>
-								<FieldLabel htmlFor="edit-rule-end">End Date (optional)</FieldLabel>
+								<FieldLabel htmlFor="edit-rule-end">
+									End Date (optional)
+								</FieldLabel>
 								<Input
 									id="edit-rule-end"
 									type="date"
@@ -788,7 +865,9 @@ export function RecurringExpensesPage() {
 							</Field>
 
 							<Field>
-								<FieldLabel htmlFor="edit-rule-notes">Notes (optional)</FieldLabel>
+								<FieldLabel htmlFor="edit-rule-notes">
+									Notes (optional)
+								</FieldLabel>
 								<Input
 									id="edit-rule-notes"
 									value={editNotes}

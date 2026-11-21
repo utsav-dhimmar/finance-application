@@ -29,7 +29,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@finance-application/ui/components/tabs";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
 	createColumnHelper,
 	flexRender,
@@ -48,7 +48,7 @@ import {
 	Search,
 	Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
 import { ComboboxSelectField } from "@/components/shared/combobox-select-field";
@@ -63,7 +63,6 @@ import { TransferFormDialog } from "@/components/transfers/transfer-form-dialog"
 import { useAccounts } from "@/hooks/use-accounts";
 import { useMe } from "@/hooks/use-auth";
 import { useCategories } from "@/hooks/use-categories";
-import { useDebounce } from "@/hooks/use-debounce";
 import { usePreferences } from "@/hooks/use-preferences";
 import {
 	useArchiveTransaction,
@@ -81,6 +80,7 @@ import {
 } from "@/hooks/use-transfers";
 import type { ExportFilterSnapshot } from "@/lib/csv-export";
 import { formatPaise } from "@/lib/money";
+import { guardAuthenticated } from "@/lib/route-guards";
 import {
 	coreTableFeatures,
 	type CoreTableFeatures,
@@ -90,10 +90,43 @@ import {
 	TRANSFER_DIRECTION_LABELS,
 	TRANSFER_STATUS_LABELS,
 } from "@/lib/transfer-labels";
+import { accountsQueryOptions } from "@/services/accounts-service";
+import { categoriesQueryOptions } from "@/services/categories-service";
+import { preferencesQueryOptions } from "@/services/preferences-service";
 import { getTransactionsErrorMessage } from "@/services/transactions-service";
-import { getTransfersErrorMessage } from "@/services/transfers-service";
+import {
+	activityQueryOptions,
+	getTransfersErrorMessage,
+} from "@/services/transfers-service";
 
 export const Route = createFileRoute("/transactions")({
+	beforeLoad: guardAuthenticated,
+	// Warm the first-page list and the filter-bar slices in parallel during
+	// navigation, best-effort: the page's pending/error states stay
+	// authoritative when a prefetch fails.
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient
+				.query({
+					...activityQueryOptions({
+						status: "active",
+						page: 1,
+						pageSize: PAGE_SIZE,
+					}),
+					staleTime: "static",
+				})
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...accountsQueryOptions("active"), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...categoriesQueryOptions("active"), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...preferencesQueryOptions(), staleTime: "static" })
+				.catch(() => undefined),
+		]);
+	},
 	component: TransactionsPage,
 });
 
@@ -262,18 +295,35 @@ interface ConfirmingState {
 }
 
 export function TransactionsPage() {
-	const navigate = useNavigate();
 	const me = useMe();
 
 	const [filterState, dispatchFilter] = useReducer(
 		transactionsFilterReducer,
 		initialFilterState,
 	);
-	// The raw input stays responsive; the query lands via the shared debounce.
-	const debouncedSearch = useDebounce(filterState.searchInput, 300);
+	// The raw input stays responsive; the debounced query lands via a
+	// handler-scheduled timeout instead of an effect chain, so typing costs
+	// one render per keystroke. The timer lives in a ref and is cleared on
+	// unmount.
+	const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	useEffect(() => {
-		dispatchFilter({ type: "applyDebouncedQuery", value: debouncedSearch });
-	}, [debouncedSearch]);
+		return () => {
+			if (searchDebounceRef.current !== null) {
+				clearTimeout(searchDebounceRef.current);
+			}
+		};
+	}, []);
+
+	function handleSearchInput(value: string) {
+		dispatchFilter({ type: "setSearchInput", value });
+		if (searchDebounceRef.current !== null) {
+			clearTimeout(searchDebounceRef.current);
+		}
+		searchDebounceRef.current = setTimeout(() => {
+			searchDebounceRef.current = null;
+			dispatchFilter({ type: "applyDebouncedQuery", value });
+		}, 300);
+	}
 
 	const filters: Partial<ListActivityQuery> = useMemo(
 		() => ({
@@ -354,14 +404,6 @@ export function TransactionsPage() {
 		kind: "transaction" | "transfer";
 		row: ActivityItem;
 	} | null>(null);
-
-	// Guard: unauthenticated visitors are sent to /login without ever seeing
-	// transaction data.
-	useEffect(() => {
-		if (me.data === null) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, navigate]);
 
 	function handleRestore(kind: "transaction" | "transfer", row: ActivityItem) {
 		const onSuccess = () => {
@@ -681,7 +723,10 @@ export function TransactionsPage() {
 		columns,
 	});
 
-	if (me.isPending || me.data === undefined) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
 				<p
@@ -692,10 +737,6 @@ export function TransactionsPage() {
 				</p>
 			</main>
 		);
-	}
-
-	if (me.data === null) {
-		return null;
 	}
 
 	const total = data?.total ?? 0;
@@ -811,12 +852,7 @@ export function TransactionsPage() {
 							placeholder="Search notes, account, category…"
 							className="pl-8"
 							value={filterState.searchInput}
-							onChange={(event) =>
-								dispatchFilter({
-									type: "setSearchInput",
-									value: event.target.value,
-								})
-							}
+							onChange={(event) => handleSearchInput(event.target.value)}
 						/>
 					</div>
 					<Input

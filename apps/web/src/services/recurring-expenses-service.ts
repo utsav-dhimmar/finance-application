@@ -61,7 +61,10 @@ export function dueRecurringExpensesQueryOptions(
 	query: Partial<DueRecurringExpensesQuery> = {},
 ) {
 	return {
-		queryKey: [...DUE_RECURRING_EXPENSES_QUERY_KEY, query.asOfDate ?? ""] as const,
+		queryKey: [
+			...DUE_RECURRING_EXPENSES_QUERY_KEY,
+			query.asOfDate ?? "",
+		] as const,
 		queryFn: () => getDueRecurringExpenses(query),
 		staleTime: 10_000,
 	};

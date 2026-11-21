@@ -29,7 +29,7 @@ import {
 	useTheme,
 } from "@finance-application/ui/components/theme-provider";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Monitor, Moon, Settings as SettingsIcon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -38,9 +38,21 @@ import { AppHeader } from "@/components/app-header";
 import { useMe } from "@/hooks/use-auth";
 import { usePreferences, useUpdatePreferences } from "@/hooks/use-preferences";
 import { formatMinorUnits } from "@/lib/money";
-import { getPreferencesErrorMessage } from "@/services/preferences-service";
+import { guardAuthenticated } from "@/lib/route-guards";
+import {
+	getPreferencesErrorMessage,
+	preferencesQueryOptions,
+} from "@/services/preferences-service";
 
-export const Route = createFileRoute("/settings")({ component: SettingsPage });
+export const Route = createFileRoute("/settings")({
+	beforeLoad: guardAuthenticated,
+	loader: async ({ context }) => {
+		await context.queryClient
+			.query({ ...preferencesQueryOptions(), staleTime: "static" })
+			.catch(() => undefined);
+	},
+	component: SettingsPage,
+});
 
 // Select options come from the shared supported-currency union — the same
 // list the API validates against. Only INR is initially supported; widening
@@ -227,19 +239,13 @@ function AppearanceCard() {
 }
 
 export function SettingsPage() {
-	const navigate = useNavigate();
 	const me = useMe();
 	const preferences = usePreferences();
 
-	// Guard: unauthenticated visitors are sent to /login without ever seeing
-	// settings.
-	useEffect(() => {
-		if (me.data === null) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, navigate]);
-
-	if (me.isPending || me.data === undefined) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
 				<p
@@ -250,10 +256,6 @@ export function SettingsPage() {
 				</p>
 			</main>
 		);
-	}
-
-	if (me.data === null) {
-		return null;
 	}
 
 	return (

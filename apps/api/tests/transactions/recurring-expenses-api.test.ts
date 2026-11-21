@@ -15,7 +15,11 @@ const TRANSACTIONS_URL = "https://test.local/api/transactions";
 const ACCOUNTS_URL = "https://test.local/api/accounts";
 const CATEGORIES_URL = "https://test.local/api/categories";
 
-function jsonInit(method: string, body?: unknown, cookie?: string): RequestInit {
+function jsonInit(
+	method: string,
+	body?: unknown,
+	cookie?: string,
+): RequestInit {
 	return {
 		method,
 		headers: {
@@ -35,10 +39,7 @@ async function createAccount(
 	cookie: string,
 	body: Record<string, unknown>,
 ): Promise<string> {
-	const res = await fetchApp(
-		ACCOUNTS_URL,
-		jsonInit("POST", body, cookie),
-	);
+	const res = await fetchApp(ACCOUNTS_URL, jsonInit("POST", body, cookie));
 	expect(res.status).toBe(201);
 	return ((await res.json()) as { id: string }).id;
 }
@@ -47,10 +48,7 @@ async function createCategory(
 	cookie: string,
 	body: Record<string, unknown>,
 ): Promise<string> {
-	const res = await fetchApp(
-		CATEGORIES_URL,
-		jsonInit("POST", body, cookie),
-	);
+	const res = await fetchApp(CATEGORIES_URL, jsonInit("POST", body, cookie));
 	expect(res.status).toBe(201);
 	return ((await res.json()) as { id: string }).id;
 }

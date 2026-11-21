@@ -401,7 +401,9 @@ export function TransactionFormDialog({
 												control={form.control}
 												render={({ field }) => (
 													<Field>
-														<FieldLabel htmlFor={`${idPrefix}-recurrence-interval`}>
+														<FieldLabel
+															htmlFor={`${idPrefix}-recurrence-interval`}
+														>
 															Recurring Duration
 														</FieldLabel>
 														<Select
@@ -418,10 +420,7 @@ export function TransactionFormDialog({
 															</SelectTrigger>
 															<SelectContent>
 																{INTERVAL_OPTIONS.map((opt) => (
-																	<SelectItem
-																		key={opt.value}
-																		value={opt.value}
-																	>
+																	<SelectItem key={opt.value} value={opt.value}>
 																		{opt.label}
 																	</SelectItem>
 																))}
@@ -447,7 +446,9 @@ export function TransactionFormDialog({
 															{...field}
 														/>
 														{fieldState.error && (
-															<FieldError>{fieldState.error.message}</FieldError>
+															<FieldError>
+																{fieldState.error.message}
+															</FieldError>
 														)}
 													</Field>
 												)}

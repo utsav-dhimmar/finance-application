@@ -23,7 +23,10 @@ export function getDaysInMonth(year: number, month: number): number {
  * - 2026-08-31 + 1 month -> 2026-09-30 (30-day month)
  * - 2026-11-15 + 3 months -> 2027-02-15 (year rollover)
  */
-export function addCalendarMonths(dateStr: string, monthsToAdd: number): string {
+export function addCalendarMonths(
+	dateStr: string,
+	monthsToAdd: number,
+): string {
 	const [yearStr, monthStr, dayStr] = dateStr.split("-");
 	const year = Number(yearStr);
 	const month = Number(monthStr); // 1-indexed
@@ -58,7 +61,10 @@ export function addCalendarMonths(dateStr: string, monthsToAdd: number): string 
  * Returns the calendar difference in whole days between two YYYY-MM-DD strings (to - from).
  * Positive if targetDate is in the future relative to fromDate, 0 if same day, negative if overdue.
  */
-export function diffCalendarDays(targetDateStr: string, fromDateStr: string): number {
+export function diffCalendarDays(
+	targetDateStr: string,
+	fromDateStr: string,
+): number {
 	const [tY, tM, tD] = targetDateStr.split("-").map(Number);
 	const [fY, fM, fD] = fromDateStr.split("-").map(Number);
 

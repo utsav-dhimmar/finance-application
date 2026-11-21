@@ -7,9 +7,9 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@finance-application/ui/components/tabs";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Wallet } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/account-card";
 import { AccountFormDialog } from "@/components/accounts/account-form-dialog";
@@ -24,9 +24,21 @@ import {
 } from "@/hooks/use-accounts";
 import { useMe } from "@/hooks/use-auth";
 import { formatPaise } from "@/lib/money";
-import { getAccountsErrorMessage } from "@/services/accounts-service";
+import { guardAuthenticated } from "@/lib/route-guards";
+import {
+	accountsQueryOptions,
+	getAccountsErrorMessage,
+} from "@/services/accounts-service";
 
-export const Route = createFileRoute("/accounts")({ component: AccountsPage });
+export const Route = createFileRoute("/accounts")({
+	beforeLoad: guardAuthenticated,
+	loader: async ({ context }) => {
+		await context.queryClient
+			.query({ ...accountsQueryOptions("active"), staleTime: "static" })
+			.catch(() => undefined);
+	},
+	component: AccountsPage,
+});
 
 type AccountsTab = "active" | "archived" | "deleted";
 
@@ -45,7 +57,6 @@ const EMPTY_MESSAGES: Record<AccountsTab, string> = {
 };
 
 export function AccountsPage() {
-	const navigate = useNavigate();
 	const me = useMe();
 	const [tab, setTab] = useState<AccountsTab>("active");
 	const accounts = useAccounts(tab);
@@ -60,14 +71,6 @@ export function AccountsPage() {
 		account: AccountResponse;
 	} | null>(null);
 	const [renaming, setRenaming] = useState<AccountResponse | null>(null);
-
-	// Guard: unauthenticated visitors are sent to /login without ever seeing
-	// account data.
-	useEffect(() => {
-		if (me.data === null) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, navigate]);
 
 	function handleRestore(account: AccountResponse) {
 		restore.mutate(
@@ -145,7 +148,10 @@ export function AccountsPage() {
 		});
 	}
 
-	if (me.isPending || me.data === undefined) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
 				<p
@@ -156,10 +162,6 @@ export function AccountsPage() {
 				</p>
 			</main>
 		);
-	}
-
-	if (me.data === null) {
-		return null;
 	}
 
 	return (

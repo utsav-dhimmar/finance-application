@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Single source of truth for auth validation rules, shared by the API and the
 // web app. OpenAPI metadata for the API's route schemas is layered on top of
-// these in server/api/src/schemas — do not add transport concerns here.
+// these in apps/api/src/schemas — do not add transport concerns here.
 
 // Emails are normalized to lowercase at the boundary so the unique index on
 // users.email enforces case-insensitive uniqueness.

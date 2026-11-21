@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Single source of truth for the application-preferences contracts, shared by
 // the API, the web app, and the future mobile client. OpenAPI metadata for the
-// API's route schemas is layered on top of these in server/api/src/schemas —
+// API's route schemas is layered on top of these in apps/api/src/schemas —
 // do not add transport concerns here.
 
 // Supported display currencies. Only INR is initially enabled: showing amounts

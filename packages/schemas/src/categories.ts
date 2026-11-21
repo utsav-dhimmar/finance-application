@@ -3,7 +3,7 @@ import { ACCOUNT_NAME_MAX_LENGTH } from "./accounts";
 
 // Single source of truth for category validation rules, shared by the API, the
 // web app, and the future mobile client. OpenAPI metadata for the API's route
-// schemas is layered on top of these in server/api/src/schemas — do not add
+// schemas is layered on top of these in apps/api/src/schemas — do not add
 // transport concerns here.
 
 export const categoryTypes = ["income", "expense"] as const;

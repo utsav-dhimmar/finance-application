@@ -36,7 +36,7 @@
 	// worker; /api/* goes to Hono first; anything else falls back to the
 	// prerendered SPA shell so client-side routes survive hard refresh.
 	"assets": {
-		"directory": "../../apps/web/dist/client",
+		"directory": "../web/dist/client",
 		"not_found_handling": "single-page-application",
 		"run_worker_first": ["/api/*"]
 	},

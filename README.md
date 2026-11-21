@@ -20,8 +20,8 @@ of truth for behavior.
 
 ```
 apps/web       TanStack Start web application (@finance-application/web)
+apps/api       Hono API packaged as a Cloudflare Worker (@finance-application/api)
 packages/ui    Shared shadcn/Base UI design system (@finance-application/ui)
-server/api     Hono API packaged as a Cloudflare Worker (@finance-application/api)
 openspec/      Specifications and change proposals
 .github/       CI workflows
 ```
@@ -42,7 +42,7 @@ Run from the repository root:
 | `pnpm lint`                                                | Lint the repository with Biome                                                    |
 | `pnpm format`                                              | Format the repository with Biome (`pnpm format:check` to verify only)             |
 | `pnpm --filter @finance-application/api dev`               | Start the API locally with `wrangler dev` (http://127.0.0.1:8787)                 |
-| `pnpm --filter @finance-application/api types`             | Regenerate `server/api/worker-configuration.d.ts` after changing `wrangler.jsonc` |
+| `pnpm --filter @finance-application/api types`             | Regenerate `apps/api/worker-configuration.d.ts` after changing `wrangler.jsonc` |
 | `pnpm --filter @finance-application/web dev`               | Start the web app with Vite (http://localhost:3000)                               |
 | `pnpm --filter @finance-application/web build`             | Production build of the web app                                                   |
 | `cd packages/ui && pnpm dlx shadcn@latest add <component>` | Add a shadcn component to the shared design system                                |
@@ -87,22 +87,23 @@ Deploy:
 
 ```sh
 pnpm build                          # builds all packages — apps/web must build
-cd server/api
+cd apps/api
 npx wrangler deploy                 # requires a prior web build (assets dir)
 ```
 
 In CI (Cloudflare Builds), the build command is `pnpm run build` and the deploy
-command is `cd server/api && npx wrangler deploy`. Note that `wrangler dev`
+command is `cd apps/api && npx wrangler deploy`; the project's build root
+directory in the Cloudflare dashboard must point at `apps/api`. Note that `wrangler dev`
 serves the SPA from the last `vite build`, not live edits — use `vite dev`
 with the proxy for day-to-day web work.
 
 ### Database migrations
 
-The API's schema lives in `server/api/src/db/schema.ts` (Drizzle). After
+The API's schema lives in `apps/api/src/db/schema.ts` (Drizzle). After
 changing it:
 
 ```sh
-cd server/api
+cd apps/api
 pnpm exec drizzle-kit generate
 pnpm exec wrangler d1 migrations apply finance-application --local
 ```
@@ -117,7 +118,7 @@ concurrency). Both tokens are HttpOnly, Secure, SameSite=Lax cookies with
 `__Host-`/`__Secure-` prefixes — no tokens in JavaScript-readable storage.
 Logout revokes the refresh token and bumps the token version, so outstanding
 access tokens stop working immediately. The secret lives in
-`server/api/.dev.vars` (copy `.dev.vars.example`); in production use
+`apps/api/.dev.vars` (copy `.dev.vars.example`); in production use
 `wrangler secret put JWT_SECRET`.
 
 - `POST /api/auth/register` — **closed** (single-user application); always
@@ -150,7 +151,7 @@ unknown-email attempts indistinguishable from wrong-password attempts.
 change; until the stored hash is migrated, login cannot succeed):**
 
 ```sh
-cd server/api
+cd apps/api
 # 1. Save the current hash for rollback:
 npx wrangler d1 execute finance-application --remote --command "SELECT id, email, password_hash FROM users"
 # 2. Hash the password locally. Interactive: type it and press Ctrl+D
@@ -184,7 +185,7 @@ unknown-email login work stays uniform.
 - **Remote migration state**: after each deploy, confirm the applied
   migrations match the repository with
   `wrangler d1 migrations list finance-application --remote` (optionally diff
-  `sqlite_master` against `server/api/migrations/`).
+  `sqlite_master` against `apps/api/migrations/`).
 - **Password-hashing CPU budget**: the PBKDF2 default (10,000 iterations)
   keeps a login within the Workers free plan's 10 ms CPU cap; raise the
   iteration count (re-hash with `scripts/hash-password.mts`) only after

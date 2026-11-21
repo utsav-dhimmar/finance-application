@@ -5,7 +5,7 @@ import { transactionDateSchema } from "./transactions";
 // Shared reporting contract: the period query, the summary response, and the
 // comparison series, shared by the API, the web app, and the future mobile
 // client. OpenAPI metadata for the API's route schema is layered on top in
-// server/api/src/schemas — do not add transport concerns here. The inclusion
+// apps/api/src/schemas — do not add transport concerns here. The inclusion
 // rules (archived in, deleted out, transfers never) are specified behavior and
 // live in the reporting service; these shapes only carry the data.
 

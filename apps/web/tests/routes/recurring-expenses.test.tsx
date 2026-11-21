@@ -107,8 +107,12 @@ describe("RecurringExpensesPage create-rule selections", () => {
 
 		await renderRoute(<RecurringExpensesPage />, "/recurring-expenses");
 
-		// Open the create dialog.
-		fireEvent.click(screen.getByRole("button", { name: "New recurring rule" }));
+		// Open the create dialog. The page renders behind an auth gate, so the
+		// button appears only after the stubbed session query resolves — await
+		// it instead of racing the query continuation.
+		fireEvent.click(
+			await screen.findByRole("button", { name: "New recurring rule" }),
+		);
 		const dialog = await screen.findByRole("dialog", {
 			name: "New Recurring Expense",
 		});

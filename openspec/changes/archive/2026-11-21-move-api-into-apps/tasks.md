@@ -23,11 +23,12 @@
 - [x] 4.2 Raise the web suite's test timeout in `apps/web/vitest.config.ts` to `testTimeout: 30_000` (matching both API configs) with an explanatory comment, because the recurring-expenses combobox test exceeds the 5 s default under full-pipeline CPU load (scope addition approved during apply; verify with `git diff` showing only that config block)
 - [x] 4.3 Run the full gate from the repo root: `pnpm turbo run typecheck lint test build test:workers` and verify every task is green; the api `build` task's `wrangler deploy --dry-run` validates the corrected `wrangler.jsonc` (including the assets path) without a real deploy
 - [x] 4.4 Spot-check the moved package's behavior: `pnpm --filter @finance-application/api test` and `pnpm --filter @finance-application/api test:workers` pass unchanged, and no test source file was modified in the diff (`git diff main --stat` shows renames plus only the files named in tasks 1.3, 2.1, 3.1–3.3, 4.1, 4.2)
+- [x] 4.5 Fix the CI flake in `apps/web/tests/routes/recurring-expenses.test.tsx`: replace the synchronous `getByRole` click on "New recurring rule" with `await screen.findByRole(...)`, because the page renders behind an auth gate and the button exists only after the stubbed session query resolves (CI failure root cause; scope addition from CI feedback; verify the file passes repeatedly and the full gate is green)
 
 ## 5. Production deploy cutover (external, manual)
 
-- [ ] 5.1 After the branch merges to `main`, update the Cloudflare Workers Builds dashboard build root directory from `server/api` to `apps/api` and verify the dashboard setting shows `apps/api` (the worker keeps serving the previous deploy until this lands, so the failure window is bounded to builds only)
-- [ ] 5.2 Trigger or wait for a Workers Builds production deploy and verify it succeeds: the worker responds on `/api/*` (e.g. a health/auth endpoint returns the expected status) and the SPA fallback serves client-side routes on hard refresh, confirming the corrected assets path works in production
+- [x] 5.1 After the branch merges to `main`, update the Cloudflare Workers Builds dashboard build root directory from `server/api` to `apps/api` and verify the dashboard setting shows `apps/api` (the worker keeps serving the previous deploy until this lands, so the failure window is bounded to builds only)
+- [x] 5.2 Trigger or wait for a Workers Builds production deploy and verify it succeeds: the worker responds on `/api/*` (e.g. a health/auth endpoint returns the expected status) and the SPA fallback serves client-side routes on hard refresh, confirming the corrected assets path works in production
 
 ## Workflow follow-up
 

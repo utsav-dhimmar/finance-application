@@ -8,8 +8,12 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { CircleSlash, Wallet } from "lucide-react";
 import { AppHeader, SafeLink } from "@/components/app-header";
+import { guardUnauthenticated } from "@/lib/route-guards";
 
-export const Route = createFileRoute("/register")({ component: RegisterPage });
+export const Route = createFileRoute("/register")({
+	beforeLoad: guardUnauthenticated,
+	component: RegisterPage,
+});
 
 // Registration is permanently closed (single-user product): the page offers
 // no form, only the closed notice and the way back to /login.

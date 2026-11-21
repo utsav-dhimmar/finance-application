@@ -153,8 +153,14 @@ export const recurringExpenses = sqliteTable(
 		updatedAt: text("updated_at").notNull(),
 	},
 	(table) => [
-		check("recurring_expenses_amount_positive_check", sql`${table.amountMinor} > 0`),
-		check("recurring_expenses_interval_positive_check", sql`${table.intervalMonths} > 0`),
+		check(
+			"recurring_expenses_amount_positive_check",
+			sql`${table.amountMinor} > 0`,
+		),
+		check(
+			"recurring_expenses_interval_positive_check",
+			sql`${table.intervalMonths} > 0`,
+		),
 		check(
 			"recurring_expenses_status_check",
 			sql`${table.status} in ('active', 'paused', 'completed', 'cancelled')`,
@@ -164,7 +170,10 @@ export const recurringExpenses = sqliteTable(
 			table.status,
 			table.nextDueDate,
 		),
-		index("recurring_expenses_user_due_idx").on(table.userId, table.nextDueDate),
+		index("recurring_expenses_user_due_idx").on(
+			table.userId,
+			table.nextDueDate,
+		),
 		index("recurring_expenses_user_source_idx").on(
 			table.userId,
 			table.sourceAccountId,

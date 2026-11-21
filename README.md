@@ -35,17 +35,17 @@ openspec/      Specifications and change proposals
 
 Run from the repository root:
 
-| Command                                                    | What it does                                                                      |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `pnpm install`                                             | Install all workspace dependencies                                                |
-| `pnpm turbo run typecheck lint test build`                 | Full verification pipeline (also runs in CI)                                      |
-| `pnpm lint`                                                | Lint the repository with Biome                                                    |
-| `pnpm format`                                              | Format the repository with Biome (`pnpm format:check` to verify only)             |
-| `pnpm --filter @finance-application/api dev`               | Start the API locally with `wrangler dev` (http://127.0.0.1:8787)                 |
+| Command                                                    | What it does                                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `pnpm install`                                             | Install all workspace dependencies                                              |
+| `pnpm turbo run typecheck lint test build`                 | Full verification pipeline (also runs in CI)                                    |
+| `pnpm lint`                                                | Lint the repository with Biome                                                  |
+| `pnpm format`                                              | Format the repository with Biome (`pnpm format:check` to verify only)           |
+| `pnpm --filter @finance-application/api dev`               | Start the API locally with `wrangler dev` (http://127.0.0.1:8787)               |
 | `pnpm --filter @finance-application/api types`             | Regenerate `apps/api/worker-configuration.d.ts` after changing `wrangler.jsonc` |
-| `pnpm --filter @finance-application/web dev`               | Start the web app with Vite (http://localhost:3000)                               |
-| `pnpm --filter @finance-application/web build`             | Production build of the web app                                                   |
-| `cd packages/ui && pnpm dlx shadcn@latest add <component>` | Add a shadcn component to the shared design system                                |
+| `pnpm --filter @finance-application/web dev`               | Start the web app with Vite (http://localhost:3000)                             |
+| `pnpm --filter @finance-application/web build`             | Production build of the web app                                                 |
+| `cd packages/ui && pnpm dlx shadcn@latest add <component>` | Add a shadcn component to the shared design system                              |
 
 The API's `build` task runs `wrangler deploy --dry-run`: it bundles the Worker
 and validates its configuration without deploying.

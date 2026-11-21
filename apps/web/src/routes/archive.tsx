@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { AccountsPanel } from "@/components/archive-trash/accounts-panel";
 import { CategoriesPanel } from "@/components/archive-trash/categories-panel";
@@ -10,27 +10,32 @@ import {
 import { TransactionsPanel } from "@/components/archive-trash/transactions-panel";
 import { TransfersPanel } from "@/components/archive-trash/transfers-panel";
 import { useMe } from "@/hooks/use-auth";
+import { guardAuthenticated } from "@/lib/route-guards";
+import { accountsQueryOptions } from "@/services/accounts-service";
 
-export const Route = createFileRoute("/archive")({ component: ArchivePage });
+export const Route = createFileRoute("/archive")({
+	beforeLoad: guardAuthenticated,
+	// The default tab is the accounts panel in archived mode; warm its slice.
+	loader: async ({ context }) => {
+		await context.queryClient
+			.query({ ...accountsQueryOptions("archived"), staleTime: "static" })
+			.catch(() => undefined);
+	},
+	component: ArchivePage,
+});
 
 // The unified Archive view: archived records of every type under record-type
 // tabs, each tab composing that entity's existing lifecycle list in archived
 // mode. Only the active tab's panel is mounted; its query is cached, so
 // revisits are instant.
 export function ArchivePage() {
-	const navigate = useNavigate();
 	const me = useMe();
 	const [tab, setTab] = useState<RecordType>("accounts");
 
-	// Guard: unauthenticated visitors are sent to /login without ever seeing
-	// archived data.
-	useEffect(() => {
-		if (me.data === null) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, navigate]);
-
-	if (me.isPending || me.data === undefined) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
 				<p
@@ -41,10 +46,6 @@ export function ArchivePage() {
 				</p>
 			</main>
 		);
-	}
-
-	if (me.data === null) {
-		return null;
 	}
 
 	return (

@@ -2,7 +2,7 @@ import { ThemeProvider } from "@finance-application/ui/components/theme-provider
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
 	createMemoryHistory,
-	createRootRoute,
+	createRootRouteWithContext,
 	createRoute,
 	createRouter,
 	Outlet,
@@ -16,22 +16,33 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach } from "vitest";
+import type { guardAuthenticated } from "@/lib/route-guards";
 
 // Renders a route component inside a real memory-history router with the
 // counterpart routes registered, so useNavigate redirects actually resolve.
+// `beforeLoad` wires one of the real route guards into the ad-hoc route so
+// tests can exercise router-level redirect behavior; the router carries the
+// queryClient in its context, exactly as the app router does. The returned
+// result exposes that client so tests can assert loader cache warming.
 export async function renderRoute(
 	ui: ReactNode,
 	path: string,
-): Promise<RenderResult> {
+	opts?: {
+		beforeLoad?: typeof guardAuthenticated;
+	},
+): Promise<RenderResult & { queryClient: QueryClient }> {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
 
-	const rootRoute = createRootRoute({ component: Outlet });
+	const rootRoute = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+		component: Outlet,
+	});
 	const targetRoute = createRoute({
 		getParentRoute: () => rootRoute,
 		path,
 		component: () => ui,
+		...(opts?.beforeLoad ? { beforeLoad: opts.beforeLoad } : {}),
 	});
 
 	// Counterpart routes for navigation assertions, skipping the path under
@@ -55,6 +66,7 @@ export async function renderRoute(
 	const router = createRouter({
 		routeTree: rootRoute.addChildren([targetRoute, ...counterpartRoutes]),
 		history: createMemoryHistory({ initialEntries: [path] }),
+		context: { queryClient },
 	});
 
 	// RouterProvider suspends until the router is ready; flush it inside act.
@@ -68,7 +80,7 @@ export async function renderRoute(
 			</ThemeProvider>,
 		);
 	});
-	return view;
+	return Object.assign(view, { queryClient });
 }
 
 // Renders a route component with the real file-based route tree context is not

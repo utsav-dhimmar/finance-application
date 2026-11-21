@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReportSummaryResponse } from "@finance-application/schemas";
+import { guardAuthenticated } from "@/lib/route-guards";
 import { DashboardPage } from "@/routes/dashboard";
 import { renderRoute } from "./helpers";
 
@@ -191,7 +192,9 @@ describe("/dashboard", () => {
 			"fetch",
 			vi.fn(async () => UNAUTHENTICATED.clone()),
 		);
-		await renderRoute(<DashboardPage />, "/dashboard");
+		await renderRoute(<DashboardPage />, "/dashboard", {
+			beforeLoad: guardAuthenticated,
+		});
 		await waitFor(() => expect(screen.getByText("Login page")).toBeTruthy());
 		expect(screen.queryByText(/signed in as/i)).toBeNull();
 	});

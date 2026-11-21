@@ -18,7 +18,7 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@finance-application/ui/components/tabs";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
 	ArrowDownRight,
 	ArrowLeftRight,
@@ -28,21 +28,81 @@ import {
 	RefreshCw,
 	Wallet,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { AppHeader, SafeLink } from "@/components/app-header";
-import { ExpensesByCategoryChart } from "@/components/charts/expenses-by-category-chart";
-import { IncomeExpenseComparisonChart } from "@/components/charts/income-expense-comparison-chart";
-import { IncomeExpenseSplitChart } from "@/components/charts/income-expense-split-chart";
+import { ChartSlotBoundary } from "@/components/charts/chart-slot";
 import { DueRecurringExpensesCard } from "@/components/recurring-expenses/due-recurring-expenses-card";
 import { useMe } from "@/hooks/use-auth";
 import { useReportSummary } from "@/hooks/use-reports";
 import { useActivity } from "@/hooks/use-transfers";
 import { formatPaise } from "@/lib/money";
+import { guardAuthenticated } from "@/lib/route-guards";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transaction-labels";
-import { getReportsErrorMessage } from "@/services/reports-service";
+import { preferencesQueryOptions } from "@/services/preferences-service";
+import { dueRecurringExpensesQueryOptions } from "@/services/recurring-expenses-service";
+import {
+	getReportsErrorMessage,
+	reportsQueryOptions,
+} from "@/services/reports-service";
+import { activityQueryOptions } from "@/services/transfers-service";
+
+// Recharts is heavy and only needed once report data exists, so the chart
+// components load lazily instead of riding in the dashboard's navigation
+// chunk. A rejected chunk import poisons React's lazy payload cache
+// permanently; the retry affordance recreates the whole set (new component
+// types force a fresh import attempt) and remounts the boundaries.
+function createChartSet() {
+	return {
+		ExpensesByCategoryChart: lazy(() =>
+			import("@/components/charts/expenses-by-category-chart").then((m) => ({
+				default: m.ExpensesByCategoryChart,
+			})),
+		),
+		IncomeExpenseSplitChart: lazy(() =>
+			import("@/components/charts/income-expense-split-chart").then((m) => ({
+				default: m.IncomeExpenseSplitChart,
+			})),
+		),
+		IncomeExpenseComparisonChart: lazy(() =>
+			import("@/components/charts/income-expense-comparison-chart").then(
+				(m) => ({
+					default: m.IncomeExpenseComparisonChart,
+				}),
+			),
+		),
+	};
+}
+
+// Hoisted Suspense fallback matching the chart containers' box.
+function ChartSlotFallback() {
+	return <Skeleton aria-hidden="true" className="h-70 w-full rounded-xl" />;
+}
 
 export const Route = createFileRoute("/dashboard")({
-  component: DashboardPage,
+	beforeLoad: guardAuthenticated,
+	// Warm the dashboard's first-paint slices in parallel during navigation.
+	// Each prefetch is best-effort: a failed request falls through to the
+	// page's own pending/error states instead of blocking the route.
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient
+				.query({
+					...reportsQueryOptions({ month: currentMonthValue() }),
+					staleTime: "static",
+				})
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...activityQueryOptions({}), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...dueRecurringExpensesQueryOptions({}), staleTime: "static" })
+				.catch(() => undefined),
+			context.queryClient
+				.query({ ...preferencesQueryOptions(), staleTime: "static" })
+				.catch(() => undefined),
+		]);
+	},
+	component: DashboardPage,
 });
 
 type PeriodMode = "month" | "year";
@@ -120,7 +180,6 @@ function activityDescription(item: ActivityItem): string {
 const ACTIVITY_FEED_ROWS = 8;
 
 export function DashboardPage() {
-	const navigate = useNavigate();
 	const me = useMe();
 	const [mode, setMode] = useState<PeriodMode>("month");
 	const [monthValue, setMonthValue] = useState(currentMonthValue());
@@ -128,16 +187,21 @@ export function DashboardPage() {
 	const period = periodFromForm(mode, monthValue, yearValue);
 	const report = useReportSummary(period);
 	const activity = useActivity({});
+	// The chart set lives in state and is recreated only on retry: new lazy
+	// component types force a fresh chunk import, and the version remounts
+	// the boundaries to clear their failed state.
+	const [chartVersion, setChartVersion] = useState(0);
+	const [charts, setCharts] = useState(createChartSet);
+	const retryCharts = () => {
+		setCharts(createChartSet());
+		setChartVersion((version) => version + 1);
+	};
+	const chartResetKey = `${periodLabel(period)}:${chartVersion}`;
 
-	// Guard: unauthenticated visitors are sent to /login without ever seeing
-	// dashboard content.
-	useEffect(() => {
-		if (me.data === null) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, navigate]);
-
-	if (me.isPending || me.data === undefined) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
 				<p
@@ -148,10 +212,6 @@ export function DashboardPage() {
 				</p>
 			</main>
 		);
-	}
-
-	if (me.data === null) {
-		return null;
 	}
 
 	const reportData = report.data;
@@ -390,9 +450,16 @@ export function DashboardPage() {
 									</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<ExpensesByCategoryChart
-										breakdown={reportData.categoryBreakdown}
-									/>
+									<ChartSlotBoundary
+										key={`category:${chartResetKey}`}
+										onRetry={retryCharts}
+									>
+										<Suspense fallback={<ChartSlotFallback />}>
+											<charts.ExpensesByCategoryChart
+												breakdown={reportData.categoryBreakdown}
+											/>
+										</Suspense>
+									</ChartSlotBoundary>
 								</CardContent>
 							</Card>
 						)}
@@ -408,10 +475,17 @@ export function DashboardPage() {
 									</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<IncomeExpenseSplitChart
-										incomeMinor={reportData.incomeMinor}
-										expenseMinor={reportData.expenseMinor}
-									/>
+									<ChartSlotBoundary
+										key={`split:${chartResetKey}`}
+										onRetry={retryCharts}
+									>
+										<Suspense fallback={<ChartSlotFallback />}>
+											<charts.IncomeExpenseSplitChart
+												incomeMinor={reportData.incomeMinor}
+												expenseMinor={reportData.expenseMinor}
+											/>
+										</Suspense>
+									</ChartSlotBoundary>
 								</CardContent>
 							</Card>
 						)}
@@ -426,7 +500,16 @@ export function DashboardPage() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<IncomeExpenseComparisonChart series={reportData.comparison} />
+								<ChartSlotBoundary
+									key={`comparison:${chartResetKey}`}
+									onRetry={retryCharts}
+								>
+									<Suspense fallback={<ChartSlotFallback />}>
+										<charts.IncomeExpenseComparisonChart
+											series={reportData.comparison}
+										/>
+									</Suspense>
+								</ChartSlotBoundary>
 							</CardContent>
 						</Card>
 					</div>

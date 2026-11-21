@@ -19,7 +19,9 @@ export const recurringExpenseStatuses = [
 ] as const;
 
 export const recurringExpenseStatusSchema = z.enum(recurringExpenseStatuses);
-export type RecurringExpenseStatus = z.infer<typeof recurringExpenseStatusSchema>;
+export type RecurringExpenseStatus = z.infer<
+	typeof recurringExpenseStatusSchema
+>;
 
 export const recurringExpenseIntervalSchema = z
 	.number()
@@ -62,16 +64,15 @@ export type CreateRecurringExpenseBody = z.infer<
 	typeof createRecurringExpenseBodySchema
 >;
 
-export const updateRecurringExpenseBodySchema = z
-	.object({
-		name: recurringExpenseNameSchema.optional(),
-		amountMinor: transactionAmountSchema.optional(),
-		intervalMonths: recurringExpenseIntervalSchema.optional(),
-		sourceAccountId: z.string().min(1).optional(),
-		categoryId: z.string().min(1).optional(),
-		endDate: transactionDateSchema.optional().nullable(),
-		notes: transactionNotesSchema.optional().nullable(),
-	});
+export const updateRecurringExpenseBodySchema = z.object({
+	name: recurringExpenseNameSchema.optional(),
+	amountMinor: transactionAmountSchema.optional(),
+	intervalMonths: recurringExpenseIntervalSchema.optional(),
+	sourceAccountId: z.string().min(1).optional(),
+	categoryId: z.string().min(1).optional(),
+	endDate: transactionDateSchema.optional().nullable(),
+	notes: transactionNotesSchema.optional().nullable(),
+});
 
 export type UpdateRecurringExpenseBody = z.infer<
 	typeof updateRecurringExpenseBodySchema
@@ -106,10 +107,7 @@ export type PostDueRecurringExpenseBody = z.infer<
 	typeof postDueRecurringExpenseBodySchema
 >;
 
-export {
-	transactionRecurrenceInputSchema,
-	type TransactionRecurrenceInput,
-};
+export { transactionRecurrenceInputSchema, type TransactionRecurrenceInput };
 
 export const recurringExpenseResponseSchema = z.object({
 	id: z.string(),

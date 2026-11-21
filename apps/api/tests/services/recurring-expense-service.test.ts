@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Account, Category, RecurringExpense, Transaction } from "@/db/schema";
+import type {
+	Account,
+	Category,
+	RecurringExpense,
+	Transaction,
+} from "@/db/schema";
 import type {
 	NewRecurringExpenseRow,
 	RecurringExpensePatch,
@@ -55,19 +60,25 @@ function createFakes() {
 					categoryId?: string;
 				},
 			) => {
-			let matches = [...recurringRows.values()].filter((r) => r.userId === userId);
-			if (filters?.status) {
-				matches = matches.filter((r) => r.status === filters.status);
-			}
-			return matches.map((rec) => ({
-				recurringExpense: rec,
-				accountName: accountRows.get(rec.sourceAccountId)?.name ?? "Account",
-				categoryName: categoryRows.get(rec.categoryId)?.name ?? "Category",
-			}));
-		}),
+				let matches = [...recurringRows.values()].filter(
+					(r) => r.userId === userId,
+				);
+				if (filters?.status) {
+					matches = matches.filter((r) => r.status === filters.status);
+				}
+				return matches.map((rec) => ({
+					recurringExpense: rec,
+					accountName: accountRows.get(rec.sourceAccountId)?.name ?? "Account",
+					categoryName: categoryRows.get(rec.categoryId)?.name ?? "Category",
+				}));
+			},
+		),
 		findDue: vi.fn(async (userId: string, cutoff: string) => {
 			const matches = [...recurringRows.values()].filter(
-				(r) => r.userId === userId && r.status === "active" && r.nextDueDate <= cutoff,
+				(r) =>
+					r.userId === userId &&
+					r.status === "active" &&
+					r.nextDueDate <= cutoff,
 			);
 			return matches.map((rec) => ({
 				recurringExpense: rec,
@@ -77,12 +88,13 @@ function createFakes() {
 		}),
 		update: vi.fn(
 			async (id: string, patch: RecurringExpensePatch, updatedAt: string) => {
-			const existing = recurringRows.get(id);
-			if (!existing) return undefined;
-			const updated = { ...existing, ...patch, updatedAt };
-			recurringRows.set(id, updated);
-			return updated;
-		}),
+				const existing = recurringRows.get(id);
+				if (!existing) return undefined;
+				const updated = { ...existing, ...patch, updatedAt };
+				recurringRows.set(id, updated);
+				return updated;
+			},
+		),
 		delete: vi.fn(async (id: string) => recurringRows.delete(id)),
 	};
 
@@ -309,7 +321,9 @@ describe("recurringExpenseService", () => {
 		if (postResult.ok) {
 			expect(postResult.value.transaction.amountMinor).toBe(50000);
 			expect(postResult.value.transaction.recurringExpenseId).toBe(UUID_V7_1);
-			expect(postResult.value.recurringExpense.lastPostedDate).toBe("2026-01-15");
+			expect(postResult.value.recurringExpense.lastPostedDate).toBe(
+				"2026-01-15",
+			);
 			expect(postResult.value.recurringExpense.nextDueDate).toBe("2026-02-15");
 		}
 

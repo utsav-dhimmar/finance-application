@@ -81,10 +81,7 @@ export function createRecurringExpenseRepository(db: Db) {
 				})
 				.from(recurringExpenses)
 				.leftJoin(accounts, eq(recurringExpenses.sourceAccountId, accounts.id))
-				.leftJoin(
-					categories,
-					eq(recurringExpenses.categoryId, categories.id),
-				)
+				.leftJoin(categories, eq(recurringExpenses.categoryId, categories.id))
 				.where(eq(recurringExpenses.id, id));
 
 			return rows[0];
@@ -120,10 +117,7 @@ export function createRecurringExpenseRepository(db: Db) {
 				})
 				.from(recurringExpenses)
 				.leftJoin(accounts, eq(recurringExpenses.sourceAccountId, accounts.id))
-				.leftJoin(
-					categories,
-					eq(recurringExpenses.categoryId, categories.id),
-				)
+				.leftJoin(categories, eq(recurringExpenses.categoryId, categories.id))
 				.where(and(...conditions))
 				.orderBy(asc(recurringExpenses.nextDueDate), asc(recurringExpenses.id));
 
@@ -142,10 +136,7 @@ export function createRecurringExpenseRepository(db: Db) {
 				})
 				.from(recurringExpenses)
 				.leftJoin(accounts, eq(recurringExpenses.sourceAccountId, accounts.id))
-				.leftJoin(
-					categories,
-					eq(recurringExpenses.categoryId, categories.id),
-				)
+				.leftJoin(categories, eq(recurringExpenses.categoryId, categories.id))
 				.where(
 					and(
 						eq(recurringExpenses.userId, userId),

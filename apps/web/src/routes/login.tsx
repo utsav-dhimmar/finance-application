@@ -16,29 +16,24 @@ import { Input } from "@finance-application/ui/components/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Wallet } from "lucide-react";
-import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { AppHeader, SafeLink } from "@/components/app-header";
-import { useLogin, useMe } from "@/hooks/use-auth";
+import { useLogin } from "@/hooks/use-auth";
+import { guardUnauthenticated } from "@/lib/route-guards";
 import { getAuthErrorMessage } from "@/services/auth-service";
 
-export const Route = createFileRoute("/login")({ component: LoginPage });
+export const Route = createFileRoute("/login")({
+	beforeLoad: guardUnauthenticated,
+	component: LoginPage,
+});
 
 export function LoginPage() {
 	const navigate = useNavigate();
-	const me = useMe();
 	const login = useLogin();
 	const form = useForm<LoginBody>({
 		resolver: zodResolver(loginBodySchema),
 		defaultValues: { email: "", password: "" },
 	});
-
-	// Guard: an authenticated visitor has no business on /login.
-	useEffect(() => {
-		if (me.data) {
-			navigate({ to: "/dashboard" });
-		}
-	}, [me.data, navigate]);
 
 	const onSubmit = form.handleSubmit((values) => {
 		form.clearErrors("root");

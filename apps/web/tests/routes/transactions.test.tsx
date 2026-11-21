@@ -706,6 +706,9 @@ describe("transfer rows in the history view", () => {
 				jsonResponse(200, activityBody([deletedTransfer])),
 		});
 		await renderRoute(<TransactionsPage />, "/transactions");
+		await waitFor(() =>
+			expect(screen.getByRole("tab", { name: "Trash" })).toBeTruthy(),
+		);
 		fireEvent.click(screen.getByRole("tab", { name: "Trash" }));
 		await waitFor(() =>
 			expect(screen.getByText("Delete forever")).toBeTruthy(),

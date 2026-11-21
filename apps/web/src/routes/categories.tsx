@@ -7,9 +7,9 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@finance-application/ui/components/tabs";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Tags } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app-header";
 import { CategoryCard } from "@/components/categories/category-card";
@@ -23,9 +23,19 @@ import {
 	useDeleteCategory,
 	useRestoreCategory,
 } from "@/hooks/use-categories";
-import { getCategoriesErrorMessage } from "@/services/categories-service";
+import { guardAuthenticated } from "@/lib/route-guards";
+import {
+	categoriesQueryOptions,
+	getCategoriesErrorMessage,
+} from "@/services/categories-service";
 
 export const Route = createFileRoute("/categories")({
+	beforeLoad: guardAuthenticated,
+	loader: async ({ context }) => {
+		await context.queryClient
+			.query({ ...categoriesQueryOptions("active"), staleTime: "static" })
+			.catch(() => undefined);
+	},
 	component: CategoriesPage,
 });
 
@@ -47,7 +57,6 @@ const EMPTY_MESSAGES: Record<CategoriesTab, string> = {
 };
 
 export function CategoriesPage() {
-	const navigate = useNavigate();
 	const me = useMe();
 	const [tab, setTab] = useState<CategoriesTab>("active");
 	const categories = useCategories(tab);
@@ -62,14 +71,6 @@ export function CategoriesPage() {
 		category: CategoryResponse;
 	} | null>(null);
 	const [renaming, setRenaming] = useState<CategoryResponse | null>(null);
-
-	// Guard: unauthenticated visitors are sent to /login without ever seeing
-	// category data.
-	useEffect(() => {
-		if (me.data === null) {
-			navigate({ to: "/login" });
-		}
-	}, [me.data, navigate]);
 
 	function handleRestore(category: CategoryResponse) {
 		restore.mutate(
@@ -147,7 +148,10 @@ export function CategoriesPage() {
 		});
 	}
 
-	if (me.isPending || me.data === undefined) {
+	// The route's beforeLoad guard redirects unauthenticated visitors before
+	// this component renders; the shell only covers the me query's pending
+	// state.
+	if (!me.data) {
 		return (
 			<main className="flex min-h-screen items-center justify-center p-8">
 				<p
@@ -158,10 +162,6 @@ export function CategoriesPage() {
 				</p>
 			</main>
 		);
-	}
-
-	if (me.data === null) {
-		return null;
 	}
 
 	return (

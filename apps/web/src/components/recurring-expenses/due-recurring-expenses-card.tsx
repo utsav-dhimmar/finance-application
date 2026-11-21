@@ -19,12 +19,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@finance-application/ui/components/dialog";
-import {
-	Field,
-	FieldLabel,
-} from "@finance-application/ui/components/field";
+import { Field, FieldLabel } from "@finance-application/ui/components/field";
 import { Input } from "@finance-application/ui/components/input";
-import { AlertCircle, CalendarClock, Check, Clock, SkipForward } from "lucide-react";
+import {
+	AlertCircle,
+	CalendarClock,
+	Check,
+	Clock,
+	SkipForward,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SafeLink } from "@/components/app-header";
@@ -163,9 +166,7 @@ export function DueRecurringExpensesCard({
 							>
 								<div className="space-y-1">
 									<div className="flex items-center gap-2">
-										<span className="font-medium text-sm">
-											{item.name}
-										</span>
+										<span className="font-medium text-sm">{item.name}</span>
 										{item.isOverdue ? (
 											<Badge
 												variant="destructive"
@@ -197,9 +198,7 @@ export function DueRecurringExpensesCard({
 												{item.categoryName ?? "—"}
 											</strong>
 										</span>
-										<span>
-											Cadence: Every {item.intervalMonths} mo
-										</span>
+										<span>Cadence: Every {item.intervalMonths} mo</span>
 										<span>Due: {item.nextDueDate}</span>
 									</div>
 								</div>
@@ -280,7 +279,11 @@ export function DueRecurringExpensesCard({
 						<div className="space-y-4 py-2">
 							<Field>
 								<FieldLabel>Expense</FieldLabel>
-								<Input value={editingItem.name} disabled className="rounded-none" />
+								<Input
+									value={editingItem.name}
+									disabled
+									className="rounded-none"
+								/>
 							</Field>
 
 							<Field>
@@ -296,9 +299,7 @@ export function DueRecurringExpensesCard({
 							</Field>
 
 							<Field>
-								<FieldLabel htmlFor="edit-post-date">
-									Payment Date
-								</FieldLabel>
+								<FieldLabel htmlFor="edit-post-date">Payment Date</FieldLabel>
 								<Input
 									id="edit-post-date"
 									type="date"

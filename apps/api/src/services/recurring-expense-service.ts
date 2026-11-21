@@ -179,19 +179,11 @@ export function createRecurringExpenseService(
 			}
 
 			if (
-				!(await checkAccountEligibility(
-					input.userId,
-					input.sourceAccountId,
-				))
+				!(await checkAccountEligibility(input.userId, input.sourceAccountId))
 			) {
 				return { ok: false, code: "ACCOUNT_INELIGIBLE" };
 			}
-			if (
-				!(await checkCategoryEligibility(
-					input.userId,
-					input.categoryId,
-				))
-			) {
+			if (!(await checkCategoryEligibility(input.userId, input.categoryId))) {
 				return { ok: false, code: "CATEGORY_INELIGIBLE" };
 			}
 
@@ -303,19 +295,13 @@ export function createRecurringExpenseService(
 
 			if (
 				input.sourceAccountId &&
-				!(await checkAccountEligibility(
-					input.userId,
-					input.sourceAccountId,
-				))
+				!(await checkAccountEligibility(input.userId, input.sourceAccountId))
 			) {
 				return { ok: false, code: "ACCOUNT_INELIGIBLE" };
 			}
 			if (
 				input.categoryId &&
-				!(await checkCategoryEligibility(
-					input.userId,
-					input.categoryId,
-				))
+				!(await checkCategoryEligibility(input.userId, input.categoryId))
 			) {
 				return { ok: false, code: "CATEGORY_INELIGIBLE" };
 			}
@@ -326,8 +312,7 @@ export function createRecurringExpenseService(
 				patch.amountMinor = input.amountMinor;
 			if (input.sourceAccountId !== undefined)
 				patch.sourceAccountId = input.sourceAccountId;
-			if (input.categoryId !== undefined)
-				patch.categoryId = input.categoryId;
+			if (input.categoryId !== undefined) patch.categoryId = input.categoryId;
 			if (input.endDate !== undefined) patch.endDate = input.endDate;
 			if (input.notes !== undefined) patch.notes = input.notes;
 
@@ -338,25 +323,16 @@ export function createRecurringExpenseService(
 			) {
 				patch.intervalMonths = input.intervalMonths;
 				const baseDate = existing.lastPostedDate ?? existing.startDate;
-				patch.nextDueDate = addCalendarMonths(
-					baseDate,
-					input.intervalMonths,
-				);
+				patch.nextDueDate = addCalendarMonths(baseDate, input.intervalMonths);
 			}
 
 			const nowIso = isoNow();
-			const updated = await recurringExpenses.update(
-				input.id,
-				patch,
-				nowIso,
-			);
+			const updated = await recurringExpenses.update(input.id, patch, nowIso);
 			if (!updated) {
 				return { ok: false, code: "NOT_FOUND" };
 			}
 
-			const rowWithRefs = await recurringExpenses.findByIdWithRefs(
-				updated.id,
-			);
+			const rowWithRefs = await recurringExpenses.findByIdWithRefs(updated.id);
 			return {
 				ok: true,
 				value: toView({
@@ -458,10 +434,7 @@ export function createRecurringExpenseService(
 			if (!existing || existing.userId !== userId) {
 				return { ok: false, code: "NOT_FOUND" };
 			}
-			if (
-				existing.status === "cancelled" ||
-				existing.status === "completed"
-			) {
+			if (existing.status === "cancelled" || existing.status === "completed") {
 				return {
 					ok: false,
 					code: "RECURRING_EXPENSE_TRANSITION_INVALID",
@@ -535,9 +508,7 @@ export function createRecurringExpenseService(
 			};
 		},
 
-		async postDue(
-			input: PostDueRecurringExpenseInput,
-		): Promise<
+		async postDue(input: PostDueRecurringExpenseInput): Promise<
 			RecurringExpenseOutcome<
 				{
 					transaction: TransactionView;
@@ -562,25 +533,17 @@ export function createRecurringExpenseService(
 			}
 
 			if (
-				!(await checkAccountEligibility(
-					input.userId,
-					existing.sourceAccountId,
-				))
+				!(await checkAccountEligibility(input.userId, existing.sourceAccountId))
 			) {
 				return { ok: false, code: "ACCOUNT_INELIGIBLE" };
 			}
 			if (
-				!(await checkCategoryEligibility(
-					input.userId,
-					existing.categoryId,
-				))
+				!(await checkCategoryEligibility(input.userId, existing.categoryId))
 			) {
 				return { ok: false, code: "CATEGORY_INELIGIBLE" };
 			}
 
-			const existingTxn = await transactions.findById(
-				input.transactionId,
-			);
+			const existingTxn = await transactions.findById(input.transactionId);
 			if (existingTxn) {
 				return { ok: false, code: "ID_CONFLICT" };
 			}
@@ -623,8 +586,9 @@ export function createRecurringExpenseService(
 			const txnWithRefs = await transactions.findByIdWithRefs(
 				input.transactionId,
 			);
-			const recurringWithRefs =
-				await recurringExpenses.findByIdWithRefs(existing.id);
+			const recurringWithRefs = await recurringExpenses.findByIdWithRefs(
+				existing.id,
+			);
 			if (!txnWithRefs || !updatedRecurring) {
 				// Unreachable in practice: the transaction and rule update both
 				// completed above, so their rows must exist.

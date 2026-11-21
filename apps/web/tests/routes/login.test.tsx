@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { guardUnauthenticated } from "@/lib/route-guards";
 import { LoginPage } from "@/routes/login";
 import { renderRoute } from "./helpers";
 
@@ -47,6 +48,20 @@ afterEach(() => {
 });
 
 describe("/login", () => {
+	it("redirects an authenticated visitor to /dashboard", async () => {
+		stubSessionApi({
+			"/api/auth/me": () =>
+				jsonResponse(200, { id: "u1", email: "user@example.com" }),
+		});
+		await renderRoute(<LoginPage />, "/login", {
+			beforeLoad: guardUnauthenticated,
+		});
+		await waitFor(() =>
+			expect(screen.getByText("Dashboard page")).toBeTruthy(),
+		);
+		expect(screen.queryByRole("button", { name: "Log in" })).toBeNull();
+	});
+
 	it("validates fields before submitting", async () => {
 		stubSessionApi();
 		await renderRoute(<LoginPage />, "/login");

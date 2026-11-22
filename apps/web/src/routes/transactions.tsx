@@ -772,7 +772,9 @@ export function TransactionsPage() {
 									className="gap-1.5 shadow-xs"
 								>
 									<Loader2 aria-hidden="true" className="size-4 animate-spin" />
-									Exporting… ({exportState.fetchedRows.toLocaleString("en-IN")}{" "}
+									Exporting… ({exportState.fetchedRows.toLocaleString(
+										"en-IN",
+									)}{" "}
 									rows)
 								</Button>
 								<Button

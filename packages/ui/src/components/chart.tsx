@@ -289,11 +289,15 @@ function ChartLegendContent({
 	className,
 	hideIcon = false,
 	payload,
-	verticalAlign = "bottom",
+	position = "bottom",
 	nameKey,
 }: React.ComponentProps<"div"> & {
 	hideIcon?: boolean;
 	nameKey?: string;
+	// Deliberate local prop: recharts deprecated `verticalAlign` on legend
+	// content props in favor of `position`, which it forwards from <Legend>
+	// only when explicitly set there. Only top and bottom matter here.
+	position?: "top" | "bottom";
 } & RechartsPrimitive.DefaultLegendContentProps) {
 	const { config } = useChart();
 
@@ -305,7 +309,7 @@ function ChartLegendContent({
 		<div
 			className={cn(
 				"flex items-center justify-center gap-4",
-				verticalAlign === "top" ? "pb-3" : "pt-3",
+				position === "top" ? "pb-3" : "pt-3",
 				className,
 			)}
 		>
@@ -317,7 +321,7 @@ function ChartLegendContent({
 
 					return (
 						<div
-							// biome-ignore lint/suspicious/noArrayIndexKey: list is static and never updates
+							// The list is static and never updates, so the array index in the key is stable.
 							key={`${item.dataKey}-${key}-${index}`}
 							className={cn(
 								"flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",

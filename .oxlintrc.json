@@ -1,0 +1,49 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"options": {
+		"typeAware": true
+	},
+	"ignorePatterns": [
+		"package.json",
+		"pnpm-lock.yaml",
+		".agents",
+		".AGENTS.md",
+		"openspec",
+		"**/worker-configuration.d.ts",
+		"**/routeTree.gen.ts"
+	],
+	"plugins": ["typescript"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"perf": "error"
+	},
+	"rules": {
+		"typescript/no-deprecated": "error",
+		"typescript/no-unnecessary-type-assertion": "off",
+		"typescript/no-unsafe-type-assertion": "off",
+		"typescript/no-floating-promises": "off",
+		"typescript/no-unnecessary-type-conversion": "off",
+		"typescript/restrict-template-expressions": "off",
+		"typescript/consistent-return": "off",
+		"typescript/unbound-method": "off",
+		"typescript/no-unnecessary-template-expression": "off",
+		"typescript/no-redundant-type-constituents": "off",
+		"typescript/no-misused-spread": "off",
+		"typescript/await-thenable": "off",
+		"eslint/no-await-in-loop": "off",
+		"eslint/no-shadow": "off",
+		"eslint/no-underscore-dangle": "off"
+	},
+	"overrides": [
+		{
+			"files": [
+				"apps/web/tests/lib/csv-export.test.ts",
+				"apps/web/tests/routes/transactions.test.tsx"
+			],
+			"rules": {
+				"typescript/no-this-alias": "off"
+			}
+		}
+	]
+}

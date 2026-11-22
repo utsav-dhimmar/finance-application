@@ -9,7 +9,7 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:workers": "vitest run -c vitest.workers.config.mts",
-		"lint": "biome lint .",
+		"lint": "oxlint .",
 		"types": "wrangler types"
 	},
 	"dependencies": {

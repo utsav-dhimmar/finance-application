@@ -9,7 +9,7 @@
 	"scripts": {
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
-		"lint": "biome lint ."
+		"lint": "oxlint ."
 	},
 	"dependencies": {
 		"@finance-application/schemas": "workspace:*"

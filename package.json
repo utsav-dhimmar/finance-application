@@ -16,12 +16,14 @@
 		"build": "turbo run build",
 		"typecheck": "turbo run typecheck",
 		"test": "turbo run test test:workers",
-		"lint": "biome lint .",
-		"format": "biome format --write .",
-		"format:check": "biome format ."
+		"lint": "oxlint .",
+		"format": "oxfmt --write .",
+		"format:check": "oxfmt --check ."
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.6.3",
+		"oxfmt": "^0.79.0",
+		"oxlint": "^1.94.0",
+		"oxlint-tsgolint": "^7.0.2008",
 		"turbo": "^2.11.10"
 	}
 }

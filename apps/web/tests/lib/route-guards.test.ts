@@ -35,7 +35,7 @@ function stubFetch(handler: (url: string) => Response): void {
 	);
 }
 
-// One fresh QueryClient per case: ensureQueryData writes to the cache, and
+// One fresh QueryClient per case: seeding writes to the cache, and
 // a shared client would leak one case's session into the next.
 function makeContext(): GuardContext {
 	return {
@@ -127,9 +127,10 @@ describe("guardUnauthenticated", () => {
 		const fetchMock = vi.fn(async () => jsonResponse(200, USER));
 		vi.stubGlobal("fetch", fetchMock);
 		const context = makeContext();
-		await context.queryClient.ensureQueryData({
+		await context.queryClient.query({
 			queryKey: ME_QUERY_KEY,
 			queryFn: () => Promise.resolve(USER),
+			staleTime: "static",
 		});
 		let thrown: unknown = null;
 		try {

@@ -149,9 +149,9 @@ export function createRecurringExpenseService(
 		const category = await categories.findById(categoryId);
 		return Boolean(
 			category &&
-				category.userId === userId &&
-				category.status === "active" &&
-				category.type === "expense",
+			category.userId === userId &&
+			category.status === "active" &&
+			category.type === "expense",
 		);
 	}
 

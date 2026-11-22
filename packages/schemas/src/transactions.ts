@@ -40,7 +40,6 @@ export const transactionDateSchema = z
 // Creation is idempotent via a client-generated UUIDv7 id: the version nibble
 // must be 7, not just any UUID.
 export const transactionIdSchema = z
-	.string()
 	.uuid("Use a UUID-formatted id")
 	.refine((value) => value[14] === "7", "Use a UUIDv7 (version 7) id");
 

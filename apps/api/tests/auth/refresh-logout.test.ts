@@ -95,47 +95,51 @@ describe("POST /api/auth/refresh", () => {
 		});
 	});
 
-	it("rotates single-use under concurrency: two racing refreshes never both succeed", {
-		timeout: 120_000,
-	}, async () => {
-		// The rotation is single-use, so of two refreshes racing with the same
-		// valid cookie exactly one wins (200) and the loser gets 401. If workerd
-		// serializes the pair the outcome is identical; two 200s would be a
-		// double rotation and two 401s a rejected valid session — both bugs.
-		// Attempts are re-seeded: a first-attempt miss of the interleaving says
-		// nothing, so the contract is asserted per attempt up to 20 tries.
-		const MAX_ATTEMPTS = 20;
+	it(
+		"rotates single-use under concurrency: two racing refreshes never both succeed",
+		{
+			timeout: 120_000,
+		},
+		async () => {
+			// The rotation is single-use, so of two refreshes racing with the same
+			// valid cookie exactly one wins (200) and the loser gets 401. If workerd
+			// serializes the pair the outcome is identical; two 200s would be a
+			// double rotation and two 401s a rejected valid session — both bugs.
+			// Attempts are re-seeded: a first-attempt miss of the interleaving says
+			// nothing, so the contract is asserted per attempt up to 20 tries.
+			const MAX_ATTEMPTS = 20;
 
-		for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-			const session = await seedUserAndLogin();
-			const header = sessionCookieHeader(session);
-			const [first, second] = await Promise.all([
-				post(REFRESH_URL, header),
-				post(REFRESH_URL, header),
-			]);
-			const statuses = [first.status, second.status];
-			const successes = statuses.filter((status) => status === 200).length;
+			for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+				const session = await seedUserAndLogin();
+				const header = sessionCookieHeader(session);
+				const [first, second] = await Promise.all([
+					post(REFRESH_URL, header),
+					post(REFRESH_URL, header),
+				]);
+				const statuses = [first.status, second.status];
+				const successes = statuses.filter((status) => status === 200).length;
 
-			expect(successes).toBeLessThanOrEqual(1);
-			for (const res of [first, second]) {
-				if (res.status === 401) {
-					await expect(res.json()).resolves.toMatchObject({
-						error: { code: "INVALID_REFRESH_TOKEN" },
-					});
+				expect(successes).toBeLessThanOrEqual(1);
+				for (const res of [first, second]) {
+					if (res.status === 401) {
+						await expect(res.json()).resolves.toMatchObject({
+							error: { code: "INVALID_REFRESH_TOKEN" },
+						});
+					}
 				}
-			}
 
-			// Exactly one live (non-revoked) token must remain for the user: the
-			// rotated replacement after a success, or the untouched original.
-			const live = await env.finance_application
-				.prepare(
-					"SELECT COUNT(*) AS n FROM refresh_tokens WHERE user_id = ?1 AND revoked_at IS NULL",
-				)
-				.bind(session.userId)
-				.first<{ n: number }>();
-			expect(live?.n).toBe(1);
-		}
-	});
+				// Exactly one live (non-revoked) token must remain for the user: the
+				// rotated replacement after a success, or the untouched original.
+				const live = await env.finance_application
+					.prepare(
+						"SELECT COUNT(*) AS n FROM refresh_tokens WHERE user_id = ?1 AND revoked_at IS NULL",
+					)
+					.bind(session.userId)
+					.first<{ n: number }>();
+				expect(live?.n).toBe(1);
+			}
+		},
+	);
 });
 
 describe("auth rate limiting", () => {

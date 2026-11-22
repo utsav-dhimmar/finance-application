@@ -340,7 +340,7 @@ export function TransactionFormDialog({
 										{fieldState.error ? (
 											<FieldError>{fieldState.error.message}</FieldError>
 										) : chosenAccount &&
-											"currentBalanceMinor" in chosenAccount ? (
+										  "currentBalanceMinor" in chosenAccount ? (
 											<p className="text-xs text-muted-foreground">
 												Current balance:{" "}
 												<span className="font-mono tabular-nums">

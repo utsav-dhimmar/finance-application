@@ -249,9 +249,9 @@ export function createTransactionService(deps: TransactionServiceDeps) {
 		const category = await categories.findById(categoryId);
 		return Boolean(
 			category &&
-				category.userId === userId &&
-				category.status === "active" &&
-				category.type === type,
+			category.userId === userId &&
+			category.status === "active" &&
+			category.type === type,
 		);
 	}
 

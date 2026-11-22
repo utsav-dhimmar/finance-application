@@ -35,7 +35,7 @@ export const reportPeriodQuerySchema = z
 		const hasTo = values.to !== undefined;
 		if (hasMonth && hasYear) {
 			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
+				code: "custom",
 				message: "Provide either a month or a year, not both",
 				path: ["month"],
 			});
@@ -43,7 +43,7 @@ export const reportPeriodQuerySchema = z
 		}
 		if ((hasMonth || hasYear) && (hasFrom || hasTo)) {
 			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
+				code: "custom",
 				message: "A month or year period cannot be combined with a date range",
 				path: hasMonth ? ["month"] : ["year"],
 			});
@@ -51,7 +51,7 @@ export const reportPeriodQuerySchema = z
 		}
 		if (!hasMonth && !hasYear && (!hasFrom || !hasTo)) {
 			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
+				code: "custom",
 				message: "Provide a month, a year, or both from and to dates",
 				path: hasFrom ? ["to"] : ["from"],
 			});
@@ -59,7 +59,7 @@ export const reportPeriodQuerySchema = z
 		}
 		if (hasFrom && hasTo && (values.from as string) > (values.to as string)) {
 			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
+				code: "custom",
 				message: "The from date must be on or before the to date",
 				path: ["to"],
 			});

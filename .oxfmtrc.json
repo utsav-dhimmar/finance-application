@@ -1,0 +1,23 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"tabWidth": 2,
+	"printWidth": 80,
+	"singleQuote": false,
+	"jsxSingleQuote": false,
+	"quoteProps": "as-needed",
+	"trailingComma": "all",
+	"semi": true,
+	"arrowParens": "always",
+	"bracketSameLine": false,
+	"bracketSpacing": true,
+	"ignorePatterns": [
+		"package.json",
+		"pnpm-lock.yaml",
+		".agents",
+		".AGENTS.md",
+		"openspec",
+		"**/worker-configuration.d.ts",
+		"**/routeTree.gen.ts"
+	]
+}
